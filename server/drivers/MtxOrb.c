@@ -113,6 +113,7 @@ static int backlightenabled = MTXORB_DEF_BACKLIGHT;
 
 static int backlight_state = -1;
 static int output_state = -1;
+static int contrast_state = -1;
 
 static char pause_key = MTXORB_DEF_PAUSE_KEY, back_key = MTXORB_DEF_BACK_KEY;
 static char forward_key = MTXORB_DEF_FORWARD_KEY, main_menu_key = MTXORB_DEF_MAIN_MENU_KEY;
@@ -559,6 +560,10 @@ MtxOrb_contrast (int contrast)
 {
 	char out[4];
 
+	if (contrast==-1 || contrast==contrast_state) {
+	    return contrast_state;
+	}
+
 	/* validate contrast value */
 	if (contrast > 255)
 		contrast = 255;
@@ -568,13 +573,15 @@ MtxOrb_contrast (int contrast)
 	if (IS_LCD_DISPLAY || IS_LKD_DISPLAY) {
 		snprintf (out, sizeof(out), "\x0FEP%c", contrast);
 		write (fd, out, 3);
+		contrast_state=contrast;
 
 		report(RPT_DEBUG, "MtxOrb: contrast set to %d", contrast);
 	} else {
 		report(RPT_DEBUG, "MtxOrb: contrast not set to %d - not LCD or LKD display", contrast);
+		contrast_state = -1;
 	}
 
-	return contrast;
+	return contrast_state;
 }
 
 /********************************************************************
