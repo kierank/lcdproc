@@ -413,7 +413,7 @@ process_configfile ( char *configfile )
 		fg = config_get_bool( "server", "foreground", 0, UNSET_INT );
 		if( fg != UNSET_INT )
 			daemon_mode = !fg;
-		/*It makes no sence to report to stdout while running in background*/
+		/*It makes no sense to report to stdout while running in background*/
 		if(fg == 0)
 			reportToSyslog=1;
 	}
@@ -817,12 +817,24 @@ exit_program (int val)
 
 	/* Shutdown things if server start was complete*/
 	if( serverStarted ) {
-		client_shutdown ();		/* shutdown clients (must come first)*/
-		screenlist_shutdown ();		/* shutdown screens (must come after client_shutdown)*/
-		sock_close_all ();		/* close all open sockets (must come after client_shutdown)*/
+		/* Get rid of all clients*/
+		client_shutdown ();
 
-		goodbye_screen ();		/* display goodbye screen on LCD display*/
-		unload_all_drivers ();		/* release driver memory and file descriptors*/
+		/* Last thing to display:
+		 * display goodbye screen on LCD display*/
+		goodbye_screen ();
+
+		/* screenlist no longer needed - close*/
+		screenlist_shutdown ();
+
+		/* release driver memory and file descriptors*/
+		unload_all_drivers ();
+
+		/* open sockets can't be cloed earlier as sock_close_all()
+		   closes ALL filedescriptors including the device file of the drivers,
+		   stdout, and stderr
+		   FIXME: Get sock_close_all to close SOCKETS ONLY*/
+		sock_close_all ();
 	}
 
 	exit (0);
