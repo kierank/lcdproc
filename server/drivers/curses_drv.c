@@ -227,7 +227,7 @@ set_background_color (char * buf) {
 #define TOP_LEFT_X 7
 #define TOP_LEFT_Y 7
 
-int current_color_pair, current_border_pair, curses_backlight_state = 0;
+static int current_color_pair, current_border_pair, curses_backlight_state = 0;
 
 int
 curses_drv_init (struct lcd_logical_driver *driver, char *args)
@@ -434,14 +434,13 @@ curses_drv_backlight (int on)
 	// backlight:    pairs 4, 5
 
 	if (on) {
-		curses_backlight_state = 1;
 		current_color_pair = 4;
 		current_border_pair = 5;
 	} else {
-		curses_backlight_state = 0;
 		current_color_pair = 2;
 		current_border_pair = 3;
 	}
+	curses_backlight_state = on;
 
 	/* The backlight menu does not work with this code:
 
