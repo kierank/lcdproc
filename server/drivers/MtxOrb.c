@@ -391,10 +391,15 @@ MtxOrb_clear ()
 	if (MtxOrb->framebuf != NULL)
 		memset (MtxOrb->framebuf, ' ', (MtxOrb->wid * MtxOrb->hgt));
 
-	 write(fd, "\x0FE" "X", 2); /* instant clear... */ /*Why was this disabled?*/
+	/* write(fd, "\x0FE" "X", 2); */ /* instant clear... */
+	/* Q: Why was this disabled? */
+	/* A: Because otherwise it is flashy not working...
+	 * We don't do thinks when ask, but when ask to flush.
+	 * We don't do thinks hardware ways but software ways. 
+	 */
 	clear = 1;
 
-	debug(RPT_DEBUG, "MtxOrb: cleared screen");
+	debug(RPT_DEBUG, "MtxOrb: asked to clear screen");
 }
 
 /*****************************************************************************
