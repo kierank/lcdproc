@@ -7,6 +7,7 @@
  *
  * Copyright (c) 1999, William Ferrell, Scott Scriven
  *               2002, Rene Wagner
+ *               2002, Mike Patnode
  *
  *
  * This contains definitions for all the functions which clients can run.

@@ -6,6 +6,7 @@
  * COPYING file distributed with this package.
  *
  * Copyright (c) 1999, William Ferrell, Scott Scriven
+ *               2002, Mike Patnode
  *
  *
  * All actions that can be performed on the list of screens
