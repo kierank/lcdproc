@@ -183,10 +183,12 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 	/* You must use driver->framebuf here, but may use lcd.framebuf later.*/
 	if (!driver->framebuf) {
 		driver->framebuf = malloc (driver->wid * driver->hgt);
+	}
+	if (!backingstore) {
 		backingstore = calloc (driver->wid * driver->hgt, 1);
 	}
 
-	if (!driver->framebuf) {
+	if (!(driver->framebuf && backingstore)) {
                 report(RPT_ERR, "CFontz: Error: unable to create framebuffer.\n");
 		return -1;
 	}
