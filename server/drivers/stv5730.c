@@ -24,7 +24,6 @@
 #include <fcntl.h>
 #include <string.h>
 #include <sys/errno.h>
-#include <sys/io.h>
 #include <time.h>
 #include "port.h"
 #include "timing.h"
