@@ -75,7 +75,7 @@ lcd_logical_driver *CFontz;
 
 /////////////////////////////////////////////////////////////////
 // Opens com port and sets baud correctly...
-//
+/
 int
 CFontz_init (lcd_logical_driver * driver, char *args)
 {
@@ -663,7 +663,7 @@ CFontz_num (int x, int num)
 /* Make this space dirty as far as frame buffer knows.*/
 	for (y = 1; y < 5; y++)
 		for (dx = 0; dx < 3; dx++)
-			MtxOrb_chr (x + dx, y, DIRTY_CHAR);
+			CFontz_chr (x + dx, y, DIRTY_CHAR);
 
 }
 
