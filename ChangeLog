@@ -17,6 +17,7 @@ v0.4.4
  * recovered some old code of the curses driver (See LCDd.conf)
  * Finished the LCDM001 driver
  * Fixed a memory leak in do_mainloop
+ * MtxOrb fix problem when used via USB 2 serial adapter
 
 v0.4.3
  - Removed possibility of passing arguments to the drivers from the
