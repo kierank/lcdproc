@@ -26,4 +26,14 @@ int handle_input ();
 #define INPUT_FORWARD_KEY	'C'
 #define INPUT_MAIN_MENU_KEY	'D'
 
+#define DEFAULT_FREEPAUSEKEY 0
+#define DEFAULT_FREEBACKKEY 0
+#define DEFAULT_FREEFORWARDKEY 0
+#define DEFAULT_FREEMAINMENUKEY 0
+
+extern int freepausekey;
+extern int freebackkey;
+extern int freeforwardkey;
+extern int freemainmenukey;
+
 #endif

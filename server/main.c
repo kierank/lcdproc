@@ -52,6 +52,7 @@ extern int optind, optopt, opterr;
 #include "input.h"
 #include "configfile.h"
 #include "drivers.h"
+#include "input.h"
 #include "main.h"
 
 #define MAX_TIMER 0x10000
@@ -289,6 +290,11 @@ clear_settings ()
 		driverargs[i] = NULL;
 	}
 	num_drivers = 0;
+
+	freepausekey = UNSET_INT;
+	freebackkey = UNSET_INT;
+	freeforwardkey = UNSET_INT;
+	freemainmenukey = UNSET_INT;
 }
 
 
@@ -553,6 +559,37 @@ process_configfile ( char *configfile )
 		strcpy (driverargs[i], s );
 	}
 
+	/* Read the settings from the [input] section
+	 */
+
+	if( freepausekey == UNSET_INT ) {
+		/* Is the value set in the config file anyway ?*/
+		if( strcmp( config_get_string( "input", "FreePauseKey", 0, "" ), "" ) != 0 ) {
+			freepausekey = config_get_bool( "input", "FreePauseKey", 0, UNSET_INT );
+		}
+	}
+
+	if( freebackkey == UNSET_INT ) {
+		/* Is the value set in the config file anyway ?*/
+		if( strcmp( config_get_string( "input", "FreeBackKey", 0, "" ), "" ) != 0 ) {
+			freebackkey = config_get_bool( "input", "FreeBackKey", 0, UNSET_INT );
+		}
+	}
+
+	if( freeforwardkey == UNSET_INT ) {
+		/* Is the value set in the config file anyway ?*/
+		if( strcmp( config_get_string( "input", "FreeForwardKey", 0, "" ), "" ) != 0 ) {
+			freeforwardkey = config_get_bool( "input", "FreeForwardKey", 0, UNSET_INT );
+		}
+	}
+
+	if( freemainmenukey == UNSET_INT ) {
+		/* Is the value set in the config file anyway ?*/
+		if( strcmp( config_get_string( "input", "FreeMainMenuKey", 0, "" ), "" ) != 0 ) {
+			freemainmenukey = config_get_bool( "input", "FreeMainMenuKey", 0, UNSET_INT );
+		}
+	}
+
 	return 0;
 }
 
@@ -610,6 +647,22 @@ set_default_settings()
 		strcpy(driverargs[0], "");
 
 		num_drivers++;
+	}
+
+	if( freepausekey == UNSET_INT ) {
+		freepausekey = DEFAULT_FREEPAUSEKEY;
+	}
+
+	if( freebackkey == UNSET_INT ) {
+		freebackkey = DEFAULT_FREEBACKKEY;
+	}
+
+	if( freeforwardkey == UNSET_INT ) {
+		freeforwardkey = DEFAULT_FREEFORWARDKEY;
+	}
+
+	if( freemainmenukey == UNSET_INT ) {
+		freemainmenukey = DEFAULT_FREEMAINMENUKEY;
 	}
 }
 

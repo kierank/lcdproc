@@ -61,6 +61,11 @@
 
 int server_input (int key);
 
+int freepausekey = DEFAULT_FREEPAUSEKEY;
+int freebackkey = DEFAULT_FREEBACKKEY;
+int freeforwardkey = DEFAULT_FREEFORWARDKEY;
+int freemainmenukey = DEFAULT_FREEMAINMENUKEY;
+
 /* FIXME!  The server tends to crash when "E" is pressed..  (?!)
  * (but only when the joystick driver is the last one on the list...)
  */
@@ -124,7 +129,7 @@ handle_input ()
 		} /* while clients*/
 	}
 
-	/* Give server a shot at all keys*/
+	/* Give server a shot at all keys */
 	server_input (key);
 
 	return 0;
@@ -138,22 +143,30 @@ server_input (int key)
 
 	switch ((char) key) {
 		case INPUT_PAUSE_KEY:
-			if (screenlist_action == SCR_HOLD)
-				screenlist_action = 0;
-			else
-				screenlist_action = SCR_HOLD;
+			if (!freepausekey) {
+				if (screenlist_action == SCR_HOLD)
+					screenlist_action = 0;
+				else
+					screenlist_action = SCR_HOLD;
+			}
 			break;
 		case INPUT_BACK_KEY:
-			screenlist_action = SCR_BACK;
-			screenlist_prev ();
+			if (!freebackkey) {
+				screenlist_action = SCR_BACK;
+				screenlist_prev ();
+			}
 			break;
 		case INPUT_FORWARD_KEY:
-			screenlist_action = SCR_SKIP;
-			screenlist_next ();
+			if (freeforwardkey==0) {
+				screenlist_action = SCR_SKIP;
+				screenlist_next ();
+			}
 			break;
 		case INPUT_MAIN_MENU_KEY:
-			debug (RPT_DEBUG, "got the menu key!");
-			server_menu ();
+			if (freemainmenukey==0) {
+				debug (RPT_DEBUG, "got the menu key!");
+				server_menu ();
+			}
 			break;
 		default:
 			debug (RPT_DEBUG, "server_input: Unused key \"%c\" (%i)", (char) key, key);
