@@ -9,6 +9,8 @@ enum ifWidth { IF_4bit, IF_8bit };
 //void common_init (enum ifWidth ifwidth);
 void common_init ();
 
+void HD44780_uPause (int usecs);
+
 // Structures holding pointers to HD44780 specific functions
 typedef struct hwDependentFns {
 	// microsec pauses

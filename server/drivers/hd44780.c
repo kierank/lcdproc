@@ -291,7 +291,7 @@ HD44780_init (lcd_logical_driver * driver, char *args)
 		report (RPT_ERR, "HD44780_init: Error mallocing");
 		return -1;
 	}
-	hd44780_functions->uPause = timing_uPause;
+	hd44780_functions->uPause = HD44780_uPause;
 	hd44780_functions->scankeypad = HD44780_scankeypad;
 	
 	
@@ -319,11 +319,20 @@ void
 common_init ()
 {
 	hd44780_functions->senddata (0, RS_INSTR, ONOFFCTRL | DISPON | CURSOROFF | CURSORNOBLINK);
-	hd44780_functions->uPause (40*delayMult);
+	hd44780_functions->uPause (40);
 	hd44780_functions->senddata (0, RS_INSTR, CLEAR);
-	hd44780_functions->uPause (1600*delayMult);
+	hd44780_functions->uPause (1600);
 	hd44780_functions->senddata (0, RS_INSTR, HOMECURSOR);
-	hd44780_functions->uPause (1600*delayMult);
+	hd44780_functions->uPause (1600);
+}
+
+/////////////////////////////////////////////////////////////////
+// Delay a number of microseconds
+//
+void
+HD44780_uPause (int usecs)
+{
+	timing_uPause( usecs * delayMult );
 }
 
 /////////////////////////////////////////////////////////////////
@@ -353,13 +362,12 @@ HD44780_position (int x, int y)
 			relY = 1;
 		}
 	}
-
 	DDaddr = x + (relY % 2) * 0x40;
 	if ((relY % 4) >= 2)
 		DDaddr += HD44780->wid;
 
 	hd44780_functions->senddata (dispID, RS_INSTR, POSITION | DDaddr);
-	hd44780_functions->uPause (40*delayMult);  // Minimum exec time for all commands
+	hd44780_functions->uPause (40);  // Minimum exec time for all commands
 }
 
 /////////////////////////////////////////////////////////////////
@@ -425,7 +433,7 @@ HD44780_flush_box (int lft, int top, int rgt, int bot)
 		for (x = lft; x <= rgt; x++) {
 
 			hd44780_functions->senddata (spanList[y], RS_DATA, HD44780->framebuf[(y * HD44780->wid) + x]);
-			hd44780_functions->uPause (40*delayMult);  // Minimum exec time for all commands
+			hd44780_functions->uPause (40);  // Minimum exec time for all commands
 		}
 	}
 
@@ -690,7 +698,7 @@ HD44780_set_char (int n, char *dat)
 		return;
 
 	hd44780_functions->senddata (0, RS_INSTR, SETCHAR | n * 8);
-	hd44780_functions->uPause (40*delayMult);  // Minimum exec time for all commands
+	hd44780_functions->uPause (40);  // Minimum exec time for all commands
 
 	for (row = 0; row < HD44780->cellhgt; row++) {
 		letter = 0;
@@ -699,7 +707,7 @@ HD44780_set_char (int n, char *dat)
 			letter |= (dat[(row * HD44780->cellwid) + col] > 0);
 		}
 		hd44780_functions->senddata (0, RS_DATA, letter);
-		hd44780_functions->uPause (40*delayMult);  // Minimum exec time for all commands
+		hd44780_functions->uPause (40);  // Minimum exec time for all commands
 	}
 }
 
@@ -774,7 +782,7 @@ HD44780_draw_frame (char *dat)
 					HD44780_position(x,y);
 				}
 				hd44780_functions->senddata( spanList[y], RS_DATA, HD44780_charmap[(unsigned char)dat[(y * wid) + x]]);
-				hd44780_functions->uPause (40*delayMult);  // Minimum exec time for all commands
+				hd44780_functions->uPause (40);  // Minimum exec time for all commands
 				lcd_contents[(y*wid)+x] = dat[(y*wid)+x];
 			}
 			else {
