@@ -78,7 +78,6 @@ hd_init_usblcd (HD44780_functions * hd44780_functions, lcd_logical_driver * driv
         if( sscanf(buf,"USBLCD Driver Version %d.%d",&major,&minor)!=2) {
 	  report(RPT_ERR,"Could not read Driver Version!\n");
 	  return -4;
-	
 	};
 
 	if(major!=1) {
@@ -94,6 +93,11 @@ hd_init_usblcd (HD44780_functions * hd44780_functions, lcd_logical_driver * driv
 	};
   
         report(RPT_INFO,"Hardware Version: %s\n",buf);
+
+        if( sscanf(buf,"%d.%d",&major,&minor)!=2) {
+	  report(RPT_ERR,"Could not read Hardware Version!\n");
+	  return -4;
+	};
 
 	if(major!=1) {
 	  report(RPT_ERR,"Hardware Version not supported!\n");
