@@ -64,6 +64,7 @@ widget_create ()
 	w->bottom = 0;
 	w->length = 1;
 	w->speed = 1;
+	w->timer = 0;
 	w->text = NULL;
 	w->kids = NULL;
 

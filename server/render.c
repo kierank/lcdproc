@@ -189,6 +189,8 @@ draw_frame (LinkedList * list,
 #define	VerticalScrolling (fscroll == 'v')
 #define	HorizontalScrolling (fscroll == 'h')
 
+	static int timer_last = 0;
+	int timer_delta = timer - timer_last;
 	char str[BUFSIZE];			  /* scratch buffer*/
 	widget *w;
 
@@ -253,6 +255,12 @@ draw_frame (LinkedList * list,
 		if (!w)
 			return -1;
 
+		// Increment widget timers 
+	 	if (timer_delta < 0)
+			w->timer = 0;
+		else
+			w->timer += timer_delta;
+			
 		/* TODO:  Make this cleaner and more flexible!*/
 		switch (w->type) {
 			case WID_STRING:
@@ -358,12 +366,56 @@ draw_frame (LinkedList * list,
 						break;
 					if (w->right < w->left)
 						break;
-					/*debug(RPT_DEBUG, "rendering: %s %d",w->text,timer);*/
+					/*debug(RPT_DEBUG, "rendering: %s %d",w->text,w->timer);*/
 					screen_width = w->right - w->left + 1;
 					switch (w->length) {	/* actually, direction...*/
 						/* FIXED:  Horz scrollers don't show the
 						 * last letter in the string...  (1-off error?)
 						 */
+					case 'm': // Marquee
+						length = strlen (w->text);
+						if (length <= screen_width) {
+							/* it fits within the box, just render it */
+							lcd_ptr->string (w->left, w->top, w->text);
+						} else {
+							int necessaryTimeUnits = 0;
+							
+							if (!screenlist_action)
+								screenlist_action = RENDER_HOLD;
+							if (w->speed > 0) {
+								necessaryTimeUnits = length * w->speed;
+								offset = (w->timer % (length * w->speed)) / w->speed;
+							} else if (w->speed < 0) {
+								necessaryTimeUnits = length / (w->speed * -1);
+								offset = (w->timer % (length / (w->speed * -1))) * w->speed * -1;
+							} else {
+								offset = 0;
+								if (screenlist_action == RENDER_HOLD)
+									screenlist_action = 0;
+							}
+							if (w->timer > necessaryTimeUnits) {
+								if (screenlist_action == RENDER_HOLD)
+									screenlist_action = 0;
+							}
+							if (offset <= length) {
+								int room = screen_width - (length - offset);
+
+								strncpy (str, &w->text[offset], screen_width);
+
+								// if there's more room, restart at the beginning
+								if (room > 0) {
+									strncat (str, w->text, room);
+								}
+
+								str[screen_width] = '\0';
+
+								/*debug(RPT_DEBUG, "scroller %s : %d", str, length-offset);*/
+							} else {
+								str[0] = '\0';
+							}
+							lcd_ptr->string (w->left, w->top, str);
+						}
+						break;
 					case 'h':
 						length = strlen (w->text) + 1;
 						if (length <= screen_width) {
@@ -376,23 +428,23 @@ draw_frame (LinkedList * list,
 								screenlist_action = RENDER_HOLD;
 							if (w->speed > 0) {
 								necessaryTimeUnits = effLength * w->speed;
-								if (((timer / (effLength * w->speed)) % 2) == 0) {
+								if (((w->timer / (effLength * w->speed)) % 2) == 0) {
 									/*wiggle one way*/
-									offset = (timer % (effLength * w->speed))
+									offset = (w->timer % (effLength * w->speed))
 										 / w->speed;
 								} else {
 									/*wiggle the other*/
-									offset = (((timer % (effLength * w->speed))
+									offset = (((w->timer % (effLength * w->speed))
 												  - (effLength * w->speed) + 1)
 												 / w->speed) * -1;
 								}
 							} else if (w->speed < 0) {
 								necessaryTimeUnits = effLength / (w->speed * -1);
-								if (((timer / (effLength / (w->speed * -1))) % 2) == 0) {
-									offset = (timer % (effLength / (w->speed * -1)))
+								if (((w->timer / (effLength / (w->speed * -1))) % 2) == 0) {
+									offset = (w->timer % (effLength / (w->speed * -1)))
 										 * w->speed * -1;
 								} else {
-									offset = (((timer % (effLength / (w->speed * -1)))
+									offset = (((w->timer % (effLength / (w->speed * -1)))
 												  * w->speed * -1) - effLength + 1) * -1;
 								}
 							} else {
@@ -400,7 +452,7 @@ draw_frame (LinkedList * list,
 								if (screenlist_action == RENDER_HOLD)
 									screenlist_action = 0;
 							}
-							if (timer > necessaryTimeUnits) {
+							if (w->timer > necessaryTimeUnits) {
 								if (screenlist_action == RENDER_HOLD)
 									screenlist_action = 0;
 							}
@@ -445,30 +497,30 @@ draw_frame (LinkedList * list,
 									/*debug(RPT_DEBUG, "length: %d sw: %d lines req: %d  avail lines: %d  effLines: %d ",length,screen_width,lines_required,available_lines,effLines);*/
 									if (w->speed > 0) {
 										necessaryTimeUnits = effLines * w->speed;
-										if (((timer / (effLines * w->speed)) % 2) == 0) {
+										if (((w->timer / (effLines * w->speed)) % 2) == 0) {
 											/*debug(RPT_DEBUG, "up ");*/
-											begin = (timer % (effLines * w->speed))
+											begin = (w->timer % (effLines * w->speed))
 												 / w->speed;
 										} else {
 											/*debug(RPT_DEBUG, "down ");*/
-											begin = (((timer % (effLines * w->speed))
+											begin = (((w->timer % (effLines * w->speed))
 														 - (effLines * w->speed) + 1) / w->speed)
 												 * -1;
 										}
 									} else if (w->speed < 0) {
 										necessaryTimeUnits = effLines / (w->speed * -1);
-										if (((timer / (effLines / (w->speed * -1))) % 2) == 0) {
-											begin = (timer % (effLines / (w->speed * -1)))
+										if (((w->timer / (effLines / (w->speed * -1))) % 2) == 0) {
+											begin = (w->timer % (effLines / (w->speed * -1)))
 												 * w->speed * -1;
 										} else {
-											begin = (((timer % (effLines / (w->speed * -1)))
+											begin = (((w->timer % (effLines / (w->speed * -1)))
 														 * w->speed * -1) - effLines + 1)
 												 * -1;
 										}
 									} else {
 										begin = 0;
 									}
-									/*debug(RPT_DEBUG, "rendering begin: %d  timer: %d effLines: %d",begin,timer,effLines);*/
+									/*debug(RPT_DEBUG, "rendering begin: %d  timer: %d effLines: %d",begin,w->timer,effLines);*/
 									for (i = begin; i < begin + available_lines; i++) {
 										strncpy (str, &((w->text)[i * (screen_width)]), screen_width);
 										str[screen_width] = '\0';
@@ -476,7 +528,7 @@ draw_frame (LinkedList * list,
 										/*str,w->text);*/
 										lcd_ptr->string (w->left, w->top + (i - begin), str);
 									}
-									if (timer > necessaryTimeUnits) {
+									if (w->timer > necessaryTimeUnits) {
 										if (screenlist_action == RENDER_HOLD)
 											screenlist_action = 0;
 									}
@@ -523,5 +575,6 @@ draw_frame (LinkedList * list,
 		}
 	} while (LL_Next (list) == 0);
 
+	timer_last = timer;
 	return 0;
 }

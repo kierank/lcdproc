@@ -1076,8 +1076,9 @@ widget_set_func (client * c, int argc, char **argv)
 				/*debug("dir: %c",(char)direction);*/
 				speed = atoi (argv[i + 5]);
 				/*debug("speed: %d",speed);*/
-				/* Direction must be v or h*/
-				if (((char) direction != 'h') && ((char) direction != 'v')) {
+				/* Direction must be v, h or m (marquee) */
+				if (((char) direction != 'h') && ((char) direction != 'v') && ((char)
+						direction != 'm')) {
 					sock_send_string (c->sock, "huh? Invalid direction\n");
 				} else {
 					w->left = left;
@@ -1086,6 +1087,7 @@ widget_set_func (client * c, int argc, char **argv)
 					w->bottom = bottom;
 					w->length = direction;
 					w->speed = speed;
+					w->timer = 0;
 					if (w->text)
 						free (w->text);
 					w->text = strdup (argv[i + 6]);

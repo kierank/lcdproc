@@ -23,6 +23,7 @@ typedef struct widget {
 	int left, top, right, bottom;	/* bounding rectangle*/
 	int length;			/* size or direction*/
 	int speed;			/* For scroller...*/
+	int timer;			/* For scroller...*/
 	char *text;			/* text or binary data*/
 	LinkedList *kids;		/* Frames can contain more widgets...*/
 } widget;
