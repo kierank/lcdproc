@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 
-# $Id: lcdmetar.pl,v 1.3 2000/01/18 14:43:49 hklein Exp $
+# $Id: lcdmetar.pl,v 1.4 2001/03/22 22:51:50 willfe Exp $
 #
 # LICENSE:
 # GPL - GNU Public License 
@@ -148,6 +148,11 @@ while (1==1) {
 	    # print "The wind blows to $wind_dir_eng, speed $wind_mph mph\n";
 
 	} # end else
+	# eat all input from LCDd
+	while(defined($input = <$remote>)) {
+	    if ( $input =~ /^success$/ ) next;
+	    #print $input;
+	}
 	print "Sleeping 15 minutes.\n";
 	sleep 900;
 }
