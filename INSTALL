@@ -167,7 +167,7 @@ If you're in the LCDproc source directory, and have just built it, run:
 You can find out what drivers were compiled by running "LCDd -h".  
 Note that you cannot use more than one display driver at the same time.
 
-For security reasons, LCDd by default only accept connections from
+For security reasons, LCDd by default only accepts connections from
 localhost (127.0.0.1), it will not accept connections from other computers on
 your network / the Internet. You can change this behavior in the 
 configuration file.
