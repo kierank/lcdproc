@@ -75,7 +75,7 @@ lcd_logical_driver *CFontz;
 
 /////////////////////////////////////////////////////////////////
 // Opens com port and sets baud correctly...
-/
+//
 int
 CFontz_init (lcd_logical_driver * driver, char *args)
 {
