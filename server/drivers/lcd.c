@@ -99,7 +99,7 @@ static void lcd_drv_heartbeat (int type);
 #include "hd44780.h"
 #endif
 
-#ifdef SLI_DRV
+#ifdef WIRZSLI_DRV
 #include "wirz-sli.h"
 #endif
 
@@ -184,9 +184,11 @@ lcd_physical_driver drivers[] = {
 	{"HD44780", HD44780_init,},
 	{"Hitachi", HD44780_init,},
 #endif
-#ifdef SLI_DRV
+#ifdef WIRZSLI_DRV
 	{"sli", sli_init,},
 	{"Wirz", sli_init,},
+	{"Wirz-sli", sli_init,},
+	{"wirz-sli", sli_init,},
 #endif
 #ifdef LB216_DRV
 	{"LB216", LB216_init,},

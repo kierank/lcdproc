@@ -1,5 +1,5 @@
 /* acconfig.h
-*   $Id: acconfig.h,v 1.20.2.1.2.1 2002/06/09 20:14:23 dglaude Exp $
+*   $Id: acconfig.h,v 1.20.2.1.2.2 2002/06/28 12:31:02 reenoo Exp $
 *   This file is in the public domain.
 *
 *   Descriptive text for the C preprocessor macros that
@@ -80,7 +80,7 @@
 
 #undef API_VERSION
 
-#undef SLI_DRV
+#undef WIRZSLI_DRV
 
 #undef SOLARIS
 

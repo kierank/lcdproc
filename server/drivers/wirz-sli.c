@@ -2,7 +2,10 @@
 	Copyright (C) 1999 Horizon Technologies-http://horizon.pair.com/
 	Written by Bryan Rittmeyer <bryanr@pair.com> - Released under GPL
 			
-        LCD info: http://www.wirz.com/                               */
+        LCD info: http://www.wirz.com/
+
+	Modified for LCDproc 0.4.4 (C) 2002 by Rene Wagner
+*/
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -23,6 +26,25 @@
 #include "shared/debug.h"
 #include "shared/str.h"
 
+void sli_clear ();
+void sli_string (int x, int y, char string[]);
+void sli_close ();
+void sli_flush ();
+void sli_flush_box (int lft, int top, int rgt, int bot);
+void sli_chr (int x, int y, char c);
+int sli_contrast (int contrast);
+void sli_backlight (int on);
+void sli_init_vbar ();
+void sli_init_hbar ();
+void sli_vbar (int x, int len);
+void sli_hbar (int x, int y, int len);
+void sli_init_num ();
+void sli_num (int x, int num);
+void sli_set_char (int n, char *dat);
+void sli_icon (int which, char dest);
+void sli_draw_frame (char *dat);
+char sli_getkey ();
+
 static int custom = 0;
 typedef enum {
 	hbar = 1,
@@ -32,7 +54,7 @@ typedef enum {
 } custom_type;
 
 static int fd;
-static char lastframe[32];
+/*static char lastframe[32];*/
 
 lcd_logical_driver *sli;
 
@@ -151,8 +173,22 @@ sli_init (lcd_logical_driver * driver, char *args)
 	// Set LCD parameters (I use a 16x2 LCD) -- small but still useful
 	// Its also much cheaper than the higher quality Matrix Orbital modules
 	// Currently, $30 for interface kit and 16x2 non-backlit LCD...
-	driver->wid = 15;
+	driver->wid = 16;
 	driver->hgt = 2;
+
+	/* Allocate framebuffer.*/
+	if (!driver->framebuf) {
+		driver->framebuf = malloc (driver->wid * driver->hgt);
+	}
+
+	if (!driver->framebuf) {
+		fprintf (stderr, "Error: unable to create Wirz-sli framebuffer.\n");
+		return -1;
+	}
+
+	/* Clear framebuffer */
+	memset (driver->framebuf, ' ', driver->wid * driver->hgt);
+
 
 	// Set the functions the driver supports...
 
@@ -236,7 +272,8 @@ sli_flush_box (int lft, int top, int rgt, int bot)
 void
 sli_clear ()
 {
-	memset (sli->framebuf, ' ', sli->wid * sli->hgt);
+	if (sli->framebuf)
+		memset (sli->framebuf, ' ', sli->wid * sli->hgt);
 
 }
 
@@ -256,7 +293,8 @@ sli_string (int x, int y, char string[])
 		// Check for buffer overflows...
 		if ((y * sli->wid) + x + i > (sli->wid * sli->hgt))
 			break;
-		sli->framebuf[(y * sli->wid) + x + i] = string[i];
+		if (sli->framebuf)
+			sli->framebuf[(y * sli->wid) + x + i] = string[i];
 	}
 }
 
@@ -269,21 +307,8 @@ sli_chr (int x, int y, char c)
 {
 	y--;
 	x--;
-
-	sli->framebuf[(y * sli->wid) + x] = c;
-}
-
-/////////////////////////////////////////////////////////////////
-// Prints a character on the lcd display, at position (x,y).  The
-// upper-left is (1,1), and the lower right should be (20,4).
-//
-void
-sli_chr (int x, int y, char c)
-{
-	y--;
-	x--;
-
-	sli->framebuf[(y * sli->wid) + x] = c;
+	if (sli->framebuf)
+		sli->framebuf[(y * sli->wid) + x] = c;
 }
 
 /////////////////////////////////////////////////////////////////
@@ -582,7 +607,7 @@ void
 sli_draw_frame (char *dat)
 {
 	char out[2];					  /* Again, why does the Matrix driver allocate so much here? */
-	int y;
+/*	int y;*/
 
 	if (!dat)
 		return;

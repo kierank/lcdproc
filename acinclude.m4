@@ -7,13 +7,14 @@ AC_ARG_ENABLE(drivers,
   	[                  Possible choices are:]
  	[                    mtxorb,cfontz,cfontz633,curses,text,lb216,]
  	[                    hd44780,joy,irman,lircin,bayrad,glk,]
- 	[                    stv5730,sed1330,sed1520,svgalib,lcdm001,t6963]
+ 	[                    stv5730,sed1330,sed1520,svgalib,lcdm001,]
+ 	[                    t6963,wirz-sli]
 	[                  \"all\" compiles all drivers],
   	drivers="$enableval", 
   	drivers=[lcdm001,mtxorb,cfontz,cfontz633,curses,text,lb216,bayrad,glk])
 
 if test "$drivers" = "all"; then
-	drivers=[mtxorb,cfontz,cfontz633,curses,text,lb216,hd44780,joy,irman,lircin,bayrad,glk,stv5730,sed1330,sed1520,svgalib,lcdm001,t6963]
+	drivers=[mtxorb,cfontz,cfontz633,curses,text,lb216,hd44780,joy,irman,lircin,bayrad,glk,stv5730,sed1330,sed1520,svgalib,lcdm001,t6963,wirz-sli]
 fi
 
   	drivers=`echo $drivers | sed 's/,/ /g'`
@@ -51,10 +52,10 @@ fi
 			AC_DEFINE(CFONTZ633_DRV)
 			actdrivers=["$actdrivers cfontz633"]
 			;;
-		sli)	
+		wirz-sli)
 			DRIVERS="$DRIVERS wirz-sli.o"
-			AC_DEFINE(SLI_DRV)
-			actdrivers=["$actdrivers sli"]
+			AC_DEFINE(WIRZSLI_DRV)
+			actdrivers=["$actdrivers wirz-sli"]
 			;;
 		curses)
 			AC_CHECK_HEADERS(ncurses.h curses.h)
