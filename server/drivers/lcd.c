@@ -103,6 +103,10 @@ static void lcd_drv_heartbeat (int type);
 #include "wirz-sli.h"
 #endif
 
+#ifdef SGX120_DRV
+#include "SGX120.h"
+#endif
+
 #ifdef JOY_DRV
 #include "joy.h"
 #endif
@@ -228,6 +232,10 @@ lcd_physical_driver drivers[] = {
 #endif
 #ifdef STV5730_DRV
 	{"stv5730", stv5730_init,},
+#endif
+#ifdef SGX120_DRV
+      {"sgx120", SGX120_init,},
+      {"SGX120", SGX120_init,},
 #endif
 #ifdef SVGALIB_DRV
 	{"svgalib", svgalib_drv_init,},

@@ -38,7 +38,7 @@ $doc=${exec_prefix}/doc
 %description LCDproc is a client/server suite inclduding drivers for all
 %description kinds of nifty LCD displays. The server supports several
 %description serial devices: Matrix Orbital, Crystal Fontz, Bayrad, LB216,
-%description LCDM001 (kernelconcepts.de), Wirz-SLI and PIC-an-LCD; and some
+%description LCDM001 (kernelconcepts.de), Wirz-SLI, PIC-an-LCD, and SGX-120L; and some
 %description devices connected to the LPT port: HD44780, STV5730, T6963,
 %description SED1520 and SED1330. Various clients are available that display
 %description things like CPU load, system load, memory usage, uptime, and a lot more.
