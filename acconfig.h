@@ -1,5 +1,5 @@
 /* acconfig.h
-*   $Id: acconfig.h,v 1.18 2001/11/15 19:33:06 robijn Exp $
+*   $Id: acconfig.h,v 1.19 2001/11/29 14:09:13 robijn Exp $
 *   This file is in the public domain.
 *
 *   Descriptive text for the C preprocessor macros that
@@ -65,6 +65,8 @@
 
 /* Define the protocol version */
 #undef PROTOCOL_VERSION
+
+#undef API_VERSION
 
 #undef SLI_DRV
 
