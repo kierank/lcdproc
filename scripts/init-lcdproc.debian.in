@@ -10,7 +10,7 @@
 #               Modified for Debian GNU/Linux
 #               by Ian Murdock <imurdock@gnu.ai.mit.edu>.
 #
-# Version:      $Id: init-lcdproc.debian.in,v 1.1.2.3 2002/02/27 14:23:09 reenoo Exp $
+# Version:      $Id: init-lcdproc.debian.in,v 1.1.2.4 2002/04/20 10:24:39 reenoo Exp $
 
 DESC="lcdproc @VERSION@"
 
@@ -24,10 +24,17 @@ lcdproc=${bindir}/lcdproc
 
 test -x ${lcdproc} || exit 0
 
+if [ -f /etc/lcdproc.conf ]; then
+	. /etc/lcdproc.conf
+else
+	SCREENS="C X"
+fi
+
+
 case "$1" in
 start)
         printf "Starting $DESC:"
-        start-stop-daemon --start --quiet --background --exec ${lcdproc} -- X C
+        start-stop-daemon --start --quiet --background --exec ${lcdproc} -- $SCREENS
         printf " lcdproc"
         printf ".\n"
         ;;
