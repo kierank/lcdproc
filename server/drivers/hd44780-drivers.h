@@ -18,9 +18,10 @@
 # include "hd44780-winamp.h"
 #endif
 #include "hd44780-picanlcd.h"
+#include "hd44780-usblcd.h"
 // add new connection type header files here
 
-enum connectionType { HD_4bit, HD_8bit, HD_serialLpt, HD_winamp, HD_picanlcd,
+enum connectionType { HD_4bit, HD_8bit, HD_serialLpt, HD_winamp, HD_picanlcd,HD_usblcd,
 	// add new connection types here
 	HD_unknown
 };
@@ -45,6 +46,7 @@ static struct ConnectionMapping {
 #endif
 
 	{ HD_picanlcd, "picanlcd", hd_init_picanlcd, ""},
+	{ HD_usblcd, "usblcd", hd_init_usblcd, ""},
 		 // add new connection types and their string specifier here
 		 // default, end of structure element (do not delete)
 	{ HD_unknown, "", NULL, ""}
