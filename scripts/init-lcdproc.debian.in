@@ -1,0 +1,51 @@
+#!/bin/sh -e
+#
+# lcdd          Startup script for lcdproc
+#
+#               Modified for autoconf
+#               by Rene Wagner <reenoo@gmx.de>
+#               Modified for lcd-server
+#               by Joris Robijn <joris@robijn.net>
+#               Written by Miquel van Smoorenburg <miquels@cistron.nl>.
+#               Modified for Debian GNU/Linux
+#               by Ian Murdock <imurdock@gnu.ai.mit.edu>.
+#
+# Version:      $Id: init-lcdproc.debian.in,v 1.1.2.1 2001/12/30 12:31:29 reenoo Exp $
+
+DESC="lcdproc @VERSION@"
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+$bindir=@bindir@
+$sbindir=@sbindir@
+$etc=@sysconfdir@
+
+lcdproc=${bindir}/lcdproc
+
+test -f ${lcdproc} || exit 0
+
+case "$1" in
+start)
+        printf "Starting $DESC:"
+        start-stop-daemon --start --quiet --background --exec ${lcdproc} -- X C
+        printf " lcdproc"
+        printf ".\n"
+        ;;
+stop)
+        printf "Stopping $DESC:"
+        start-stop-daemon --stop --oknodo --quiet --exec ${lcdproc}
+        printf " lcdproc"
+        printf ".\n"
+        ;;
+restart)
+        $0 stop
+        sleep 1
+        $0 start
+        ;;
+*)
+        printf "Usage: $0 {start|stop|restart}\n" >&2
+        exit 1
+        ;;
+esac
+
+exit 0
