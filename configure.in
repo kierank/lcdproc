@@ -161,6 +161,7 @@ AC_OUTPUT(Makefile
 	clients/lcdproc/Makefile
 	clients/examples/Makefile
 	clients/headlines/Makefile
+	clients/metar/Makefile
 	docs/Makefile
 	scripts/Makefile
 	scripts/init-LCDd.debian
