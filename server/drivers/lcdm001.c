@@ -85,8 +85,8 @@ static void lcdm001_heartbeat (int type);
 #define NotEnoughArgs (i + 1 > argc)
 
 lcd_logical_driver *lcdm001;
-int fd;
-static int clear = 1;
+static int fd;
+static int hbarworkaround=0, vbarworkaround=0;
 static char icon_char = LCDM001_PAD;
 static char pause_key = LCDM001_DOWN_KEY, back_key = LCDM001_LEFT_KEY, forward_key = LCDM001_RIGHT_KEY, main_menu_key = LCDM001_UP_KEY;
 
@@ -240,6 +240,17 @@ lcdm001_init (struct lcd_logical_driver *driver, char *args)
 	forward_key = lcdm001_parse_keypad_setting (DriverName, "ForwardKey", "RightKey");
 	main_menu_key = lcdm001_parse_keypad_setting (DriverName, "MainMenuKey", "UpKey");
 
+	/* Enable the hbar workaround? */
+	if(config_get_bool( DriverName , "HBarWorkaround" , 0 , 0)) {
+		hbarworkaround = 1;
+	}
+	/* Enable the vbar workaround? */
+	if(config_get_bool( DriverName , "VBarWorkaround" , 0 , 0)) {
+		vbarworkaround = 1;
+	}
+
+	/* End of config file parsing*/
+
 
 	/* Set up io port correctly, and open it...*/
 	debug( RPT_DEBUG, "LCDM001: Opening serial device: %s", device);
@@ -358,8 +369,6 @@ lcdm001_clear ()
 {
         if (lcdm001->framebuf != NULL)
                 memset (lcdm001->framebuf, ' ', (lcdm001->wid * lcdm001->hgt));
-
-        clear = 1;
 
 	debug (RPT_DEBUG, "LCDM001: screen will be cleared during next flush()");
 }
@@ -502,7 +511,7 @@ lcdm001_vbar(int x, int len)
 
    if(!len)
      return;
-   else
+   else if (vbarworkaround != 0)
      {
        lcdm001_chr(x, y, map[len-1]);
      }
@@ -524,12 +533,12 @@ lcdm001_hbar(int x, int y, int len)
 
   while((x <= lcdm001->wid) && (len > 0))
   {
-    if(len < (int) lcdm001->cellwid / 2)
+    if((len < (int) lcdm001->cellwid / 2) && (hbarworkaround != 0))
       {
 	lcdm001_chr(x, y, '-');
 	break;
       }
-    if(len < lcdm001->cellwid)
+    if((len < lcdm001->cellwid) && (hbarworkaround != 0))
       {
 	lcdm001_chr(x, y, '=');
 	break;
