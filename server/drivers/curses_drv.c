@@ -433,6 +433,18 @@ curses_drv_backlight (int on)
 	// no backlight: pairs 2, 3
 	// backlight:    pairs 4, 5
 
+	if (on) {
+		curses_backlight_state = 1;
+		current_color_pair = 4;
+		current_border_pair = 5;
+	} else {
+		curses_backlight_state = 0;
+		current_color_pair = 2;
+		current_border_pair = 3;
+	}
+
+	/* The backlight menu does not work with this code:
+
 	switch (on) {
 		case 0:
 			curses_backlight_state = 0;
@@ -447,7 +459,7 @@ curses_drv_backlight (int on)
 		default:
 			return;
 			break;
-	}
+	}*/
 
 	curses_drv_clear();
 }
