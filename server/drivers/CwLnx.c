@@ -11,7 +11,7 @@
 	              2002, Luis Llorente
 
         Copyright (C) 2002, Andrew Ip
-                      2002, David Glaude
+                      2002, 2004 David Glaude
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -62,6 +62,8 @@ static char *backingstore = NULL;
 static char pause_key = CWLNX_DEF_PAUSE_KEY, back_key = CWLNX_DEF_BACK_KEY;
 static char forward_key = CWLNX_DEF_FORWARD_KEY, main_menu_key = CWLNX_DEF_MAIN_MENU_KEY;
 static int keypad_test_mode = 0;
+static int usb = 0;
+static int keypad = 0;
 
 static void CwLnx_linewrap(int on);
 static void CwLnx_autoscroll(int on);
@@ -93,8 +95,8 @@ lcd_logical_driver *CwLnx;
 #define LCD_LENGTH		20
 
 #define DELAY			20
-#define UPDATE_DELAY		0	/* 1 sec */
-#define SETUP_DELAY		1	/* 2 sec */
+#define UPDATE_DELAY		1	/* 1 sec */
+#define SETUP_DELAY		2	/* 2 sec */
 
 /* Parse one key from the configfile */
 static char CwLnx_parse_keypad_setting (char * sectionname, char * keyname, char default_value)
@@ -118,7 +120,7 @@ int Read_LCD(int fd, char *c, int size)
 {
     int rc;
     rc = read(fd, c, size);
-/*    usleep(DELAY); */
+    if (usb) usleep(DELAY); 
     return rc;
 }
 
@@ -140,7 +142,7 @@ int Write_LCD(int fd, char *c, int size)
 	      }
     }
 */
-/*    usleep(DELAY); */
+    if (usb) usleep(DELAY); 
     return rc;
 }
 
@@ -306,16 +308,16 @@ int CwLnx_init(lcd_logical_driver * driver, char *args)
 #define DriverName "CwLnx"
 
 
-    /*Read config file */
+    /* Read config file */
 
-    /*Which serial device should be used */
+    /* Which "serial" device should be used */
     strncpy(device,
 	    config_get_string(DriverName, "Device", 0, CWLNX_DEF_DEVICE),
 	    sizeof(device));
     device[sizeof(device) - 1] = 0;
     report(RPT_INFO, "CwLnx: Using device: %s", device);
 
-    /*Which size */
+    /* Which size */
     strncpy(size, config_get_string(DriverName, "Size", 0, CWLNX_DEF_SIZE),
 	    sizeof(size));
     size[sizeof(size) - 1] = 0;
@@ -330,7 +332,16 @@ int CwLnx_init(lcd_logical_driver * driver, char *args)
     driver->wid = w;
     driver->hgt = h;
 
-    /*Which speed */
+
+    /* Am I USB or not?*/
+    if(config_get_bool( DriverName , "USB" , 0 , 0)) {
+           usb = 1;
+           report(RPT_INFO, "CwLnx: Using device USB device. (extra delay)");
+           }
+
+
+
+    /* Which speed */
     tmp = config_get_int(DriverName, "Speed", 0, CWLNX_DEF_SPEED);
 
     switch (tmp) {
@@ -356,18 +367,25 @@ int CwLnx_init(lcd_logical_driver * driver, char *args)
 	strncpy(buf, "", sizeof(buf));
     }
 
-    /*Reboot display? */
+    /* Reboot display? */
     if (config_get_bool(DriverName, "Reboot", 0, 0)) {
 	report(RPT_INFO, "CwLnx: Rebooting Cwlinux LCD...\n");
 	reboot = 1;
     }
+
+    /* Do we have a keypad? */
+    if(config_get_bool( DriverName , "Keypad" , 0 , 0)) {
+           keypad = 1;
+           report(RPT_INFO, "CwLnx: Config file saw we have a keypad.");
+           }
+
+  if (keypad) {
 
     /* keypad test mode? */
     if (config_get_bool( DriverName , "keypad_test_mode" , 0 , 0)) {
 	report (RPT_INFO, "CwLnx: Entering keypad test mode...\n");
 	keypad_test_mode = 1;
     }
-
 
     if (!keypad_test_mode) {
 	/* pause_key */
@@ -381,11 +399,12 @@ int CwLnx_init(lcd_logical_driver * driver, char *args)
 	forward_key = CwLnx_parse_keypad_setting (DriverName, "ForwardKey", CWLNX_DEF_FORWARD_KEY);
 	report (RPT_DEBUG, "CwLnx: Using \"%c\" as forward_key", forward_key);
 		
-	/* main_menu_key
-	* */
+	/* main_menu_key */
 	main_menu_key = CwLnx_parse_keypad_setting (DriverName, "MainMenuKey", CWLNX_DEF_MAIN_MENU_KEY);
 	report (RPT_DEBUG, "CwLnx: Using \"%c\" as main_menu_key", main_menu_key);
 	}
+
+  }
 
 
     /* End of config file parsing */
@@ -972,7 +991,10 @@ void CwLnx_string(int x, int y, char string[])
 
 static char CwLnx_getkey()
 {
-	char in = 0;
+    char in = 0;
+
+    if (keypad)
+    {
 
 	read (fd, &in, 1);
 
@@ -994,10 +1016,11 @@ static char CwLnx_getkey()
 			fprintf (stdout, "CwLnx: Received character %c\n", in);
 			in = 0;
 			fprintf (stdout, "CwLnx: Press another key of your device.\n");
-		}
+ 		}
 	}
+    }
 
-	return in;
+    return in;
 }
 
 /**********************************************************
