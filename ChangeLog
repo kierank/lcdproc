@@ -5,7 +5,7 @@ Key:
      + Something added
      * Something changed / fixed
 
-Coming soon: (?) (my list of stuff to do soon...)
+Coming soon: (already implemented in 0.5 = CVS main branch)
  + Client menus
  * Dynamically-loaded driver system
  + LCDproc Developer's Guide
