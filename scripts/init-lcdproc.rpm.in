@@ -1,8 +1,8 @@
 #!/bin/sh
-# This is the lcdproc init-script for Mandrake systems
-# It should work on Redhat, too, which is untested
+# This is the lcdproc init-script for RPM based (RedHat, Mandrake) systems
 #
 # Copyright (C) 2001  Rene Wagner <reenoo@gmx.de>
+#               2001  Guillaume Filion <gfk@logidac.com>
 #
 # This script is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,31 +20,39 @@
 #
 #
 # chkconfig: 345 70 20
-# description: lcdproc(1) is the LCDproc client used for displaying text and other data to LCDs. \
+# description: LCDd(8) is the LCDproc server used for displaying text and other data to LCDs. \
 #	Apart from the main client lcdproc(1) there are various clients. \
 #	See http://lcdproc.omnipotent.net for details.
 # processname: lcdproc
+# pidfile: /var/run/lcdproc.pid
 # config: /etc/sysconfig/lcdproc
 
-#CONFIG=/etc/sysconfig/lcdproc
-
 # Source function library.
-. /etc/init.d/functions
+. /etc/rc.d/init.d/functions
+
+# Source networking configuration.
+. /etc/sysconfig/network
+
+# Check that networking is up.
+if [ ${NETWORKING} = "no" ]; then
+        exit 0
+fi
+
+[ -f /usr/sbin/lcdproc ] || exit 0
 
 RETVAL=0
 
 prefix=@prefix@
 exec_prefix=@exec_prefix@
-bindir="@bindir@"
+bindir=@bindir@
 sbindir=@sbindir@
 etc=@sysconfdir@
 
 lcdproc=${bindir}/lcdproc
 
 start() {
-	echo -n $"Starting up lcdproc @VERSION@: "
-	test -r "$CONFIG" && . "$CONFIG"
-	daemon ${lcdproc} C X &
+	echo -n "Starting up lcdproc: "
+	daemon ${lcdproc} &
 
 	RETVAL=$?
 	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/lcdproc
@@ -52,7 +60,7 @@ start() {
 }
 
 stop() {
-	echo -n $"Shutting down lcdproc: "
+	echo -n "Shutting down lcdproc: "
 	killproc lcdproc
 	RETVAL=$?
 	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/lcdproc
@@ -85,14 +93,14 @@ case "$1" in
   status)
 	dostatus
 	;;
-  restart|reload)
+  restart)
 	restart
 	;;
   condrestart)
 	condrestart
 	;;
   *)
-	echo "Usage: $0 {start|stop|status|restart|reload|condrestart}"
+	echo "Usage: lcdproc {start|stop|status|restart|condrestart}"
 	exit 1
 esac
 

@@ -1,7 +1,8 @@
 #!/bin/sh
-# This is the LCDd init-script for Mandrake systems
+# This is the LCDd init-script for RPM based (RedHat, Mandrake) systems
 #
 # Copyright (C) 2001  Rene Wagner <reenoo@gmx.de>
+#               2001  Guillaume Filion <gfk@logidac.com>
 #
 # This script is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,12 +24,21 @@
 #	Apart from the main client lcdproc(1) there are various clients. \
 #	See http://lcdproc.omnipotent.net for details.
 # processname: LCDd
-# config: /etc/sysconfig/LCDd
-
-#CONFIG=/etc/sysconfig/LCDd
+# pidfile: /var/run/LCDd.pid
+# config: /etc/LCDd.conf
 
 # Source function library.
-. /etc/init.d/functions
+. /etc/rc.d/init.d/functions
+
+# Source networking configuration.
+. /etc/sysconfig/network
+
+# Check that networking is up.
+if [ ${NETWORKING} = "no" ]; then
+        exit 0
+fi
+
+[ -f /usr/sbin/LCDd ] || exit 0
 
 RETVAL=0
 
@@ -42,9 +52,8 @@ LCDd=${sbindir}/LCDd
 configfile=${etc}/LCDd.conf
 
 start() {
-	echo -n $"Starting up LCDd: "
-	test -r "$CONFIG" && . "$CONFIG"
-	daemon ${LCDd} -s -c ${configfile}
+	echo -n "Starting up LCDd: "
+	daemon ${LCDd} -c ${configfile}
 
 	RETVAL=$?
 	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/LCDd
@@ -52,7 +61,7 @@ start() {
 }
 
 stop() {
-	echo -n $"Shutting down LCDd: "
+	echo -n "Shutting down LCDd: "
 	killproc LCDd
 	RETVAL=$?
 	[ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/LCDd
@@ -85,14 +94,14 @@ case "$1" in
   status)
 	dostatus
 	;;
-  restart|reload)
+  restart)
 	restart
 	;;
   condrestart)
 	condrestart
 	;;
   *)
-	echo "Usage: $0 {start|stop|status|restart|reload|condrestart}"
+	echo "Usage: LCDd {start|stop|status|restart|condrestart}"
 	exit 1
 esac
 
