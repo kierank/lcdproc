@@ -200,6 +200,8 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 
 	// Set the functions the driver supports...
 
+	driver->daemonize = 1; /* make the server daemonize after initialisation*/
+
 	driver->clear = CFontz_clear;
 	driver->string = CFontz_string;
 	driver->chr = CFontz_chr;
