@@ -56,13 +56,13 @@ void EmptyKeyRing(void)
 int AddKeyToKeyRing(unsigned char key) {
   int oldhead;
 
-/*  printf("We have key: %d\n", key); */
+/*  printf("We add key: %d\n", key); */
 
   oldhead=KeyHead;
   KeyHead++;
   if (KeyHead==KEYRINGSIZE) KeyHead=0;
   if (KeyHead!=KeyTail) {
-          KeyRing[KeyHead]=key;
+          KeyRing[oldhead]=key;
 	  return 1;
   	  }
   /* We have a KeyRing overflow */
@@ -80,6 +80,8 @@ unsigned char GetKeyFromKeyRing(void) {
         KeyTail++;
         if (KeyTail==KEYRINGSIZE) KeyTail=0;
   	}
+
+/*  if (retval) printf("We remove key: %d\n", retval); */
 
   return retval;
   }
