@@ -32,8 +32,8 @@
 
 RETVAL=0
 
-prefix = @prefix@
-exec_prefix = @exec_prefix@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
 bindir=@bindir@
 sbindir=@sbindir@
 etc=@sysconfdir@
@@ -92,7 +92,7 @@ case "$1" in
 	condrestart
 	;;
   *)
-	echo "Usage: apmd.init {start|stop|status|restart|reload|condrestart}"
+	echo "Usage: $0 {start|stop|status|restart|reload|condrestart}"
 	exit 1
 esac
 

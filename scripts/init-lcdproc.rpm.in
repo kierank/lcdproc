@@ -33,18 +33,18 @@
 
 RETVAL=0
 
-prefix = @prefix@
-exec_prefix = @exec_prefix@
-bindir=@bindir@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+bindir="@bindir@"
 sbindir=@sbindir@
 etc=@sysconfdir@
 
-LCDd=${sbindir}/lcdproc
+lcdproc=${bindir}/lcdproc
 
 start() {
 	echo -n $"Starting up lcdproc @VERSION@: "
 	test -r "$CONFIG" && . "$CONFIG"
-	daemon ${lcdproc} C X
+	daemon ${lcdproc} C X &
 
 	RETVAL=$?
 	[ $RETVAL -eq 0 ] && touch /var/lock/subsys/lcdproc
@@ -92,7 +92,7 @@ case "$1" in
 	condrestart
 	;;
   *)
-	echo "Usage: apmd.init {start|stop|status|restart|reload|condrestart}"
+	echo "Usage: $0 {start|stop|status|restart|reload|condrestart}"
 	exit 1
 esac
 

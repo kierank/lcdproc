@@ -21,8 +21,8 @@
 
 $prefix=@prefix@
 $exec_prefix=@exec_prefix@
-$bindir=@bindir@
-$sbindir=@sbindir@
+$bin=@bindir@
+$sbin=@sbindir@
 $etc=@sysconfdir@
 $man=@mandir@
 $srcdir=@srcdir@
@@ -62,14 +62,14 @@ EOF
 
 # debian
 %format dpkg
-i 750 root root /etc/init.d/lcdd ${srcdir}/scripts/init-LCDd.debian
-i 750 root root /etc/init.d/lcdproc ${srcdir}/scripts/init-lcdproc.debian
+f 750 root root /etc/init.d/lcdd ${srcdir}/scripts/init-LCDd.debian
+f 750 root root /etc/init.d/lcdproc ${srcdir}/scripts/init-lcdproc.debian
 
 # RPM based distributions
 %format rpm
 $etc=/etc
-i 750 root root /etc/rc.d/init.d/lcdd ${srcdir}/scripts/init-LCDd.rpm
-i 750 root root /etc/rc.d/init.d/lcdproc ${srcdir}/scripts/init-lcdproc.rpm
+f 750 root root /etc/rc.d/init.d/lcdd ${srcdir}/scripts/init-LCDd.rpm
+f 750 root root /etc/rc.d/init.d/lcdproc ${srcdir}/scripts/init-lcdproc.rpm
 
 # Sorry, no scripts for other systems :(
 # TODO: Add init scripts for more systems here
