@@ -113,9 +113,10 @@ f 750 root root ${sbin}/LCDd ${srcdir}/server/LCDd
 # main client
 f 755 root root ${bin}/lcdproc ${srcdir}/clients/lcdproc/lcdproc
 
-# other clients
-f 755 root root ${bin}/lcdfortune ${srcdir}/clients/examples/fortune.pl
-f 755 root root ${bin}/lcdiosock ${srcdir}/clients/examples/iosock.pl
-f 755 root root ${bin}/lcdheadlines ${srcdir}/clients/headlines/lcdheadlines
-f 755 root root ${bin}/lcdtail ${srcdir}/clients/examples/tail.pl
-f 755 root root ${bin}/lcdx11amp ${srcdir}/clients/examples/x11amp.pl
+# example clients
+d 755 root root $(doc)/LCDproc/examples
+f 755 root root ${doc}/LCDproc/examples/fortune.pl ${srcdir}/clients/examples/fortune.pl
+f 755 root root ${doc}/LCDproc/examples/iosock.pl ${srcdir}/clients/examples/iosock.pl
+f 755 root root ${doc}/LCDproc/examples/lcdheadlines ${srcdir}/clients/headlines/lcdheadlines
+f 755 root root ${doc}/LCDproc/examples/tail.pl ${srcdir}/clients/examples/tail.pl
+f 755 root root ${doc}/LCDproc/examples/x11amp.pl ${srcdir}/clients/examples/x11amp.pl
