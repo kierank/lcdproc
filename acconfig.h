@@ -1,5 +1,5 @@
 /* acconfig.h
-*   $Id: acconfig.h,v 1.20.2.1 2002/01/01 15:46:04 reenoo Exp $
+*   $Id: acconfig.h,v 1.20.2.1.2.1 2002/06/09 20:14:23 dglaude Exp $
 *   This file is in the public domain.
 *
 *   Descriptive text for the C preprocessor macros that
@@ -18,11 +18,11 @@
 /*   Leave the following blank line there!!  Autoheader needs it.  */
 
 
-#undef LIRCIN_DRV
-
 #undef BAYRAD_DRV
 
 #undef CFONTZ_DRV
+
+#undef CFONTZ633_DRV
 
 #undef CURSES_DRV
 
@@ -53,6 +53,8 @@
 #undef LCDPORT
 
 #undef LINUX
+
+#undef LIRCIN_DRV
 
 #undef LOAD_MAX
 

@@ -28,7 +28,7 @@ Richard Rognlie <rrognlie@gamerz.net>:
 	- GIF driver (lost code)
 
 Tom Wheeley:
-	- IRMan input driver
+	- IRMan input driver (heritage from workmanir.c)
 
 Bjoern Andersson:
 	- Curses driver
@@ -36,14 +36,15 @@ Bjoern Andersson:
 Andrew McMeikan <andrewm@engineer.com>:
 	- HD44780 driver
 
-David Glaude:
-	- Lirc driver(not the current version)
-	- IRMAN driver,
-        - lcdproc big clocK screen.
+David Glaude (dglaudemailing@gmx.net):
+	- Lirc driver (not the current version)
+	- IRMAN input driver
+        - lcdproc big clocK screen
         - Matrix Orbital enhancement: Big Number, general-purpose output,
 	  dynamic custom char allocation, i2c support(lost), ...
-	- Crystal Fontz driver
-	- Matrix orbital GLK driver
+	- Crystal Fontz driver (heritage from MtxOrb + Bignum fix for 0.4.4)
+	- Matrix orbital GLK driver (heritage from MtxOrb, done nothing)
+	- Crystal Fontz 633 driver (from scratch)
 
 Todd Porter:
 	- Windows 95/98 and NT version
