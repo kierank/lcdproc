@@ -36,3 +36,14 @@ version of LCDproc with a development release]
 
 Patches and suggestions are welcome! Join the mailing list to get
 started. See http://lcdproc.omnipotent.net/ for more information.
+
+Additionnal note:
+
+Jarda Benkovsky kindly provided us with a fild from FreeCIV that can
+be use to exclude unneeded file from a diff.
+This file is now in the root of the project under the name diff_ignore.
+
+How to use it?
+
+diff -ruN --exclude-from lcdproc/diff_ignore lcdproc-orig lcdproc
+
