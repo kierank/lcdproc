@@ -1137,24 +1137,29 @@ MtxOrb_getkey ()
 	char in = 0;
 
 	read (fd, &in, 1);
-	if (!keypad_test_mode) {
-		if (in==pause_key) {
-			in = INPUT_PAUSE_KEY;
-		} else if (in==back_key) {
-			in = INPUT_BACK_KEY;
-		} else if (in==forward_key){
-			in = INPUT_FORWARD_KEY;
-		} else if (in==main_menu_key) {
-			in = INPUT_MAIN_MENU_KEY;
-		}
-		/*TODO: add more translations here (if neccessary)*/
-	} else {
-		/* We're running in keypad_test_mode.
-		 * So only output the character that has been received.
-		 * The output goes directly to stdout. Otherwise it might
-		 * not be visible because of the report level
-		 */
-		if (in!=0) {
+
+	if (in!=0) {
+		if (!keypad_test_mode) {
+			if (in==pause_key) {
+				in = INPUT_PAUSE_KEY;
+			} else if (in==back_key) {
+				in = INPUT_BACK_KEY;
+			} else if (in==forward_key){
+				in = INPUT_FORWARD_KEY;
+			} else if (in==main_menu_key) {
+				in = INPUT_MAIN_MENU_KEY;
+			}
+			/*TODO: add more translations here (if neccessary)*/
+			  else {
+			  	in = 0;
+			}
+			report(RPT_DEBUG, "MtxOrb: getkey(): returning %c", in);
+		} else {
+			/* We're running in keypad_test_mode.
+			 * So only output the character that has been received.
+			 * The output goes directly to stdout. Otherwise it might
+			 * not be visible because of the report level
+			 */
 			fprintf (stdout, "MtxOrb: Received character %c\n", in);
 			in = 0;
 			fprintf (stdout, "MtxOrb: Press another key of your device.\n");
