@@ -106,6 +106,7 @@ typedef enum {
 	barb = 255
 } bar_type;
 
+static unsigned char *lcd_contains; // what we think is actually on the LCD
 static int custom = 0;
 static enum {MTXORB_LCD, MTXORB_LKD, MTXORB_VFD, MTXORB_VKD} MtxOrb_type;
 static int fd;
@@ -341,6 +342,18 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 	        report(RPT_ERR, "MtxOrb: Error: unable to create framebuffer.");
 		return -1;
 	}
+	
+	// Initialize to be empty, just to be safe.
+	memset (MtxOrb->framebuf, ' ', (MtxOrb->wid * MtxOrb->hgt));
+
+    lcd_contains = malloc(MtxOrb->wid * MtxOrb->hgt);
+    if (!lcd_contains) {
+        report(RPT_ERR, "MtxOrb: Error: unable to create lcd_contains.");
+        return -1;
+    }
+	// Fill it with the dirty char so the first LCD screen will all be sent.
+    memset(lcd_contains, DIRTY_CHAR, MtxOrb->wid * MtxOrb->hgt);
+
 
 	/* Set up io port correctly, and open it... */
 	fd = open (device, O_RDWR | O_NOCTTY);
@@ -475,6 +488,10 @@ MtxOrb_close ()
 
 	MtxOrb->framebuf = NULL;
 
+    if (lcd_contains)
+        free (lcd_contains);
+    lcd_contains=NULL;
+
 	report(RPT_INFO, "MtxOrb: closed");
 }
 
@@ -507,16 +524,41 @@ MtxOrb_flush ()
 static void
 MtxOrb_flush_box (int lft, int top, int rgt, int bot)
 {
-	int y;
-	char out[LCD_MAX_WIDTH];
+    int y;
+    int x;
+    int mv=0;
+    unsigned char *p, *q;
+    
+    debug(RPT_DEBUG, "MtxOrb: flush_box(%d,%d,%d,%d)", lft, top, rgt, bot);
 
-	debug(RPT_DEBUG, "MtxOrb: flush_box(%d,%d,%d,%d)", lft, top, rgt, bot);
+    // We can't just write it out because it could contain
+    // the dirty character.
+    for (y = top; y <= bot; y++) {
+        p=(unsigned char *)MtxOrb->framebuf + (y * MtxOrb->wid) + lft;
+        q = lcd_contains + (y*MtxOrb->wid) + lft;
+        mv = 1;
 
-	for (y = top; y <= bot; y++) {
-		snprintf (out, sizeof(out), "\x0FEG%c%c", lft, y);
-		write (fd, out, 4);
-		write (fd, MtxOrb->framebuf + (y * MtxOrb->wid) + lft, rgt - lft + 1);
-	}
+        for (x = lft; x <= rgt; x++) {
+
+            if ((*p == *q) || (*p == DIRTY_CHAR))
+                mv = 1;
+            else {
+
+                if (mv == 1)
+                {
+                    char out[5];
+                    snprintf(out, sizeof(out), "\x0FEG%c%c", x, y);
+                    write (fd, out, 4);
+                    mv = 0;
+                }
+                write (fd, p, 1);
+				*q = *p;
+            }
+            p++;
+            q++;
+        }
+    }
+
 	debug(RPT_DEBUG, "MtxOrb: frame buffer box flushed");
 }
 
@@ -974,6 +1016,11 @@ MtxOrb_init_num ()
  * hiden behind the hardware bignum dirty so that they get cleaned
  * when draw_frame is called. There is no dirty char so I will use 254
  * hoping nobody is using that char. GLU
+ *
+ * Nobody is going to be using 254 - as that's the command escape character! CJL
+ *
+ * TODO: No support for num==10 - this is meant to be a colon - CJL
+ *
  */
 
 /*************************************************************************
@@ -1070,39 +1117,21 @@ MtxOrb_draw_frame (char *dat)
 {
 	char out[12];
 	int i,j,mv = 1;
-	static char *old = NULL;
-	char *p, *q;
+	unsigned char *p, *q;
 
 	if (!dat)
 		return;
 
-	if (old == NULL) {
-		old = malloc(MtxOrb->wid * MtxOrb->hgt);
-
-		write(fd, "\x0FEG\x01\x01", 4);
-		write(fd, dat, MtxOrb->wid * MtxOrb->hgt);
-
-		memcpy(old, dat, MtxOrb->wid * MtxOrb->hgt);
-
-		return;
-
-	} else {
-		if (! new_framebuf(MtxOrb, old))
-			return;
-	}
-
-	p = dat;
-	q = old;
+    p = (unsigned char*)dat;
+    q = lcd_contains;
 
 	for (i = 1; i <= MtxOrb->hgt; i++) {
 		for (j = 1; j <= MtxOrb->wid; j++) {
 
-			if ((*p == *q) && (*p > 8))
+			if ((*p == *q) || (*p == DIRTY_CHAR))
 				mv = 1;
 			else {
-				/* Draw characters that have changed, as well
-				 + as custom characters.  We know not if a custom
-				 * character has changed.
+				/* Draw characters that have changed.
 				 */
 
 				if (mv == 1) {
@@ -1117,15 +1146,7 @@ MtxOrb_draw_frame (char *dat)
 		}
 	}
 
-
-	/*for (i = 0; i < MtxOrb->hgt; i++) {
-	 *	snprintf (out, sizeof(out), "\x0FEG\x001%c", i + 1);
-	 *	write (fd, out, 4);
-	 *	write (fd, dat + (MtxOrb->wid * i), MtxOrb->wid);
-	 *}
-	 */
-
-	memcpy(old, dat, MtxOrb->wid * MtxOrb->hgt);
+	memcpy(lcd_contains, dat, MtxOrb->wid * MtxOrb->hgt);
 }
 
 /* TODO: Recover the code for I2C connectivity to MtxOrb
