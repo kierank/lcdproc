@@ -39,6 +39,7 @@
 #include "render.h"
 
 int heartbeat = HEART_OPEN;
+int heartbeat_state = HEART_OPEN;
 int backlight = BACKLIGHT_OPEN;
 int backlight_state = BACKLIGHT_OPEN;
 int backlight_brightness = DEF_BACKLIGHT_BRIGHTNESS;
@@ -56,6 +57,7 @@ draw_screen (screen * s, int timer)
 {
 	static screen *old_s = NULL;
 	int tmp = 0, tmp_state = 0;
+	char *slash_phases = "-\\|/";
 
 	/*debug(RPT_DEBUG, "Render...");*/
 	/*return 0;*/
@@ -156,13 +158,39 @@ draw_screen (screen * s, int timer)
 
 	/*debug(RPT_DEBUG, "draw_screen done");*/
 
-	if (heartbeat!=HEART_OFF) {
-		if (s->heartbeat == HEART_SLASH) {
-			char *phases = "-\\|/";
-			lcd_ptr->chr (lcd_ptr->wid, 1, phases[timer & 3]);
-		} else {
-			lcd_ptr->heartbeat(s->heartbeat);
-		}
+	/* Set up heartbeat to the correct state... */
+
+	switch (heartbeat){
+		case HEARTBEAT_ON:
+			/* heartbeat mode "on" */
+			lcd_ptr->heartbeat(HEARTBEAT_ON);
+			break;
+		case HEARTBEAT_OFF:
+			/* heartbeat mode "off" */
+			/* do nothing */
+			break;
+		case HEARTBEAT_SLASH:
+			/* Replace heartbeat with a rotating slash */
+			lcd_ptr->chr (lcd_ptr->wid, 1, slash_phases[timer & 3]);
+			break;
+		default:
+			/* Only in HEARTBEAT_OPEN mode clients are allowed
+			 * to change the heartbeat state.
+			 */
+			switch (s->heartbeat) {
+				case HEARTBEAT_OFF:
+					/* do nothing */
+					break;
+				case HEARTBEAT_ON:
+					/* Heartbeat on */
+					lcd_ptr->heartbeat(HEARTBEAT_ON);
+					break;
+				case HEARTBEAT_SLASH:
+					/* Replace heartbeat with a rotating slash */
+					lcd_ptr->chr (lcd_ptr->wid, 1, slash_phases[timer & 3]);
+					break;
+			}
+			break;
 	}
 
 	/* flush display out, frame and all...*/
