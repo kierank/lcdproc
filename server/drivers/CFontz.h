@@ -50,7 +50,7 @@ void CFontz_string (int x, int y, char string[]);
 #define DEFAULT_CELL_HEIGHT 8
 #define DEFAULT_CONTRAST 140
 #define DEFAULT_DEVICE "/dev/lcd"
-#define DEFAULT_SPEED B9600
+#define DEFAULT_SPEED B19200
 #define DEFAULT_BRIGHTNESS 60
 #define DEFAULT_OFFBRIGHTNESS 0
 #define DEFAULT_SIZE "20x4"

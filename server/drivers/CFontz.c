@@ -148,6 +148,9 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 		case 9600:
 			speed = B9600;
 			break;
+		case 19200:
+			speed = B19200;
+			break;
 		default:
 			speed = DEFAULT_SPEED;
 			switch (speed) {
@@ -158,13 +161,16 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 					strncpy(buf,"2400", sizeof(buf));
 					break;
 				case B4800:
-					strncpy(buf,"9600", sizeof(buf));
+					strncpy(buf,"4800", sizeof(buf));
 					break;
 				case B9600:
+					strncpy(buf,"9600", sizeof(buf));
+					break;
+				case B19200:
 					strncpy(buf,"19200", sizeof(buf));
 					break;
 			}
-			report (RPT_WARNING , "CFontz: Speed must be 1200, 2400, 4800 or 9600. Using default value of %s baud!", buf);
+			report (RPT_WARNING , "CFontz: Speed must be 1200, 2400, 4800, 9600, or 19200. Using default value of %s baud!", buf);
 			strncpy(buf,"", sizeof(buf));
 	}
 
