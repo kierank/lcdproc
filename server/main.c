@@ -907,10 +907,12 @@ do_mainloop ()
 		 */
 		if((message = malloc(256)) == NULL)
 			report(RPT_ERR, "Error allocating message string");
-		else if (s) {
+		else if (s && s->name) {
 			snprintf(message, 256, "Screen->%s has timeout->%d", s->name, s->timeout);
 			report(RPT_DEBUG, message);
 			free(message);
+		} else {
+			report(RPT_DEBUG, "Error: Received NULL pointer");
 		}
 		if (s && s->timeout != -1) {
 
