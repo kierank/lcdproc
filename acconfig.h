@@ -1,5 +1,5 @@
 /* acconfig.h
-*   $Id: acconfig.h,v 1.14 2001/10/26 22:52:10 gfk Exp $
+*   $Id: acconfig.h,v 1.15 2001/10/31 22:05:14 gfk Exp $
 *   This file is in the public domain.
 *
 *   Descriptive text for the C preprocessor macros that
@@ -27,6 +27,8 @@
 #undef CURSES_DRV
 
 #undef DEBUG
+
+#undef DEFINED_ACS
 
 #undef GLK_DRV
 
