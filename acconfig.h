@@ -1,5 +1,5 @@
 /* acconfig.h
-*   $Id: acconfig.h,v 1.19 2001/11/29 14:09:13 robijn Exp $
+*   $Id: acconfig.h,v 1.20 2001/11/30 23:53:16 gfk Exp $
 *   This file is in the public domain.
 *
 *   Descriptive text for the C preprocessor macros that
@@ -25,6 +25,14 @@
 #undef CFONTZ_DRV
 
 #undef CURSES_DRV
+
+#undef CURSES_HAS__ACS_CHAR
+
+#undef CURSES_HAS_ACS_MAP
+
+#undef CURSES_HAS_REDRAWWIN
+
+#undef CURSES_HAS_WCOLOR_SET
 
 #undef DEBUG
 
