@@ -674,7 +674,7 @@ screen_set_func (client * c, int argc, char **argv)
 				if (0 == strcmp (argv[i], "none"))
 					s->heartbeat = HEART_OFF;
 				if (0 == strcmp (argv[i], "slash"))
-					s->heartbeat = HEART_OPEN;
+					s->heartbeat = HEART_SLASH;
 				sock_send_string(c->sock, "success\n");
 			} else {
 				sock_send_string (c->sock, "huh? -heartbeat requires a parameter\n");

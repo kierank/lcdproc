@@ -157,8 +157,12 @@ draw_screen (screen * s, int timer)
 	/*debug(RPT_DEBUG, "draw_screen done");*/
 
 	if (heartbeat!=HEART_OFF) {
-		lcd_ptr->heartbeat(s->heartbeat);
-		/*moved to <driver>_heartbeat() in the driver code*/
+		if (s->heartbeat == HEART_SLASH) {
+			char *phases = "-\\|/";
+			lcd_ptr->chr (lcd_ptr->wid, 1, phases[timer & 3]);
+		} else {
+			lcd_ptr->heartbeat(s->heartbeat);
+		}
 	}
 
 	/* flush display out, frame and all...*/
