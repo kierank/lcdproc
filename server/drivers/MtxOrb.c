@@ -159,13 +159,10 @@ static char MtxOrb_parse_keypad_setting (char * sectionname, char * keyname, cha
 {
 	char return_val = 0;
 	char * s;
-	char buf [255];
 
 	s = config_get_string ( sectionname, keyname, 0, NULL);
 	if (s != NULL){
-		strncpy (buf, s, sizeof(buf));
-		buf[sizeof(buf)-1]=0;
-		return_val = buf[0];
+		return_val = *s;
 	} else {
 		return_val=default_value;
 	}
@@ -200,8 +197,8 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 	int contrast = MTXORB_DEF_CONTRAST;
 	char device[256] = MTXORB_DEF_DEVICE;
 	int speed = MTXORB_DEF_SPEED;
-	char size[256] = MTXORB_DEF_SIZE;
-	char buf[256] = "";
+	char *size;
+	char *type;
 	int tmp, w, h;
 
 	MtxOrb_type = MTXORB_LKD;  // Assume it's an LCD w/keypad
@@ -222,8 +219,7 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 	report (RPT_INFO,"MtxOrb: Using device: %s", device);
 
 	/* Get display size */
-	strncpy(size, config_get_string ( DriverName , "size" , 0 , MTXORB_DEF_SIZE),sizeof(size));
-	size[sizeof(size)-1]=0;
+	size=config_get_string ( DriverName , "size" , 0 , MTXORB_DEF_SIZE);
 	if( sscanf(size , "%dx%d", &w, &h ) != 2
 	|| (w <= 0) || (w > LCD_MAX_WIDTH)
 	|| (h <= 0) || (h > LCD_MAX_HEIGHT)) {
@@ -257,23 +253,27 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 			speed = B19200;
 			break;
 		default:
-			speed = MTXORB_DEF_SPEED;
-			switch (speed) {
-				case B1200:
-					strncpy(buf,"1200", sizeof(buf));
-					break;
-				case B2400:
-					strncpy(buf,"2400", sizeof(buf));
-					break;
-				case B9600:
-					strncpy(buf,"9600", sizeof(buf));
-					break;
-				case B19200:
-					strncpy(buf,"19200", sizeof(buf));
-					break;
+			{
+				int baud=0;
+				speed = MTXORB_DEF_SPEED;
+				switch (speed) {
+					case B1200:
+						baud=1200;
+						break;
+					case B2400:
+						baud=2400;
+						break;
+					case B9600:
+						baud=9600;
+						break;
+					case B19200:
+						baud=19200;
+						break;
+				}
+				report (RPT_WARNING , 
+						"MtxOrb: Speed must be 1200, 2400, 9600 or "
+							"19200. Using default value of %u baud!", baud);
 			}
-			report (RPT_WARNING , "MtxOrb: Speed must be 1200, 2400, 9600 or 19200. Using default value of %s baud!", buf);
-			strncpy(buf,"", sizeof(buf));
 	}
 
 
@@ -283,19 +283,19 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 	}
 
 	/* Get display type */
-	strncpy(buf, config_get_string ( DriverName , "type" , 0 , MTXORB_DEF_TYPE),sizeof(size));
-	buf[sizeof(buf)-1]=0;
+	type=config_get_string ( DriverName , "type" , 0 , MTXORB_DEF_TYPE);
 
-	if (strncasecmp(buf, "lcd", 3) == 0) {
+	if (strncasecmp(type, "lcd", 3) == 0) {
 		MtxOrb_type = MTXORB_LCD;
-	} else if (strncasecmp(buf, "lkd", 3) == 0) {
+	} else if (strncasecmp(type, "lkd", 3) == 0) {
 		MtxOrb_type = MTXORB_LKD;
-	} else if (strncasecmp (buf, "vfd", 3) == 0) {
+	} else if (strncasecmp (type, "vfd", 3) == 0) {
 		MtxOrb_type = MTXORB_VFD;
-	} else if (strncasecmp (buf, "vkd", 3) == 0) {
+	} else if (strncasecmp (type, "vkd", 3) == 0) {
 		MtxOrb_type = MTXORB_VKD;
 	} else {
-		report (RPT_ERR, "MtxOrb: unknwon display type %s; must be one of lcd, lkd, vfd, or vkd", buf);
+		report (RPT_ERR, "MtxOrb: unknown display type %s; "
+							"must be one of lcd, lkd, vfd, or vkd", type);
 		return (-1);
 		}
 
@@ -1082,7 +1082,7 @@ MtxOrb_draw_frame (char *dat)
 		write(fd, "\x0FEG\x01\x01", 4);
 		write(fd, dat, MtxOrb->wid * MtxOrb->hgt);
 
-		strncpy(old, dat, MtxOrb->wid * MtxOrb->hgt);
+		memcpy(old, dat, MtxOrb->wid * MtxOrb->hgt);
 
 		return;
 
@@ -1125,7 +1125,7 @@ MtxOrb_draw_frame (char *dat)
 	 *}
 	 */
 
-	strncpy(old, dat, MtxOrb->wid * MtxOrb->hgt);
+	memcpy(old, dat, MtxOrb->wid * MtxOrb->hgt);
 }
 
 /* TODO: Recover the code for I2C connectivity to MtxOrb
