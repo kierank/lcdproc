@@ -13,8 +13,8 @@ Coming soon: (already implemented in 0.5 = CVS main branch)
 v0.4.4
  + Added option in curses to use our own ascii map
  * Fixed the bignum/backstore and flickering in CFontz
- + Added CFontz633 backported from CVS 0.5
- * Recovered some old code of the curses driver (See LCDd.conf)
+ + Added CFontz633 backported from CVS 0.5 (temporarily removed
+   from the distribution)
  * Finished the LCDM001 driver
  * Fixed a memory leak in do_mainloop
  * MtxOrb fix problem when used via USB 2 serial adapter

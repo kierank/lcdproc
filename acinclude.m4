@@ -5,16 +5,16 @@ AC_ARG_ENABLE(drivers,
   	[  --enable-drivers=<list> compile driver for LCDs in <list>.]
 	[                  drivers may be separated with commas.]
   	[                  Possible choices are:]
- 	[                    mtxorb,cfontz,cfontz633,cwlnx,curses,text,lb216,]
+ 	[                    mtxorb,cfontz,cwlnx,curses,text,lb216,]
  	[                    hd44780,joy,irman,lircin,bayrad,glk,]
  	[                    stv5730,sed1330,sed1520,svgalib,lcdm001,]
  	[                    t6963,wirz-sli,sgx120]
 	[                  \"all\" compiles all drivers],
   	drivers="$enableval", 
-  	drivers=[lcdm001,mtxorb,cfontz,cfontz633,cwlnx,curses,text,lb216,bayrad,glk,sgx120])
+  	drivers=[lcdm001,mtxorb,cfontz,cwlnx,curses,text,lb216,bayrad,glk,sgx120])
 
 if test "$drivers" = "all"; then
-	drivers=[mtxorb,cfontz,cfontz633,cwlnx,curses,text,lb216,hd44780,joy,irman,lircin,bayrad,glk,stv5730,sed1330,sed1520,svgalib,lcdm001,t6963,wirz-sli,sgx120]
+	drivers=[mtxorb,cfontz,cwlnx,curses,text,lb216,hd44780,joy,irman,lircin,bayrad,glk,stv5730,sed1330,sed1520,svgalib,lcdm001,t6963,wirz-sli,sgx120]
 fi
 
   	drivers=`echo $drivers | sed 's/,/ /g'`
@@ -46,11 +46,6 @@ fi
 			DRIVERS="$DRIVERS CFontz.o"
 			AC_DEFINE(CFONTZ_DRV)
 			actdrivers=["$actdrivers cfontz"]
-			;;
-		cfontz633)
-			DRIVERS="$DRIVERS CFontz633.o CFontz633io.o"
-			AC_DEFINE(CFONTZ633_DRV)
-			actdrivers=["$actdrivers cfontz633"]
 			;;
 		cwlnx)
 			DRIVERS="$DRIVERS CwLnx.o"
