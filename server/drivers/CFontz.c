@@ -53,8 +53,6 @@ typedef enum {
 } custom_type;
 
 static int fd;
-static int brightness = CFONTZ_DEF_BRIGHTNESS;
-static int offbrightness = CFONTZ_DEF_OFFBRIGHTNESS;
 static int newfirmware = 0;
 static char* backingstore = NULL;
 static char* blankrow = NULL;
@@ -118,20 +116,6 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 		contrast = config_get_int ( DriverName , "Contrast" , 0 , CFONTZ_DEF_CONTRAST);
 	} else {
 		report (RPT_WARNING, "CFontz: Contrast must be between 0 and 255. Using default value.\n");
-	}
-
-	/*Which backlight brightness*/
-	if (0<=config_get_int ( DriverName , "Brightness" , 0 , CFONTZ_DEF_BRIGHTNESS) && config_get_int ( DriverName , "Brightness" , 0 , CFONTZ_DEF_BRIGHTNESS) <= 255) {
-		brightness = config_get_int ( DriverName , "Brightness" , 0 , CFONTZ_DEF_BRIGHTNESS);
-	} else {
-		report (RPT_WARNING, "CFontz: Brightness must be between 0 and 255. Using default value.\n");
-	}
-
-	/*Which backlight-off "brightness"*/
-	if (0<=config_get_int ( DriverName , "OffBrightness" , 0 , CFONTZ_DEF_OFFBRIGHTNESS) && config_get_int ( DriverName , "OffBrightness" , 0 , CFONTZ_DEF_OFFBRIGHTNESS) <= 255) {
-		offbrightness = config_get_int ( DriverName , "OffBrightness" , 0 , CFONTZ_DEF_OFFBRIGHTNESS);
-	} else {
-		report (RPT_WARNING, "CFontz: OffBrightness must be between 0 and 255. Using default value.\n");
 	}
 
 	/*Which speed*/
@@ -373,8 +357,7 @@ CFontz_contrast (int contrast)
 }
 
 /////////////////////////////////////////////////////////////////
-// Sets the backlight on or off -- can be done quickly for
-// an intermediate brightness...
+// Sets the backlight brightness
 //
 void
 CFontz_backlight (int on)
@@ -385,12 +368,15 @@ CFontz_backlight (int on)
 	if (on == current)
 		return;
 
+	/* validate backlight value */
+	if (on > 255)
+		on = 255;
+	if (on < 0)
+		on = 0;
+
 	current = on;
-	if (on) {
-		snprintf (out, sizeof(out), "%c%c", 14, brightness);
-	} else {
-		snprintf (out, sizeof(out), "%c%c", 14, offbrightness);
-	}
+	snprintf (out, sizeof(out), "%c%c", 14, current);
+
 	write (fd, out, 3);
 }
 

@@ -51,8 +51,6 @@ void CFontz_string (int x, int y, char string[]);
 #define CFONTZ_DEF_CONTRAST 140
 #define CFONTZ_DEF_DEVICE "/dev/lcd"
 #define CFONTZ_DEF_SPEED B19200
-#define CFONTZ_DEF_BRIGHTNESS 60
-#define CFONTZ_DEF_OFFBRIGHTNESS 0
 #define CFONTZ_DEF_SIZE "20x4"
 
 #endif
