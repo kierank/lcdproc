@@ -59,7 +59,8 @@ algorithms for screen-ordering.
 One example: High-priority screens will be shown more often than
 low-priority screens, simply by showing up more often.
 
-STATUS: I don't know.
+STATUS: Currently high priority screens will only be shown _first_ after
+a resorting of the screenlist. The time that it's visible is unaltered.
 ----------------------------------------
 Shell Commands
 
