@@ -148,7 +148,7 @@ static char lcdm001_parse_keypad_setting (char * sectionname, char * keyname, ch
 	} else if (strcmp( config_get_string ( sectionname, keyname, 0, default_value), "DownKey")==0) {
 		return_val=DOWN_KEY;
 	} else {
-		report (RPT_WARNING, "LCDM001: Invalid  config file setting for %s. Using default value %s.\n", keyname, default_value);
+		report (RPT_WARNING, "LCDM001: Invalid  config file setting for %s. Using default value %s", keyname, default_value);
 		if (strcmp (default_value, "LeftKey")==0) {
 			return_val=LEFT_KEY;
 		} else if (strcmp (default_value, "RightKey")==0) {
@@ -204,7 +204,7 @@ lcdm001_init (struct lcd_logical_driver *driver, char *args)
 	}
 
 	if (!driver->framebuf) {
-		report(RPT_ERR, "\nError: unable to create LCDM001 framebuffer.\n");
+		report(RPT_ERR, "Error: unable to create LCDM001 framebuffer.");
 		return -1;
 	}
 /* Debugging...
@@ -240,17 +240,17 @@ lcdm001_init (struct lcd_logical_driver *driver, char *args)
 	if (fd == -1)
 	{
 		switch (errno) {
-			case ENOENT: report( RPT_ERR, "LCDM001: lcdm001_init() failed: Device file missing: %s\n", device);
+			case ENOENT: report( RPT_ERR, "LCDM001: lcdm001_init() failed: Device file missing: %s", device);
 				break;
-			case EACCES: report( RPT_ERR, "LCDM001: lcdm001_init() failed: Could not open device: %s\n", device);
-				report( RPT_ERR, "LCDM001: lcdm001_init() failed: Make sure you have rw access to %s!\n", device);
+			case EACCES: report( RPT_ERR, "LCDM001: lcdm001_init() failed: Could not open device: %s", device);
+				report( RPT_ERR, "LCDM001: lcdm001_init() failed: Make sure you have rw access to %s!", device);
 				break;
-			default: report( RPT_ERR, "LCDM001: lcdm001_init() failed (%s)\n", strerror (errno));
+			default: report( RPT_ERR, "LCDM001: lcdm001_init() failed (%s)", strerror (errno));
 				break;
 		}
   		return -1;
 	} else {
-		report (RPT_INFO, "LCDM001: opened display on %s\n", device);
+		report (RPT_INFO, "LCDM001: opened display on %s", device);
 	}
 	tcgetattr(fd, &portset);
 #ifdef HAVE_CFMAKERAW

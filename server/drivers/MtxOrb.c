@@ -190,7 +190,7 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 	if( sscanf(size , "%dx%d", &w, &h ) != 2
 	|| (w <= 0) || (w > LCD_MAX_WIDTH)
 	|| (h <= 0) || (h > LCD_MAX_HEIGHT)) {
-		report (RPT_WARNING, "MtxOrb: Cannot read size: %s. Using default value %s.\n", size, DEFAULT_SIZE);
+		report (RPT_WARNING, "MtxOrb: Cannot read size: %s. Using default value %s.", size, DEFAULT_SIZE);
 		sscanf( DEFAULT_SIZE , "%dx%d", &w, &h );
 	}
 	driver->wid = w;
@@ -200,7 +200,7 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 	if (0<=config_get_int ( DriverName , "Contrast" , 0 , DEFAULT_CONTRAST) && config_get_int ( DriverName , "Contrast" , 0 , DEFAULT_CONTRAST) <= 255) {
 		contrast = config_get_int ( DriverName , "Contrast" , 0 , DEFAULT_CONTRAST);
 	} else {
-		report (RPT_WARNING, "MtxOrb: Contrast must be between 0 and 255. Using default value.\n");
+		report (RPT_WARNING, "MtxOrb: Contrast must be between 0 and 255. Using default value.");
 	}
 
 	/* Get speed */
@@ -258,7 +258,7 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 	} else if (strncasecmp (buf, "vkd", 3) == 0) {
 		MtxOrb_type = MTXORB_VKD;
 	} else {
-		report (RPT_ERR, "MtxOrb: unknwon display type %s; must be one of lcd, lkd, vfd, or vkd\n", buf);
+		report (RPT_ERR, "MtxOrb: unknwon display type %s; must be one of lcd, lkd, vfd, or vkd", buf);
 		return (-1);
 		}
 
@@ -272,7 +272,7 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 	}
 
 	if (!driver->framebuf) {
-	        report(RPT_ERR, "MtxOrb: Error: unable to create framebuffer.\n");
+	        report(RPT_ERR, "MtxOrb: Error: unable to create framebuffer.");
 		return -1;
 	}
 
@@ -281,17 +281,17 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 	if (fd == -1) {
 		switch (errno) {
 			case ENOENT:
-				report (RPT_ERR, "MtxOrb: %s device file missing!\n", device);
+				report (RPT_ERR, "MtxOrb: %s device file missing!", device);
 				break;
-			case EACCES: report (RPT_ERR, "MtxOrb: %s device could not be opened...\n", device);
-				report (RPT_ERR, "MtxOrb: Make sure you have rw access to %s\n", device);
+			case EACCES: report (RPT_ERR, "MtxOrb: %s device could not be opened...", device);
+				report (RPT_ERR, "MtxOrb: Make sure you have rw access to %s", device);
 				break;
-			default: report (RPT_ERR, "MtxOrb: opening %s failed (%s)\n", device, strerror (errno));
+			default: report (RPT_ERR, "MtxOrb: opening %s failed (%s)", device, strerror (errno));
 				break;
 		}
   		return -1;
 	} else
-		report (RPT_INFO, "MtxOrb: opened display on %s\n", device);
+		report (RPT_INFO, "MtxOrb: opened display on %s", device);
 
 	tcgetattr (fd, &portset);
 
@@ -393,7 +393,7 @@ MtxOrb_close ()
 
 	MtxOrb->framebuf = NULL;
 
-	debug(RPT_DEBUG, "MtxOrb: closed");
+	report(RPT_INFO, "MtxOrb: closed");
 }
 
 static void
@@ -488,9 +488,9 @@ MtxOrb_contrast (int contrast)
 		snprintf (out, sizeof(out), "\x0FEP%c", contrast);
 		write (fd, out, 3);
 
-		debug(RPT_DEBUG, "MtxOrb: contrast set to %d", contrast);
+		report(RPT_DEBUG, "MtxOrb: contrast set to %d", contrast);
 	} else {
-		debug(RPT_DEBUG, "MtxOrb: contrast not set to %d - not LCD or LKD display", contrast);
+		report(RPT_DEBUG, "MtxOrb: contrast not set to %d - not LCD or LKD display", contrast);
 	}
 
 	return contrast;
@@ -516,14 +516,14 @@ MtxOrb_backlight (int on)
 
 	if (on && backlightenabled) {
 		write (fd, "\x0FE" "F", 2);
-		debug(RPT_DEBUG, "MtxOrb: backlight turned on");
+		report(RPT_DEBUG, "MtxOrb: backlight turned on");
 	} else {
 		if (IS_VKD_DISPLAY || IS_VFD_DISPLAY) {
 			/* turns display off entirely (whoops!) */
-			debug(RPT_DEBUG, "MtxOrb: backlight ignored - not LCD or LKD display");
+			report(RPT_DEBUG, "MtxOrb: backlight ignored - not LCD or LKD display");
 		} else {
 			write (fd, "\x0FE" "B" "\x000", 3);
-			debug(RPT_DEBUG, "MtxOrb: backlight turned off");
+			report(RPT_DEBUG, "MtxOrb: backlight turned off");
 		}
 	}
 }
@@ -546,7 +546,7 @@ MtxOrb_output (int on)
 
 	output_state = on;
 
-	debug(RPT_DEBUG, "MtxOrb: output pins set: %04X", on);
+	report(RPT_DEBUG, "MtxOrb: output pins set: %04X", on);
 
 	if (IS_LCD_DISPLAY || IS_VFD_DISPLAY) {
 		/* LCD and VFD displays only have one output port */
