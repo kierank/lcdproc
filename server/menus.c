@@ -264,6 +264,9 @@ Backlight_func (int input)
 int
 Server_screen_func (int input)
 {
+	if (!server_screen)
+		return (MENU_OK);
+
 	if (input == MENU_READ)
 		return (server_screen->priority < 256);
 	if (input == MENU_CHECK) {
