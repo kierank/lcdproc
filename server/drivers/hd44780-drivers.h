@@ -11,10 +11,12 @@
 #define HD44780_DRIVERS_H
 
 // hd44780 specific header files
-#include "hd44780-4bit.h"
-#include "hd44780-ext8bit.h"
-#include "hd44780-serialLpt.h"
-#include "hd44780-winamp.h"
+#ifdef HAVE_PCSTYLE_LPT_CONTROL
+# include "hd44780-4bit.h"
+# include "hd44780-ext8bit.h"
+# include "hd44780-serialLpt.h"
+# include "hd44780-winamp.h"
+#endif
 #include "hd44780-picanlcd.h"
 // add new connection type header files here
 
@@ -28,15 +30,20 @@ static struct ConnectionMapping {
 	char *connectionTypeStr;
 	int (*init_fn) (HD44780_functions * hd44780_functions, lcd_logical_driver * driver, char *args, unsigned int port);
 	const char *helpMsg;
-} connectionMapping[] = {
+} connectionMapping[] =
+{
 	// connectionType enumerator
 	// string to identify connection on command line
 	// your initialisation function
 	// help string for your particular connection
+
+#ifdef HAVE_PCSTYLE_LPT_CONTROL
 	{ HD_4bit, "4bit", hd_init_4bit, "\t-e\t--extended\tEnable three or more displays\n"},
 	{ HD_8bit, "8bit", hd_init_ext8bit, "\tnone\n"},
 	{ HD_serialLpt, "serialLpt", hd_init_serialLpt, "\tnone\n"},
 	{ HD_winamp, "winamp", hd_init_winamp, "\t-e\t--extended\tEnable three or more displays\n"},
+#endif
+
 	{ HD_picanlcd, "picanlcd", hd_init_picanlcd, ""},
 		 // add new connection types and their string specifier here
 		 // default, end of structure element (do not delete)
