@@ -24,6 +24,7 @@ v0.4.4
  * Fixed the Wirz-sli driver
  * Fixed the FreeBSD parallel port support
  + Added an USBLCD subdriver for HD44780 (http://www.usblcd.de)
+ * Improved parallel port support for old Linux (glibc1 and libc5)
 
 v0.4.3
  - Removed possibility of passing arguments to the drivers from the

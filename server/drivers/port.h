@@ -10,6 +10,8 @@
  * NetBSD & OpenBSD port by Guillaume Filion, copyright 12/2001
  *
  * (Better) FreeBSD port by Guillaume Filion, copyright 05/2002
+ *
+ * Improved support for old Linux (glibc1 and libc5) by Guillaume Filion, 12/2002
  */
 
 /*
@@ -45,14 +47,9 @@ static inline int port_access_full (unsigned short int port);
 // Use ioperm, inb and outb in <sys/io.h> (Linux)
 #if defined HAVE_IOPERM
 
-/* Glibc2 */
+/* Glibc2 and Glibc1 */
 # ifdef HAVE_SYS_IO_H 
 #  include <sys/io.h>
-# endif
-
-/* Glibc1 */
-# ifdef HAVE_SYS_PERM_H
-#  include <sys/perm.h>
 # endif
 
 /* Libc5 */
