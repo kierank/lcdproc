@@ -17,7 +17,7 @@ parallel port:
 <listitem><para>serial LPT</para></listitem>
 </itemizedlist>
 <para>
-And supports a PIC-an-LCD connected to a serial port.
+It also supports a PIC-an-LCD connected to a serial port and the USBLCD interface.
 </para>
 <para>
 The driver also lets you use multiple displays as a single virtual
@@ -1011,6 +1011,21 @@ It does not support a keypad nor backlight switching.
 
 </sect3>
 
+<sect3 id="hd44780-usblcd">
+<title>USBLCD Interface</title>
+
+<para>
+The USBLCD Interface lets you use HD44780 compatible LCDs via the USB port.
+
+Make sure you have the USBLCD kernel module installed and loaded, since 2.4.20
+it is part of the Linux Kernel or can be downloaded from <ulink url="http://www.usblcd.de">www.usblcd.de</ulink>. 
+If you want to use another device file then the default "/dev/usb/lcd" you
+can specify this with the "Device=" option in the config file. 
+It is also recommended to set "Backlight=yes" and "Keypad=no".
+</para>
+
+</sect3>
+
 </sect2>
 
 <sect2 id=hd44780-compiling>
@@ -1066,6 +1081,10 @@ it clear, how the ConnectionType is to be set.
 <row>
 <entry>PIC-an-LCD serial device "picanlcd"</entry>
 <entry>picanlcd</entry>
+</row>
+<row>
+<entry>USBLCD Interface</entry>
+<entry>usblcd</entry>
 </row>
 </tbody>
 </tgroup>
