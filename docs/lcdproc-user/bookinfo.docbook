@@ -11,12 +11,6 @@
 <affiliation><address><email>reenoo@gmx.de</email></address></affiliation>
 </author>
 
-<author>
-<firstname>William W.</firstname>
-<surname>Ferrell</surname>
-<affiliation><address><email>wwf@splatwerks.org</email></address></affiliation>
-</author>
-
 </authorgroup>
 
 <date>2002-03-01</date>
@@ -29,11 +23,6 @@ Some things may be valid for 0.5 as well, but a lot has changed since 0.4.1 and 
 will change for 0.5.
 </para>
 </abstract>
-
-<copyright>
-<year>1998-2002</year>
-<holder>William W. Ferrel</holder>
-</copyright>
 
 <copyright>
 <year>2002</year>
