@@ -61,7 +61,6 @@ typedef enum {
 static int fd;
 static int newfirmware = 0;
 static char* backingstore = NULL;
-static char* blankrow = NULL;
 
 static void CFontz_linewrap (int on);
 static void CFontz_autoscroll (int on);
@@ -185,8 +184,6 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 	if (!driver->framebuf) {
 		driver->framebuf = malloc (driver->wid * driver->hgt);
 		backingstore = calloc (driver->wid * driver->hgt, 1);
-		blankrow = malloc (driver->wid);
-		memset(blankrow, ' ', driver->wid);
 	}
 
 	if (!driver->framebuf) {
@@ -288,12 +285,8 @@ CFontz_close ()
 	if (backingstore)
 		free (backingstore);
 
-	if (blankrow)
-		free (blankrow);
-
 	CFontz->framebuf = NULL;
 	backingstore = NULL;
-	blankrow = NULL;
 }
 
 void
