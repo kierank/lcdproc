@@ -7,6 +7,7 @@
 		  2001, Joris Robijn
 		  2001, Eddie Sheldrake
 		  2001, Rene Wagner
+		  2002, Mike Patnode
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -55,6 +56,8 @@ static int fd;
 static int brightness = DEFAULT_BRIGHTNESS;
 static int offbrightness = DEFAULT_OFFBRIGHTNESS;
 static int newfirmware = 0;
+static char* backingstore = NULL;
+static char* blankrow = NULL;
 
 static void CFontz_linewrap (int on);
 static void CFontz_autoscroll (int on);
@@ -131,7 +134,6 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 		report (RPT_WARNING, "CFontz: OffBrightness must be between 0 and 255. Using default value.\n");
 	}
 
-
 	/*Which speed*/
 	tmp = config_get_int ( DriverName , "Speed" , 0 , DEFAULT_SPEED);
 
@@ -192,6 +194,9 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 	/* You must use driver->framebuf here, but may use lcd.framebuf later.*/
 	if (!driver->framebuf) {
 		driver->framebuf = malloc (driver->wid * driver->hgt);
+		backingstore = calloc (driver->wid * driver->hgt, 1);
+		blankrow = malloc (driver->wid);
+		memset(blankrow, ' ', driver->wid);
 	}
 
 	if (!driver->framebuf) {
@@ -290,7 +295,15 @@ CFontz_close ()
 	if (CFontz->framebuf)
 		free (CFontz->framebuf);
 
+	if (backingstore)
+		free (backingstore);
+
+	if (blankrow)
+		free (blankrow);
+
 	CFontz->framebuf = NULL;
+	backingstore = NULL;
+	blankrow = NULL;
 }
 
 void
@@ -305,7 +318,7 @@ CFontz_flush_box (int lft, int top, int rgt, int bot)
 	int y;
 	char out[LCD_MAX_WIDTH];
 
-//  printf("Flush (%i,%i)-(%i,%i)\n", lft, top, rgt, bot);
+	debug (RPT_DEBUG, "CFontz: flush_box (%i,%i)-(%i,%i)\n", lft, top, rgt, bot);
 
 	for (y = top; y <= bot; y++) {
 		snprintf (out, sizeof(out), "%c%c%c", 17, lft, y);
@@ -329,7 +342,9 @@ CFontz_chr (int x, int y, char c)
 	if (c < 32 && c >= 0)
 		c += 128;
 
-	// For V2 of the firmware to get the block to display right
+	/*
+	 * For V2 of the firmware to get the block to display right
+	*/
 	if (newfirmware && c==-1) {
 	c=214;
 	}
@@ -364,7 +379,13 @@ CFontz_contrast (int contrast)
 void
 CFontz_backlight (int on)
 {
+	static int current = -1;
 	char out[4];
+
+	if (on == current)
+		return;
+
+	current = on;
 	if (on) {
 		snprintf (out, sizeof(out), "%c%c", 14, brightness);
 	} else {
@@ -728,29 +749,37 @@ void
 CFontz_draw_frame (char *dat)
 {
 	char out[LCD_MAX_WIDTH * LCD_MAX_HEIGHT];
+	char *row, *b_row;
 	int i;
 
 	if (!dat)
 		return;
 
-	// Custom characters start at 128, not at 0.
-	/*
-	   for(i=0; i<CFontz->wid*CFontz->hgt; i++)
-	   {
-	   if(dat[i] < 32  &&  dat[i] >= 0) dat[i] += 128;
-	   }
-	 */
-
 	for (i = 0; i < CFontz->hgt; i++) {
+
+		row = dat + (CFontz->wid * i);
+		b_row = backingstore + (CFontz->wid * i);
+
+		/* Backing-store implementation.  If it's already
+		 * on the screen, don't put it there again
+		 */
+		if (memcmp(b_row, row, CFontz->wid) == 0)
+		    continue;
+
+		memcpy(b_row, row, CFontz->wid);
+
+		/* We no longer clear the screen on every frame
+		 *  so just clear the row we're writting
+		 */
 		snprintf (out, sizeof(out), "%c%c%c", 17, 0, i);
 		write (fd, out, 3);
-		write (fd, dat + (CFontz->wid * i), CFontz->wid);
+		write (fd, blankrow, CFontz->wid);
+
+		/* write the data */
+		snprintf (out, sizeof(out), "%c%c%c", 17, 0, i);
+		write (fd, out, 3);
+		write (fd, row, CFontz->wid);
 	}
-	/*
-	   snprintf(out, sizeof(out), "%c", 1);
-	   write(fd, out, 1);
-	   write(fd, dat, CFontz->wid*CFontz->hgt);
-	 */
 
 }
 
