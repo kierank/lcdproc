@@ -53,6 +53,11 @@ typedef enum {
 	beat = 8
 } custom_type;
 
+/* I had to choose a character almost never used.
+ * Value 159 is uggly so I guess no one use it. ;-)
+ */
+#define DIRTY_CHAR 159
+
 static int fd;
 static int newfirmware = 0;
 static char* backingstore = NULL;
@@ -649,10 +654,17 @@ CFontz_hbar (int x, int y, int len)
 void
 CFontz_num (int x, int num)
 {
+	int y, dx;
 	char out[5];
 	custom = bign;
 	snprintf (out, sizeof(out), "%c%c%c%c", 28, 0,  x-1, num+48);
 	write (fd, out, 4);
+
+/* Make this space dirty as far as frame buffer knows.*/
+	for (y = 1; y < 5; y++)
+		for (dx = 0; dx < 3; dx++)
+			MtxOrb_chr (x + dx, y, DIRTY_CHAR);
+
 }
 
 /////////////////////////////////////////////////////////////////
