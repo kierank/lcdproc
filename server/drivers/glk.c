@@ -1,9 +1,24 @@
-/*
- * MatrixOrbital GLK Graphic Display Driver
- *
- * http://www.matrixorbital.com
- *
- */
+/*  This is the LCDproc driver for MatrixOrbital GLK Graphic Displays
+                                         http://www.matrixorbital.com
+
+    Copyright (C) 2001, Philip Pokorny
+		  2001, David Douthitt
+		  2001, David Glaude
+		  2001, Rene Wagner
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -36,9 +51,25 @@ static GLKDisplay *  PortFD ;
 /*  Initialize pseudo-CGRAM to empty */
 static unsigned char  CGRAM[8] = { '\0', '\0', '\0', '\0', '\0', '\0', '\0', '\0' };
 
-//////////////////////////////////////////////////////////////////////////
-//////////////////// Matrix Orbital Graphical Driver /////////////////////
-//////////////////////////////////////////////////////////////////////////
+static void glk_close();
+static void glk_clear();
+static void glk_flush();
+static void glk_string(int x, int y, char string[]);
+static void glk_chr(int x, int y, char c);
+static int glk_contrast(int contrast);
+static void glk_backlight(int on);
+static void glk_output(int on);
+static void glk_vbar(int x, int len);
+static void glk_init_vbar();
+static void glk_hbar(int x, int y, int len);
+static void glk_init_hbar();
+static void glk_num(int x, int num);
+static void glk_init_num();
+static void glk_set_char(int n, char *dat);
+static void glk_icon(int which, char dest);
+static void glk_flush_box(int lft, int top, int rgt, int bot);
+static void glk_draw_frame(char *dat);
+char glk_getkey();
 
 lcd_logical_driver *glk;
 
@@ -59,7 +90,7 @@ int glk_init(struct lcd_logical_driver *driver, char *args)
    char *  device = "/dev/lcd" ;
    int  contrast = 140;
    speed_t  speed = B19200 ;
-   
+
    int  i ;
    int  width ;
    int  height ;
@@ -240,7 +271,7 @@ int glk_init(struct lcd_logical_driver *driver, char *args)
 // lcd.framebuf will be set to the appropriate buffer before calling
 // your driver.
 
-void glk_close() 
+static void glk_close() 
 {
   if(glk->framebuf != NULL) free(glk->framebuf);
 
@@ -254,14 +285,14 @@ void glk_close()
 //
 #define CLEARCOUNT  (1000000)
 static int  clearcount = 0 ;
-void glk_clear_forced()
+static void glk_clear_forced()
 {
 //  puts( "REALLY CLEARING the display" );
   clearcount = CLEARCOUNT ;
   glkputl( PortFD, GLKCommand, 0x58, EOF );
   memset(screen_contents, ' ', glk->wid*glk->hgt);
 }
-void glk_clear() 
+static void glk_clear() 
 {
 //  puts( "glk_clear( )" );
   memset(glk->framebuf, ' ', glk->wid*glk->hgt);
@@ -274,7 +305,7 @@ void glk_clear()
 //////////////////////////////////////////////////////////////////
 // Flushes all output to the lcd...
 //
-void glk_flush()
+static void glk_flush()
 {
 //   puts( "glk_flush( )" );
    glk->draw_frame(glk->framebuf);
@@ -285,7 +316,7 @@ void glk_flush()
 // Prints a string on the lcd display, at position (x,y).  The
 // upper-left is (1,1), and the lower right should be (20,4).
 //
-void glk_string(int x, int y, char string[]) 
+static void glk_string(int x, int y, char string[]) 
 {
   char *  p ;
 
@@ -305,7 +336,7 @@ void glk_string(int x, int y, char string[])
 // Prints a character on the lcd display, at position (x,y).  The
 // upper-left is (1,1), and the lower right should be (20,4).
 //
-void glk_chr(int x, int y, char c) 
+static void glk_chr(int x, int y, char c) 
 {
   int  myc = (unsigned char) c ;
   x -= 1;  // Convert 1-based coords to 0-based...
@@ -345,7 +376,7 @@ void glk_chr(int x, int y, char c)
 // Sets the contrast of the display.  Value is 0-255, where 140 is
 // what I consider "just right".
 //
-int glk_contrast(int contrast) 
+static int glk_contrast(int contrast) 
 {
   static int  saved_contrast = 140 ;
 
@@ -360,7 +391,7 @@ int glk_contrast(int contrast)
 //////////////////////////////////////////////////////////////////////
 // Turns the lcd backlight on or off...
 //
-void glk_backlight(int on)
+static void glk_backlight(int on)
 {
   if(on) {
 //    printf("Backlight ON\n");
@@ -373,7 +404,7 @@ void glk_backlight(int on)
 
 //////////////////////////////////////////////////////////////////////
 // Sets general purpose outputs on or off
-void
+static void
 glk_output(int on)
 {
   if( gpo_count < 2 ) {
@@ -395,7 +426,7 @@ glk_output(int on)
 //////////////////////////////////////////////////////////////////////
 // Tells the driver to get ready for vertical bargraphs.
 //
-void glk_init_vbar() 
+static void glk_init_vbar() 
 {
 //  printf("Vertical bars.\n");
 }
@@ -403,7 +434,7 @@ void glk_init_vbar()
 //////////////////////////////////////////////////////////////////////
 // Tells the driver to get ready for horizontal bargraphs.
 //
-void glk_init_hbar() 
+static void glk_init_hbar() 
 {
 //  printf("Horizontal bars.\n");
 }
@@ -411,7 +442,7 @@ void glk_init_hbar()
 //////////////////////////////////////////////////////////////////////
 // Tells the driver to get ready for big numbers, if possible.
 //
-void glk_init_num() 
+static void glk_init_num() 
 {
 //  printf("Big Numbers.\n");
   if( fontselected != 3 ) {
@@ -428,7 +459,7 @@ void glk_init_num()
 //////////////////////////////////////////////////////////////////////
 // Draws a big (4-row) number.
 //
-void glk_num(int x, int num) 
+static void glk_num(int x, int num) 
 {
 //  printf("BigNum(%i, %i)\n", x, num);
   glk->framebuf[x-1] = num + '0' ;
@@ -437,7 +468,7 @@ void glk_num(int x, int num)
 //////////////////////////////////////////////////////////////////////
 // Changes the font data of character n.
 //
-void glk_set_char(int n, char *dat)
+static void glk_set_char(int n, char *dat)
 {
   printf("Set Character %i\n", n);
 }
@@ -445,7 +476,7 @@ void glk_set_char(int n, char *dat)
 /////////////////////////////////////////////////////////////////
 // Draws a vertical bar, from the bottom of the screen up.
 //
-void glk_vbar(int x, int len) 
+static void glk_vbar(int x, int len) 
 {
   int  y = glk->hgt ;
 
@@ -475,7 +506,7 @@ void glk_vbar(int x, int len)
 /////////////////////////////////////////////////////////////////
 // Draws a horizontal bar to the right.
 //
-void glk_hbar(int x, int y, int len) 
+static void glk_hbar(int x, int y, int len) 
 {
 //  printf( "glk_hbar( %d, %d, %d )\n", x, y, len );
   while( len > glk->cellwid ) {
@@ -502,7 +533,7 @@ void glk_hbar(int x, int y, int len)
 /////////////////////////////////////////////////////////////////
 // Sets character 0 to an icon...
 //
-void glk_icon(int which, char dest)
+static void glk_icon(int which, char dest)
 {
   unsigned char  old, new ;
   unsigned char *  p ;
@@ -551,7 +582,7 @@ void glk_icon(int which, char dest)
 // I've just called glk_flush() because there's not much point yet
 // in flushing less than the entire framebuffer.
 //
-void glk_flush_box(int lft, int top, int rgt, int bot)
+static void glk_flush_box(int lft, int top, int rgt, int bot)
 {
 //   printf("glk_flush_box( %d, %d, %d, %d )\n", lft, top, rgt, bot );
    glk_flush( );
@@ -562,7 +593,7 @@ void glk_flush_box(int lft, int top, int rgt, int bot)
 //
 // The commented-out code is from the text driver.
 //
-void glk_draw_frame(char *dat)
+static void glk_draw_frame(char *dat)
 {
   char *  p ;
   char *  q ;
