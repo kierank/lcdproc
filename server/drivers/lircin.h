@@ -27,4 +27,6 @@ int lircin_init (struct lcd_logical_driver *driver, char *args);
 
 #define LIRCIN_VERBOSELY 1
 
+#define LIRCIN_DEF_PROG "lcdd"
+
 #endif
