@@ -105,6 +105,16 @@ $lcdresponse = <$remote>;
 print $remote "widget_add tail 3 string\n";
 $lcdresponse = <$remote>;
 
+# NOTE: You have to ask LCDd to send you keys you want to handle
+print $remote "client_add_key E\n";
+$lcdresponse = <$remote>;
+print $remote "client_add_key F\n";
+$lcdresponse = <$remote>;
+print $remote "client_add_key G\n";
+$lcdresponse = <$remote>;
+print $remote "client_add_key H\n";
+$lcdresponse = <$remote>;
+
 
 # Forever, we should do stuff...
 while(1)

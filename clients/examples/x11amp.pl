@@ -102,6 +102,12 @@ $lcdresponse = <$remote>;
 print $remote "widget_set x11amp one 1 2 {  <-: E ; F :->}\n";
 $lcdresponse = <$remote>;
 
+# NOTE: You have to ask LCDd to send you keys you want to handle
+print $remote "client_add_key E\n";
+$lcdresponse = <$remote>;
+print $remote "client_add_key F\n";
+$lcdresponse = <$remote>;
+
 
 while(1)
 {
