@@ -8,6 +8,7 @@
 		  2001, Eddie Sheldrake
 		  2001, Rene Wagner
 		  2002, Mike Patnode
+		  2002, Luis Llorente
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -649,8 +650,8 @@ void
 CFontz_num (int x, int num)
 {
 	char out[5];
-	snprintf (out, sizeof(out), "%c%c%c", 28, x, num);
-	write (fd, out, 3);
+	snprintf (out, sizeof(out), "%c%c%c%c", 28, 0,  x-1, num+48);
+	write (fd, out, 4);
 }
 
 /////////////////////////////////////////////////////////////////
