@@ -302,7 +302,7 @@ slid_func (menu_item * item)
 
 	lcd_ptr->init_hbar ();
 
-	while (key != 'A' && key != 'D') {
+	while (key != INPUT_PAUSE_KEY && key != INPUT_MAIN_MENU_KEY) {
 		/* Draw the title...*/
 		lcd_ptr->clear ();
 		lcd_ptr->chr (1, y, PAD);
@@ -336,15 +336,15 @@ slid_func (menu_item * item)
 		}
 
 		switch (key) {
-		case 'B':
+		case INPUT_BACK_KEY:
 			value = readfunc (MENU_MINUS);
 			break;
-		case 'C':
+		case INPUT_FORWARD_KEY:
 			value = readfunc (MENU_PLUS);
 			break;
 		}
 
-		if (value >= MENU_CLOSE || value < 0 || key == 'A' || key == 'D')
+		if (value >= MENU_CLOSE || value < 0 || key == INPUT_PAUSE_KEY || key == INPUT_MAIN_MENU_KEY)
 			return value;
 	}
 
