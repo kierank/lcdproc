@@ -46,15 +46,6 @@ $doc=${exec_prefix}/doc
 
 %version ${version}
 
-%preinstall <<EOF
-echo
-echo
-echo "    ATTENTION: This is a DEVELOPMENT VERSION of LCDproc!"
-echo "    IT IS NEITHER GUARANTEED TO RUN NOR TO BE USEFUL FOR ANY PURPOSE!"
-echo
-echo
-EOF
-
 %postinstall <<EOF
 echo
 echo "    Make sure you have modified the LCDd configfile before adding"
@@ -94,8 +85,6 @@ f 644 root root ${doc}/LCDproc/API-v0.4.txt ${srcdir}/docs/API-v0.4.txt
 f 644 root root ${doc}/LCDproc/API-v0.5.txt ${srcdir}/docs/API-v0.5.txt
 f 644 root root ${doc}/LCDproc/README.dg ${srcdir}/docs/README.dg
 f 644 root root ${doc}/LCDproc/README.dg2 ${srcdir}/docs/README.dg2
-f 644 root root ${doc}/LCDproc/hd44780_howto.txt ${srcdir}/docs/hd44780_howto.txt
-f 644 root root ${doc}/LCDproc/lcdproc.sgml ${srcdir}/docs/lcdproc.sgml
 f 644 root root ${doc}/LCDproc/menustuff.txt ${srcdir}/docs/menustuff.txt
 f 644 root root ${doc}/LCDproc/netstuff.txt ${srcdir}/docs/netstuff.txt
 
@@ -105,7 +94,7 @@ f 644 root root ${man}/man8/LCDd.8 ${srcdir}/docs/LCDd.8
 
 # configuration files
 f 640 root root ${etc}/LCDd.conf ${srcdir}/LCDd.conf
-f 640 root root $(etc)/lcdproc.conf $(srcdir)/scripts/lcdproc.conf
+f 640 root root ${etc}/lcdproc.conf ${srcdir}/scripts/lcdproc.conf
 
 # server binary
 f 750 root root ${sbin}/LCDd ${srcdir}/server/LCDd
@@ -114,7 +103,7 @@ f 750 root root ${sbin}/LCDd ${srcdir}/server/LCDd
 f 755 root root ${bin}/lcdproc ${srcdir}/clients/lcdproc/lcdproc
 
 # example clients
-d 755 root root $(doc)/LCDproc/examples
+d 755 root root ${doc}/LCDproc/examples
 f 755 root root ${doc}/LCDproc/examples/fortune.pl ${srcdir}/clients/examples/fortune.pl
 f 755 root root ${doc}/LCDproc/examples/iosock.pl ${srcdir}/clients/examples/iosock.pl
 f 755 root root ${doc}/LCDproc/examples/lcdheadlines ${srcdir}/clients/headlines/lcdheadlines
