@@ -413,6 +413,9 @@ process_configfile ( char *configfile )
 		fg = config_get_bool( "server", "foreground", 0, UNSET_INT );
 		if( fg != UNSET_INT )
 			daemon_mode = !fg;
+		/*It makes no sence to report to stdout while running in background*/
+		if(fg == 0)
+			reportToSyslog=1;
 	}
 
 	if( enable_server_screen == UNSET_INT )
