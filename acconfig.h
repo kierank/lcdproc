@@ -1,5 +1,5 @@
 /* acconfig.h
-   $Id: acconfig.h,v 1.3 2000/01/05 00:03:25 toykeeper Exp $
+   $Id: acconfig.h,v 1.4 2000/01/17 08:22:15 hklein Exp $
    This file is in the public domain.
 
    Descriptive text for the C preprocessor macros that
@@ -14,6 +14,8 @@
 
    Leave the following blank line there!!  Autoheader needs it.  */
 
+
+#undef LIRCIN_DRV
 
 #undef CFONTZ_DRV
 
