@@ -19,7 +19,7 @@
 # Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
 #
 #
-# chkconfig: 345 70 20
+# chkconfig: 345 71 20
 # description: LCDd(8) is the LCDproc server used for displaying text and other data to LCDs. \
 #	Apart from the main client lcdproc(1) there are various clients. \
 #	See http://lcdproc.omnipotent.net for details.
