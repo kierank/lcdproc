@@ -27,7 +27,7 @@ $etc=@sysconfdir@
 $man=@mandir@
 $srcdir=@srcdir@
 $version=@VERSION@
-$doc=@prefix@/doc
+$doc=${exec_prefix}/doc
 
 %product LCDproc
 %copyright (C) 1999-2001 William Ferrell, Scott Scriven and several other contributors see README and CREDITS for details
