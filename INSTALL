@@ -12,7 +12,7 @@ rest of the file. 8)
 First read the README if you haven't already.
 
 Please take a few minutes to read the user guide located at 
-http://lcdproc.sf.net/docs/
+http://lcdproc.sourceforge.net/docs/
 
 For the details on supported platforms, see the PLAFORM SPECIFIC section
 of this file.
@@ -34,7 +34,7 @@ http://sources.redhat.com/autoconf/ .
 
 Many different displays (or better said: output devices) are supported.
 Some of these devices also support input, for example with a keypad.
-There are drivers for input-only devices too.
+There are drivers for input-only devices, too.
 
 Depending on what kind of LCD display you have, there are several
 sources of information. If your LCD display came with a manual, this
@@ -94,7 +94,9 @@ If you want, you can install it (if you're root) by typing:
     make install
 
 This will install the binaries and the man pages in the directory you
-specified in configure.
+specified in configure. 
+You may have to copy the configuration file (LCDd.conf) to /etc 
+(or /usr/local/etc) manually.
 
 -- PLATFORM SPECIFIC ------------------------------------------------
 
@@ -121,9 +123,10 @@ tested on.
 --- Linux ---
 Nothing special to say, everything should go well.
 
-You may not be able to compile the server on something else than i386
+You may not be able to compile all drivers on something else than i386
 if your linux installation does not have ioperm, inb and outb commands.
-You can leave all parallel port drivers out and it should compile again.
+./configure should leave all drivers that need those functions out
+(drivers for parallel port displays), so that LCDd should compile anyway.
 
 --- NetBSD ---
 You need to use GNU Make instead of NetBSD's make. 
@@ -138,13 +141,13 @@ Try starting the program as root.
 --- OpenBSD ---
 You need to use GNU Make instead of OpenBSD's make. 
 Remember to type gmake instead of make to compile LCDproc.
-The server will probably only compile on NetBSD/i386.
+The server will probably only compile on OpenBSD/i386.
 
 --- FreeBSD ---
 It should compile fine on i386.
 
 --- Other platforms ---
-If you get it compiling and running on an other platform let us know how
+If you get it compiling and running on another platform let us know how
 you did it. We can put it in this INSTALL file.
 
 -- RUNNING LCDPROC -----------------------------------------------------
@@ -164,9 +167,10 @@ If you're in the LCDproc source directory, and have just built it, run:
 You can find out what drivers were compiled by running "LCDd -h".  
 Note that you cannot use more than one display driver at the same time.
 
-For security reasons, LCDd only accept connections from
+For security reasons, LCDd by default only accept connections from
 localhost (127.0.0.1), it will not accept connections from other computers on
-the Internet. You can change this behavior in the configuration file.
+your network / the Internet. You can change this behavior in the 
+configuration file.
 
 --- Starting the client(s) ---
 
@@ -184,7 +188,7 @@ and listening to port 13666. To change this, use the -s and -p options.
 It's nice to have LCDproc start when the computer boots, so here's how
 to do it:
 
-WARNING: Make sure you have modified th config file (/etc/LCDd.conf)
+WARNING: Make sure you have modified the configuration file (/etc/LCDd.conf)
          so that LCDd enters the background mode.
          Otherwise LCDd will lock your system.
 
