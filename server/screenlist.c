@@ -176,8 +176,10 @@ screenlist_next ()
 	/* If we're on hold, don't advance!*/
 	if (screenlist_action == SCR_HOLD)
 		return s;
-	if (screenlist_action == RENDER_HOLD)
-		return s;
+	/*
+	 * if (screenlist_action == RENDER_HOLD)
+	 *	return s;
+	 */
 
 	/* Otherwise, reset it to regular operation*/
 	screenlist_action = 0;
@@ -204,8 +206,10 @@ screenlist_prev ()
 	/* If we're on hold, don't advance!*/
 	if (screenlist_action == SCR_HOLD)
 		return s;
-	if (screenlist_action == RENDER_HOLD)
-		return s;
+	/*
+	 * if (screenlist_action == RENDER_HOLD)
+	 *	return s;
+	 */
 
 	/* Otherwise, reset it no regular operation*/
 	screenlist_action = 0;
