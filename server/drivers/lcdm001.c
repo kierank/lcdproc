@@ -59,8 +59,9 @@
 #include "shared/report.h"
 #include "configfile.h"
 #include "render.h"
+#include "input.h"
 
-// Moved here from lcdm001.h to reduce the number of warning.
+/* Moved here from lcdm001.h to reduce the number of warnings.*/
 static void lcdm001_close ();
 static void lcdm001_clear ();
 static void lcdm001_flush ();
@@ -74,7 +75,7 @@ static void lcdm001_icon (int which, char dest);
 static void lcdm001_flush_box (int lft, int top, int rgt, int bot);
 static void lcdm001_draw_frame (char *dat);
 static char lcdm001_getkey ();
-// End of extract from lcdm001.h by David GLAUDE.
+/* End of extract from lcdm001.h by David GLAUDE.*/
 static void lcdm001_heartbeat (int type);
 
 #define NotEnoughArgs (i + 1 > argc)
@@ -85,8 +86,6 @@ static int clear = 1;
 static char icon_char = '@';
 static char pause_key = DOWN_KEY, back_key = LEFT_KEY, forward_key = RIGHT_KEY, main_menu_key = UP_KEY;
 
-
-/*this is really ugly ;) but works ;)*/
 static char num_icon [10][4][3] = 	{{{' ','_',' '}, /*0*/
 					  {'|',' ','|'},
 					  {'|','_','|'},
@@ -127,7 +126,6 @@ static char num_icon [10][4][3] = 	{{{' ','_',' '}, /*0*/
 					  {'|','_','|'},
 					  {' ','_','|'},
 					  {' ',' ',' '}}};
-/*end of ugly code ;) Rene Wagner*/
 
 static void lcdm001_cursorblink (int on);
 static void lcdm001_string (int x, int y, char *string);
@@ -136,7 +134,7 @@ static char lcdm001_parse_keypad_setting ( char * sectionname, char * keyname, c
 #define ValidX(x) if ((x) > lcdm001->wid) { (x) = lcdm001->wid; } else (x) = (x) < 1 ? 1 : (x);
 #define ValidY(y) if ((y) > lcdm001->hgt) { (y) = lcdm001->hgt; } else (y) = (y) < 1 ? 1 : (y);
 
-// Parse one key from the configfile
+/* Parse one key from the configfile */
 static char lcdm001_parse_keypad_setting (char * sectionname, char * keyname, char * default_value)
 {
 	char return_val = 0;
@@ -164,8 +162,7 @@ static char lcdm001_parse_keypad_setting (char * sectionname, char * keyname, ch
 	return return_val;
 }
 
-// Set cursorblink on/off
-//
+/* Set cursorblink on/off */
 static void
 lcdm001_cursorblink (int on)
 {
@@ -179,11 +176,12 @@ lcdm001_cursorblink (int on)
 }
 
 
-// TODO: Get lcd.framebuf to properly work as whatever driver is running...
+/* TODO: Get lcd.framebuf to properly work as whatever driver is running...*/
 
-////////////////////////////////////////////////////////////
-// init() should set up any device-specific stuff, and
-// point all the function pointers.
+/*********************************************************************
+ * init() should set up any device-specific stuff, and
+ * point all the function pointers.
+ */
 int
 lcdm001_init (struct lcd_logical_driver *driver, char *args)
 {
@@ -200,7 +198,7 @@ lcdm001_init (struct lcd_logical_driver *driver, char *args)
 	driver->wid = 20;
 	driver->hgt = 4;
 
-	// You must use driver->framebuf here, but may use lcd.framebuf later.
+	/* You must use driver->framebuf here, but may use lcd.framebuf later.*/
 	if (!driver->framebuf) {
 		driver->framebuf = malloc (driver->wid * driver->hgt);
 	}
@@ -210,33 +208,34 @@ lcdm001_init (struct lcd_logical_driver *driver, char *args)
                 report(RPT_ERR, "\nError: unable to create LCDM001 framebuffer.\n");
 		return -1;
 	}
-// Debugging...
-//  if(lcd.framebuf) printf("Frame buffer: %i\n", (int)lcd.framebuf);
+/* Debugging...
+ *  if(lcd.framebuf) printf("Frame buffer: %i\n", (int)lcd.framebuf);
+ */
 
 	memset (driver->framebuf, ' ', driver->wid * driver->hgt);
-//  lcdm001_clear();
+/*  lcdm001_clear();*/
 
 	driver->cellwid = 5;
 	driver->cellhgt = 8;
 
-	// TODO: replace DriverName with driver->name when that field exists.
+	/* TODO: replace DriverName with driver->name when that field exists.*/
 	#define DriverName "lcdm001"
 
-	// READ CONFIG FILE:
+	/* READ CONFIG FILE:*/
 
-	// which serial device should be used
+	/* Get fd of serial device to be used */
 	strncpy(device, config_get_string ( DriverName , "Device" , 0 , "/dev/lcd"), sizeof(device));
 	device[sizeof(device)-1]=0;
 	report (RPT_INFO,"LCDM001: Using device: %s", device);
 
-	// keypad settings
+	/* Get keypad settings */
 	pause_key = lcdm001_parse_keypad_setting (DriverName, "PauseKey", "DownKey");
 	back_key = lcdm001_parse_keypad_setting (DriverName, "BackKey", "LeftKey");
 	forward_key = lcdm001_parse_keypad_setting (DriverName, "ForwardKey", "RightKey");
 	main_menu_key = lcdm001_parse_keypad_setting (DriverName, "MainMenuKey", "UpKey");
 
 
-	// Set up io port correctly, and open it...
+	/* Set up io port correctly, and open it...*/
 	debug( RPT_DEBUG, "LCDM001: Opening serial device: %s", device);
 	fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY);
 	if (fd == -1)
@@ -256,10 +255,10 @@ lcdm001_init (struct lcd_logical_driver *driver, char *args)
 	}
 	tcgetattr(fd, &portset);
 #ifdef HAVE_CFMAKERAW
-	// The easy way
+	/* The easy way: */
 	cfmakeraw( &portset );
 #else
-	// The hard way
+	/* The hard way: */
 	portset.c_iflag &= ~( IGNBRK | BRKINT | PARMRK | ISTRIP
 	                      | INLCR | IGNCR | ICRNL | IXON );
 	portset.c_oflag &= ~OPOST;
@@ -272,41 +271,43 @@ lcdm001_init (struct lcd_logical_driver *driver, char *args)
 	tcsetattr(fd, TCSANOW, &portset);
 	tcflush(fd, TCIOFLUSH);
 
-	// Reset and clear the LCDM001
+	/* Reset and clear the LCDM001 */
 	write (fd, "~C", 2);
-	//Set cursorblink default
+	/*Set cursorblink to default */
 	lcdm001_cursorblink (DEFAULT_CURSORBLINK);
-	// Turn all LEDs off
+	/* Turn all LEDs off */
 	snprintf (out, sizeof(out), "\%cL%c%c", 126, 0, 0);
 	write (fd, out, 4);
 
         /*
          * Configure the display functions
         */
-	driver->daemonize = 1; // daemonize.
+	driver->daemonize = 1; /* make the server daemonize after initialisation*/
 
 	driver->clear = lcdm001_clear;
 	driver->string = lcdm001_string;
 	driver->chr = lcdm001_chr;
 	driver->vbar =lcdm001_vbar;
-	//init_vbar is not needed
+	/*init_vbar is not needed*/
 	driver->hbar = lcdm001_hbar;
-	//init_hbar is not needed
+	/*init_hbar is not needed*/
 	driver->num = lcdm001_num;
-	//init_num is not needed
+	/*init_num is not needed*/
 
 	driver->init = lcdm001_init;
 	driver->close = lcdm001_close;
 	driver->flush = lcdm001_flush;
 	driver->flush_box = lcdm001_flush_box;
-	//contrast and backlight are not implemented as
-	//changing the contrast or the state of the backlight
-	//is not supported by the device
-	//Well ... you could make use of your screw driver and
-	//soldering iron ;)
+	/* contrast and backlight are not implemented as
+	 * changing the contrast or the state of the backlight
+	 * is not supported by the device
+	 * Well ... you could make use of your screw driver and
+	 * soldering iron ;)
+	 */
 	driver->output = lcdm001_output;
-	//set_char is not implemented as custom chars are not
-	//supported by the device
+	/* set_char is not implemented as custom chars are not
+	 * supported by the device
+	 */
 	driver->icon = lcdm001_icon;
 	driver->draw_frame = lcdm001_draw_frame;
 
@@ -316,9 +317,10 @@ lcdm001_init (struct lcd_logical_driver *driver, char *args)
 	return fd;
 }
 
-// Below here, you may use either lcd.framebuf or driver->framebuf..
-// lcd.framebuf will be set to the appropriate buffer before calling
-// your driver.
+/* Below here, you may use either lcd.framebuf or driver->framebuf..
+ * lcd.framebuf will be set to the appropriate buffer before calling
+ * your driver.
+ */
 
 static void
 lcdm001_close ()
@@ -328,7 +330,7 @@ lcdm001_close ()
 		free (lcdm001->framebuf);
 
 	lcdm001->framebuf = NULL;
-	//switch off all LEDs
+	/*switch off all LEDs*/
 	snprintf (out, sizeof(out), "\%cL%c%c", 126, 0, 0);
 	write (fd, out, 4);
 	close (fd);
@@ -336,24 +338,24 @@ lcdm001_close ()
         report (RPT_INFO, "LCDM001: closed");
 }
 
-/////////////////////////////////////////////////////////////////
-// Clears the LCD screen
-//
+/**********************************************************
+ * Clears the LCD screen
+ */
 static void
 lcdm001_clear ()
 {
         if (lcdm001->framebuf != NULL)
                 memset (lcdm001->framebuf, ' ', (lcdm001->wid * lcdm001->hgt));
 
-	write (fd, "~C", 2); // instant clear...
+	write (fd, "~C", 2); /* instant clear...*/
         clear = 1;
 
 	debug (RPT_DEBUG, "LCDM001: cleared screen");
 }
 
-//////////////////////////////////////////////////////////////////
-// Flushes all output to the lcd...
-//
+/***********************************************************
+ * Flushes all output to the lcd...
+ */
 void
 lcdm001_flush ()
 {
@@ -362,9 +364,9 @@ lcdm001_flush ()
         debug (RPT_DEBUG, "LCDM001: frame buffer flushed");
 }
 
-//////////////////////////////////////////////////////////////////////
-// Send a rectangular area to the display.
-//
+/***********************************************************
+ * Send a rectangular area to the display.
+ */
 
 static void
 lcdm001_flush_box (int lft, int top, int rgt, int bot)
@@ -380,25 +382,25 @@ lcdm001_flush_box (int lft, int top, int rgt, int bot)
 	debug (RPT_DEBUG, "LCDM001: frame buffer box flushed");
 }
 
-/////////////////////////////////////////////////////////////////
-// Prints a character on the lcd display, at position (x,y).  The
-// upper-left is (1,1), and the lower right should be (20,4).
-//
+/**********************************************************************
+ * Prints a character on the lcd display, at position (x,y).  The
+ * upper-left is (1,1), and the lower right should be (20,4).
+ */
 static void
 lcdm001_chr (int x, int y, char c)
 {
-	char buf[64]; // char out[10];
+	char buf[64];
 	int offset;
 
 	ValidX(x);
 	ValidY(y);
 
         if (c==0) {
-                c = icon_char;   //heartbeat workaround
+                c = icon_char;   /*heartbeat workaround*/
         }
 
-	// write to frame buffer
-	y--; x--; // translate to 0-coords
+	/* write to frame buffer*/
+	y--; x--; /* translate to 0-coords*/
 
 	offset = (y * lcdm001->wid) + x;
 	lcdm001->framebuf[offset] = c;
@@ -407,10 +409,10 @@ lcdm001_chr (int x, int y, char c)
 	debug (RPT_DEBUG, buf);
 }
 
-/////////////////////////////////////////////////////////////////
-// Prints a string on the lcd display, at position (x,y).  The
-// upper-left is (1,1), and the lower right should be (20,4).
-//
+/*****************************************************************
+ * Prints a string on the lcd display, at position (x,y).  The
+ * upper-left is (1,1), and the lower right should be (20,4).
+ */
 static void
 lcdm001_string (int x, int y, char string[])
 {
@@ -419,7 +421,7 @@ lcdm001_string (int x, int y, char string[])
 	ValidX(x);
 	ValidY(y);
 
-	x--; y--; // Convert 1-based coords to 0-based...
+	x--; y--; /* Convert 1-based coords to 0-based...*/
 	offset = (y * lcdm001->wid) + x;
 	siz = (lcdm001->wid * lcdm001->hgt) - offset - 1;
 	siz = siz > strlen(string) ? strlen(string) : siz;
@@ -429,13 +431,20 @@ lcdm001_string (int x, int y, char string[])
 	debug (RPT_DEBUG, "LCDM001: printed string at (%d,%d)", x, y);
 }
 
-/////////////////////////////////////////////////////////////////
-// Controls LEDs
+/*****************************************************************
+ * Controls LEDs
+ * Actually one could connect other devices (via transistors or relais!)
+ * to the device
+ */
 static void
 lcdm001_output (int on)
 {
 	char out[5];
 	int one = 0, two = 0;
+
+	/* The output value has to be split into two
+	 * 8bit values, which are then sent to the device
+	 */
 
 	if (on<=255)
 	{
@@ -453,9 +462,9 @@ lcdm001_output (int on)
         debug (RPT_DEBUG, "LCDM001: current LED state: %d", on);
 }
 
-/////////////////////////////////////////////////////////////////
-// Draws a vertical bar, from the bottom of the screen up.
-//
+/***************************************************************
+ * Draws a vertical bar, from the bottom of the screen up.
+ */
 static void
 lcdm001_vbar(int x, int len)
 {
@@ -473,13 +482,13 @@ lcdm001_vbar(int x, int len)
    if(!len)
      return;
 
-  //TODO: Distinguish between len>=4 and len<4
+  /*TODO: Distinguish between len>=4 and len<4*/
 
 }
 
-/////////////////////////////////////////////////////////////////
-// Draws a horizontal bar to the right.
-//
+/*****************************************************************
+ * Draws a horizontal bar to the right.
+ */
 static void
 lcdm001_hbar(int x, int y, int len)
 {
@@ -489,13 +498,13 @@ lcdm001_hbar(int x, int y, int len)
 
   debug (RPT_DEBUG, "LCDM001: horizontal bar at %d set to %d", x, len);
 
-  //TODO: Improve this function
+  /*TODO: Improve this function*/
 
   while((x <= lcdm001->wid) && (len > 0))
   {
     if(len < lcdm001->cellwid)
       {
-	//lcdm001_chr(x, y, 0x98 + len);
+	/*lcdm001_chr(x, y, 0x98 + len);*/
 	break;
       }
 
@@ -507,9 +516,9 @@ lcdm001_hbar(int x, int y, int len)
   return;
 }
 
-/////////////////////////////////////////////////////////////////
-// Writes a big number.
-//
+/**********************************************************************
+ * Writes a big number.
+ */
 static void lcdm001_num (int x, int num)
 {
 	int y, dx;
@@ -523,17 +532,18 @@ static void lcdm001_num (int x, int num)
 			lcdm001_chr (x + dx, y, num_icon[num][y-1][dx]);
 }
 
-/////////////////////////////////////////////////////////////////
-// Sets character 0 to an icon...
-//
+/***********************************************************************
+ * Sets character 0 to an icon...
+ */
 void
 lcdm001_icon (int which, char dest)
 {
 
-/*Heartbeat workaround:
-   As custom chars are not supported OPEN_HEART
-   and FILLED_HEART are displayed instead.
-   Change them in lcdm001.h*/
+	/* Heartbeat workaround:
+	 * As custom chars are not supported OPEN_HEART
+   	 * and FILLED_HEART are displayed instead.
+         * You can change them in lcdm001.h
+	 */
 
 	if (dest == 0)
 		switch (which) {
@@ -549,46 +559,46 @@ lcdm001_icon (int which, char dest)
 		}
 }
 
-//////////////////////////////////////////////////////////////////////
-// Draws the framebuffer on the display.
-//
-// The commented-out code is from the text driver.
-//
+/*********************************************************************
+ * Draws the framebuffer on the display.
+ *
+ * The commented-out code is from the text driver.
+ */
 void
 lcdm001_draw_frame (char *dat)
 {
 
-        //TODO: Check whether this is still correct
+        /*TODO: Check whether this is still correct*/
 
 	write(fd,lcdm001->framebuf,80);
 }
 
-//////////////////////////////////////////////////////////////////////
-// Tries to read a character from an input device...
-//
-// Return 0 for "nothing available".
-//
+/**********************************************************************
+ * Tries to read a character from the device
+ * Returns the values defined in input.h or
+ * 0 for "nothing available".
+ */
 static char
 lcdm001_getkey ()
 {
         char in = 0;
         read (fd, &in, 1);
 	if (in == pause_key) {
-		in='A';
+		in = PAUSE_KEY;
 	} else if (in == back_key) {
-		in='B';
+		in = BACK_KEY;
 	} else if (in == forward_key) {
-		in='C';
+		in = FORWARD_KEY;
 	} else if (in == main_menu_key) {
-		in='D';
+		in = MAIN_MENU_KEY;
 	}
-	/*debug: if(in) fprintf(stderr,"key: %c",in); */
+	/*if(in) debug(RPT_DEBUG,"LCDM001: key: %c",in); */
         return in;
 }
 
-/////////////////////////////////////////////////////////////
-// Does the heartbeat...
-//
+/************************************************************************
+ * Does the heartbeat...
+ */
 static void
 lcdm001_heartbeat (int type)
 {
@@ -600,17 +610,18 @@ lcdm001_heartbeat (int type)
 		saved_type = type;
 
 	if (type == HEARTBEAT_ON) {
-		// Set this to pulsate like a real heart beat...
+		/* Set this to pulsate like a real heart beat...*/
 		whichIcon = (! ((timer + 4) & 5));
 
-		// This defines a custom character EVERY time...
-		// not efficient... is this necessary?
+		/* This defines a custom character EVERY time...
+		 * not efficient... is this necessary?
+		 */
 		lcdm001_icon (whichIcon, 0);
 
-		// Put character on screen...
+		/* Put character on screen...*/
 		lcdm001_chr (lcdm001->wid, 1, 0);
 
-		// change display...
+		/* change display...*/
 		lcdm001_flush ();
 	}
 
