@@ -81,6 +81,7 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 	struct termios portset;
 	int tmp, w, h;
 	int reboot = 0;
+	int usb = 0;
 
 	int contrast = CFONTZ_DEF_CONTRAST;
 	char device[200] = CFONTZ_DEF_DEVICE;
@@ -176,6 +177,11 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 		reboot = 1;
 	}
 
+	/*Am I USB or not?*/
+	if(config_get_bool( DriverName , "USB" , 0 , 0)) {
+		usb = 1;
+	}
+
 	/* End of config file parsing*/
 
 
@@ -195,7 +201,11 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 
 	/* Set up io port correctly, and open it...*/
 	debug( RPT_DEBUG, "CFontz: Opening serial device: %s", device);
-	fd = open (device, O_RDWR | O_NOCTTY | O_NDELAY);
+	if ( usb ) {
+		fd = open (device, O_RDWR | O_NOCTTY);
+	} else {
+		fd = open (device, O_RDWR | O_NOCTTY | O_NDELAY);
+	}
 	if (fd == -1) {
 		report (RPT_ERR, "CFontz: init() failed (%s)\n", strerror (errno));
 		return -1;
@@ -206,18 +216,30 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 	tcgetattr (fd, &portset);
 
 	// We use RAW mode
+	if ( usb ) {
+		// The USB way
+		portset.c_iflag &= ~( IGNBRK | BRKINT | PARMRK | ISTRIP
+		                      | INLCR | IGNCR | ICRNL | IXON );
+		portset.c_oflag &= ~OPOST;
+		portset.c_lflag &= ~( ECHO | ECHONL | ICANON | ISIG | IEXTEN );
+		portset.c_cflag &= ~( CSIZE | PARENB | CRTSCTS );
+		portset.c_cflag |= CS8 | CREAD | CLOCAL ;
+		portset.c_cc[VMIN] = 1;
+		portset.c_cc[VTIME] = 3;
+	} else {
 #ifdef HAVE_CFMAKERAW
-	// The easy way
-	cfmakeraw( &portset );
+		// The easy way
+		cfmakeraw( &portset );
 #else
-	// The hard way
-	portset.c_iflag &= ~( IGNBRK | BRKINT | PARMRK | ISTRIP
-	                      | INLCR | IGNCR | ICRNL | IXON );
-	portset.c_oflag &= ~OPOST;
-	portset.c_lflag &= ~( ECHO | ECHONL | ICANON | ISIG | IEXTEN );
-	portset.c_cflag &= ~( CSIZE | PARENB | CRTSCTS );
-	portset.c_cflag |= CS8 | CREAD | CLOCAL ;
+		// The hard way
+		portset.c_iflag &= ~( IGNBRK | BRKINT | PARMRK | ISTRIP
+	   	                   | INLCR | IGNCR | ICRNL | IXON );
+		portset.c_oflag &= ~OPOST;
+		portset.c_lflag &= ~( ECHO | ECHONL | ICANON | ISIG | IEXTEN );
+		portset.c_cflag &= ~( CSIZE | PARENB | CRTSCTS );
+		portset.c_cflag |= CS8 | CREAD | CLOCAL ;
 #endif
+	}
 
 	// Set port speed
 	cfsetospeed (&portset, speed);
