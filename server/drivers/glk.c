@@ -44,6 +44,10 @@
 
 #include "lcd.h"
 #include "shared/str.h"
+#include "shared/report.h"
+#include "configfile.h"
+#include "input.h"
+
 #include "glk.h"
 #include "glkproto.h"
 
@@ -60,16 +64,14 @@ static int glk_contrast(int contrast);
 static void glk_backlight(int on);
 static void glk_output(int on);
 static void glk_vbar(int x, int len);
-static void glk_init_vbar();
 static void glk_hbar(int x, int y, int len);
-static void glk_init_hbar();
 static void glk_num(int x, int num);
 static void glk_init_num();
 static void glk_set_char(int n, char *dat);
 static void glk_icon(int which, char dest);
 static void glk_flush_box(int lft, int top, int rgt, int bot);
 static void glk_draw_frame(char *dat);
-char glk_getkey();
+static char glk_getkey();
 
 lcd_logical_driver *glk;
 
@@ -85,81 +87,67 @@ int  gpo_count = 0 ;
 // point all the function pointers.
 int glk_init(struct lcd_logical_driver *driver, char *args) 
 {
-   char *  argv[64];
-   int  argc;
-   char *  device = "/dev/lcd" ;
-   int  contrast = 140;
-   speed_t  speed = B19200 ;
+	char device[256] = DEFAULT_DEVICE ;
+	int  contrast = DEFAULT_CONTRAST ;
+	speed_t  speed = DEFAULT_SPEED ;
+	int i, tmp ;
+	char buf[256] = "";
 
-   int  i ;
-   int  width ;
-   int  height ;
+	int  width ;
+	int  height ;
 
-//   printf("glk_init()\n");
+	debug (RPT_INFO, "glk_init()\n");
 
-   glk = driver;
+	glk = driver;
 
-   argc = get_args( argv, args, 64 );
-   for( i = 0 ; i < argc; ++i ) {
-      if( 0 == strcmp( argv[i], "-d")
-          || 0 == strcmp( argv[i], "--device" )
-        ) {
-         if( i+1 >= argc ) {
-            fprintf( stderr, "glk: %s requires an argument\n", argv[i]);
-            return( -1 );
-         };
-         device = argv[i+1] ;
-         ++i ;
-      } else if( 0 == strcmp( argv[i], "-c" )
-                 || 0 == strcmp( argv[i], "--contrast" )
-               ) {
-         int  tmp ;
-         if( i+1 >= argc ) {
-            fprintf( stderr, "glk: %s requires an argument\n", argv[i]);
-            return( -1 );
-         };
-         tmp = atoi( argv[i+1] );
-         if( tmp < 0 || tmp > 255 ) {
-            fprintf( stderr, "glk: %s argument must be between 0 and 255\n", argv[i]);
-         } else {
-            contrast = tmp ;
-         };
-         ++i ;
-      } else if( 0 == strcmp( argv[i], "-s" )
-                 || 0 == strcmp( argv[i], "--speed" )
-               ) {
-         int  tmp ;
-         if( i+1 >= argc ) {
-            fprintf( stderr, "glk: %s requires an argument\n", argv[i]);
-            return( -1 );
-         };
-         tmp = atoi( argv[i+1] );
-         if( tmp == 9600 ) {
-            speed = B9600 ;
-         } else if( tmp == 19200 ) {
-            speed = B19200 ;
-         } else if( tmp == 38400 ) {
-            speed = B38400 ;
-         } else {
-            fprintf( stderr, "glk: %s argument (%s) not a valid speed.\n", argv[i], argv[i+1] );
-         };
-         ++i ;
-      } else if( 0 == strcmp( argv[i], "-h" )
-                 || 0 == strcmp( argv[i], "--help" )
-               ) {
-         printf(
-"LCDproc Matrix-Orbital GLK Graphical LCD driver\n"
-"\n"
-"-d, --device   select the serial device to use [/dev/lcd]\n"
-"-c, --contrast set the initial contrast value [140]\n"
-"-s, --speed    set the serial port speed [19200]\n"
-"-h, --help     display this help text\n"
-         );
-         return( -1 );
-      } else {
-         fprintf( stderr, "glk: Invalid parameter: %s\n", argv[i] );
-      };
-   };
+	/* TODO: replace DriverName with driver->name when that field exists. */
+	#define DriverName "glk"
+
+
+	/* READ THE CONFIG FILE */
+
+	/* Get serial device to use */
+	strncpy(device, config_get_string ( DriverName , "Device" , 0 , DEFAULT_DEVICE),sizeof(device));
+	device[sizeof(device)-1]=0;
+	report (RPT_INFO,"glk: Using device: %s", device);
+
+	/* Get contrast */
+	if (0<=config_get_int ( DriverName , "contrast" , 0 , DEFAULT_CONTRAST) && config_get_int ( DriverName , "contrast" , 0 , DEFAULT_CONTRAST) <= 255) {
+		contrast = config_get_int ( DriverName , "contrast" , 0 , DEFAULT_CONTRAST);
+	} else {
+		report (RPT_WARNING, "glk: Contrast must be between 0 and 255. Using default value.\n");
+	}
+
+	/* Get serial speed*/
+	tmp = config_get_int ( DriverName , "speed" , 0 , DEFAULT_SPEED);
+
+	switch (tmp) {
+		case 9600:
+			speed = B9600;
+			break;
+		case 19200:
+			speed = B19200;
+			break;
+		case 38400:
+			speed = B38400;
+			break;
+		default:
+			speed = DEFAULT_SPEED;
+			switch (speed) {
+				case B9600:
+					strncpy(buf,"9600", sizeof(buf));
+					break;
+				case B19200:
+					strncpy(buf,"19200", sizeof(buf));
+					break;
+				case B38400:
+					strncpy(buf,"38400", sizeof(buf));
+					break;
+			}
+			report (RPT_WARNING , "glk: Speed must be 9600, 19200 or 38400. Using default value of %s baud!", buf);
+			strncpy(buf,"", sizeof(buf));
+	}
+
 
   PortFD = glkopen( device, speed );
   if( PortFD == NULL ) {
@@ -170,7 +158,7 @@ int glk_init(struct lcd_logical_driver *driver, char *args)
   glkputl( PortFD, GLKCommand, 0x37, EOF );
   i = glkget( PortFD );
   if( i < 0 ) {
-    fprintf( stderr, "glk: GLK did not respond to READ MODULE TYPE.\n" );
+    report( RPT_ERR, "glk: GLK did not respond to READ MODULE TYPE.\n" );
     return -1 ;
   } else {
     switch( i ) {
@@ -195,7 +183,7 @@ int glk_init(struct lcd_logical_driver *driver, char *args)
     case 0x24 :  // GLK12232-25SM-Penguin
       width = 20 ; height = 4 ; gpo_count = 2 ; break ;
     default :
-      fprintf( stderr, "glk: Unrecognized module type: 0x%02x\n", i );
+      report (RPT_ERR, "glk: Unrecognized module type: 0x%02x\n", i );
       return( -1 );
     };
   };
@@ -209,46 +197,46 @@ int glk_init(struct lcd_logical_driver *driver, char *args)
   screen_contents = malloc( driver->wid * driver->hgt );
 
   if(driver->framebuf == NULL || screen_contents == NULL ) {
-    fprintf( stderr, "glk: Unable to allocate memory for screen buffers\n" );
+    report( RPT_ERR, "glk: Unable to allocate memory for screen buffers\n" );
     glk_close();
     return -1;
   }
 
   memset(driver->framebuf, ' ', driver->wid*driver->hgt);
 
-//  glk_clear();
-//  glkputl( PortFD, GLKCommand, 0x58, EOF );
+/*  glk_clear();*/
+/*  glkputl( PortFD, GLKCommand, 0x58, EOF );*/
 
-  // No font selected
+  /* No font selected */
   fontselected = -1 ;
 
-  // Enable flow control
+  /* Enable flow control*/
   glkflow( PortFD, 40, 2 );
 
-  // Set read character timeout to 0
+  /* Set read character timeout to 0*/
   glktimeout( PortFD, 0 );
 
-  // Enable auto-transmit of up/down key events
-  // This allows us to generate REPEAT keys distinct from
-  //   normal keys using timeouts.  (see glk_getkey)
+  /* Enable auto-transmit of up/down key events
+   * This allows us to generate REPEAT keys distinct from
+   *   normal keys using timeouts.  (see glk_getkey)
+   */
   glkputl( PortFD, GLKCommand, 0x7e, 1, GLKCommand, 0x41, EOF );
 
-  // Set contrast
+  /* Set contrast */
   glk_contrast( contrast );
 
   driver->cellwid = 5;
   driver->cellhgt = 8;
-  
+
   driver->clear = glk_clear;
   driver->string = glk_string;
   driver->chr = glk_chr;
+  /* init_hbar and init_vbar don't seem to be needed by glk */
   driver->vbar = glk_vbar;
-  driver->init_vbar = glk_init_vbar;
   driver->hbar = glk_hbar;
-  driver->init_hbar = glk_init_hbar;
   driver->num = glk_num ;
   driver->init_num = glk_init_num ;
-  
+
   driver->init = glk_init;
   driver->close = glk_close;
   driver->flush = glk_flush;
@@ -261,40 +249,43 @@ int glk_init(struct lcd_logical_driver *driver, char *args)
   driver->draw_frame = glk_draw_frame;
 
   driver->getkey = glk_getkey;
-  
-  
-  return 200;  // 200 is arbitrary.  (must be 1 or more)
+
+
+  return 200;  /* 200 is arbitrary.  (must be 1 or more)*/
 }
 
 
-// Below here, you may use either lcd.framebuf or driver->framebuf..
-// lcd.framebuf will be set to the appropriate buffer before calling
-// your driver.
+/* Below here, you may use either lcd.framebuf or driver->framebuf..
+ * lcd.framebuf will be set to the appropriate buffer before calling
+ * your driver.
+ */
 
-static void glk_close() 
+static void glk_close()
 {
   if(glk->framebuf != NULL) free(glk->framebuf);
 
   glk->framebuf = NULL;
 
   glkclose( PortFD ) ;
+
+  report (RPT_INFO, "glk: closed");
 }
 
-/////////////////////////////////////////////////////////////////
-// Clears the LCD screen
-//
+/**************************************************************
+ * Clears the LCD screen
+ */
 #define CLEARCOUNT  (1000000)
 static int  clearcount = 0 ;
 static void glk_clear_forced()
 {
-//  puts( "REALLY CLEARING the display" );
+  debug(RPT_DEBUG, "REALLY CLEARING the display" );
   clearcount = CLEARCOUNT ;
   glkputl( PortFD, GLKCommand, 0x58, EOF );
   memset(screen_contents, ' ', glk->wid*glk->hgt);
 }
-static void glk_clear() 
+static void glk_clear()
 {
-//  puts( "glk_clear( )" );
+  debug(RPT_DEBUG, "glk_clear( )" );
   memset(glk->framebuf, ' ', glk->wid*glk->hgt);
   if( --clearcount < 0 ) {
     glk_clear_forced( );
@@ -302,25 +293,25 @@ static void glk_clear()
 }
 
 
-//////////////////////////////////////////////////////////////////
-// Flushes all output to the lcd...
-//
+/***************************************************************
+ * Flushes all output to the lcd...
+ */
 static void glk_flush()
 {
-//   puts( "glk_flush( )" );
+   debug(RPT_DEBUG, "glk_flush( )" );
    glk->draw_frame(glk->framebuf);
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Prints a string on the lcd display, at position (x,y).  The
-// upper-left is (1,1), and the lower right should be (20,4).
-//
-static void glk_string(int x, int y, char string[]) 
+/****************************************************************
+ * Prints a string on the lcd display, at position (x,y).  The
+ * upper-left is (1,1), and the lower right should be (20,4).
+ */
+static void glk_string(int x, int y, char string[])
 {
   char *  p ;
 
-//  printf( "glk_string( %d, %d, \"%s\" )\n", x, y, string );
+  debug(RPT_DEBUG, "glk_string( %d, %d, \"%s\" )", x, y, string );
 
   if( x > glk->wid || y > glk->hgt ) {
      return ;
@@ -332,18 +323,18 @@ static void glk_string(int x, int y, char string[])
 
 }
 
-/////////////////////////////////////////////////////////////////
-// Prints a character on the lcd display, at position (x,y).  The
-// upper-left is (1,1), and the lower right should be (20,4).
-//
-static void glk_chr(int x, int y, char c) 
+/******************************************************************
+ * Prints a character on the lcd display, at position (x,y).  The
+ * upper-left is (1,1), and the lower right should be (20,4).
+ */
+static void glk_chr(int x, int y, char c)
 {
   int  myc = (unsigned char) c ;
-  x -= 1;  // Convert 1-based coords to 0-based...
+  x -= 1;  /* Convert 1-based coords to 0-based...*/
   y -= 1;
 
   if( fontselected != 2 ) {
-//    puts( "Switching to font 2" );
+    debug(RPT_DEBUG, "Switching to font 2" );
     /* Select font 2 */
     glkputl( PortFD, GLKCommand, 0x31, 2, EOF );
     fontselected = 2 ;
@@ -355,55 +346,57 @@ static void glk_chr(int x, int y, char c)
 
   if( myc >= 0 && myc <= 15 ) {
     /* CGRAM */
-//    if( myc != 0 ) {
-//      printf( "CGRAM changing %d => %d\n", myc, CGRAM[myc&7] );
-//    };
+/*    if( myc != 0 ) {
+ *      printf( "CGRAM changing %d => %d\n", myc, CGRAM[myc&7] );
+ *    };
+ */
     myc = CGRAM[myc&7] ;
   } else if( myc == 255 || myc == -1 ) {
     /* Solid block */
     myc = 133 ;
   } else if( (myc > 15 && myc < 32) || myc > 143 ) {
-    fprintf( stderr, "Attempt to write %d to (%d,%d)\n", myc, x, y );
+    debug(RPT_DEBUG, "Attempt to write %d to (%d,%d)\n", myc, x, y );
     myc = 133 ;
   };
-   
+
   glk->framebuf[(y*glk->wid) + x] = myc;
 
 }
 
 
-//////////////////////////////////////////////////////////////////////
-// Sets the contrast of the display.  Value is 0-255, where 140 is
-// what I consider "just right".
-//
-static int glk_contrast(int contrast) 
+/***********************************************************************
+ * Sets the contrast of the display.  Value is 0-255, where 140 is
+ * what I consider "just right".
+ */
+static int glk_contrast(int contrast)
 {
   static int  saved_contrast = 140 ;
 
   if( contrast > 0 && contrast < 256 ) {
     saved_contrast = contrast ;
-//    printf("Contrast: %i\n", contrast);
+    report(RPT_DEBUG, "Contrast: %i\n", contrast);
     glkputl( PortFD, GLKCommand, 0x50, contrast, EOF );
   };
   return( saved_contrast );
 }
 
-//////////////////////////////////////////////////////////////////////
-// Turns the lcd backlight on or off...
-//
+/************************************************************************
+ * Turns the lcd backlight on or off...
+ */
 static void glk_backlight(int on)
 {
   if(on) {
-//    printf("Backlight ON\n");
+    report(RPT_DEBUG, "Backlight ON\n");
     glkputl( PortFD, GLKCommand, 0x42, 0, EOF );
   } else {
-//    printf("Backlight OFF\n");
+    report(RPT_DEBUG, "Backlight OFF\n");
     glkputl( PortFD, GLKCommand, 0x46, EOF );
   }
 }
 
-//////////////////////////////////////////////////////////////////////
-// Sets general purpose outputs on or off
+/************************************************************************
+ * Sets general purpose outputs on or off
+ */
 static void
 glk_output(int on)
 {
@@ -423,28 +416,12 @@ glk_output(int on)
   };
 }
 
-//////////////////////////////////////////////////////////////////////
-// Tells the driver to get ready for vertical bargraphs.
-//
-static void glk_init_vbar() 
+/*********************************************************************
+ * Tells the driver to get ready for big numbers, if possible.
+ */
+static void glk_init_num()
 {
-//  printf("Vertical bars.\n");
-}
-
-//////////////////////////////////////////////////////////////////////
-// Tells the driver to get ready for horizontal bargraphs.
-//
-static void glk_init_hbar() 
-{
-//  printf("Horizontal bars.\n");
-}
-
-//////////////////////////////////////////////////////////////////////
-// Tells the driver to get ready for big numbers, if possible.
-//
-static void glk_init_num() 
-{
-//  printf("Big Numbers.\n");
+  report(RPT_DEBUG, "Big Numbers.\n");
   if( fontselected != 3 ) {
     /* Select Big Numbers font */
     glkputl( PortFD, GLKCommand, 0x31, 3, EOF );
@@ -456,31 +433,31 @@ static void glk_init_num()
   };
 }
 
-//////////////////////////////////////////////////////////////////////
-// Draws a big (4-row) number.
-//
-static void glk_num(int x, int num) 
+/*********************************************************************
+ * Draws a big (4-row) number.
+ */
+static void glk_num(int x, int num)
 {
-//  printf("BigNum(%i, %i)\n", x, num);
+  debug(RPT_DEBUG, "BigNum(%i, %i)\n", x, num);
   glk->framebuf[x-1] = num + '0' ;
 }
 
-//////////////////////////////////////////////////////////////////////
-// Changes the font data of character n.
-//
+/*********************************************************************
+ * Changes the font data of character n.
+ */
 static void glk_set_char(int n, char *dat)
 {
-  printf("Set Character %i\n", n);
+  debug(RPT_DEBUG, "Set Character %i\n", n);
 }
 
-/////////////////////////////////////////////////////////////////
-// Draws a vertical bar, from the bottom of the screen up.
-//
-static void glk_vbar(int x, int len) 
+/********************************************************************
+ * Draws a vertical bar, from the bottom of the screen up.
+ */
+static void glk_vbar(int x, int len)
 {
   int  y = glk->hgt ;
 
-//  printf( "glk_vbar( %d, %d )\n", x, len );
+  debug(RPT_DEBUG, "glk_vbar( %d, %d )\n", x, len );
   while( len > glk->cellhgt ) {
     glk_chr( x, y, 255 );
     --y ;
@@ -503,12 +480,12 @@ static void glk_vbar(int x, int len)
   };
 }
 
-/////////////////////////////////////////////////////////////////
-// Draws a horizontal bar to the right.
-//
-static void glk_hbar(int x, int y, int len) 
+/************************************************************
+ * Draws a horizontal bar to the right.
+ */
+static void glk_hbar(int x, int y, int len)
 {
-//  printf( "glk_hbar( %d, %d, %d )\n", x, y, len );
+  debug(RPT_DEBUG, "glk_hbar( %d, %d, %d )\n", x, y, len );
   while( len > glk->cellwid ) {
     glk_chr( x, y, 255 );
     ++x ;
@@ -530,9 +507,9 @@ static void glk_hbar(int x, int y, int len)
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Sets character 0 to an icon...
-//
+/*****************************************************************
+ * Sets character 0 to an icon...
+ */
 static void glk_icon(int which, char dest)
 {
   unsigned char  old, new ;
@@ -540,7 +517,7 @@ static void glk_icon(int which, char dest)
   unsigned char *  q ;
   int  count ;
 
-//  printf("Char %i set to icon %i\n", dest, which);
+  debug(RPT_DEBUG, "Char %i set to icon %i\n", dest, which);
 
   if( dest < 0 || dest > 7 ) {
     /* Illegal custom character */
@@ -566,7 +543,7 @@ static void glk_icon(int which, char dest)
   /* Replace all old icons with new icon in new frame */
   for( count = glk->wid * glk->hgt ; count ; --count ) {
     if( *q == old ) {
-//      printf( "icon %d to %d at %d\n", old, new, q - screen_contents );
+      debug(RPT_DEBUG, "icon %d to %d at %d\n", old, new, q - screen_contents );
       *p = new ;
     };
     ++q ; ++p ;
@@ -576,23 +553,23 @@ static void glk_icon(int which, char dest)
 }
 
 
-//////////////////////////////////////////////////////////////////////
-// Send a rectangular area to the display.
-//
-// I've just called glk_flush() because there's not much point yet
-// in flushing less than the entire framebuffer.
-//
+/****************************************************************************
+ * Send a rectangular area to the display.
+ *
+ * I've just called glk_flush() because there's not much point yet
+ * in flushing less than the entire framebuffer.
+ */
 static void glk_flush_box(int lft, int top, int rgt, int bot)
 {
-//   printf("glk_flush_box( %d, %d, %d, %d )\n", lft, top, rgt, bot );
+   debug(RPT_DEBUG,"glk_flush_box( %d, %d, %d, %d )\n", lft, top, rgt, bot );
    glk_flush( );
 }
 
-//////////////////////////////////////////////////////////////////////
-// Draws the framebuffer on the display.
-//
-// The commented-out code is from the text driver.
-//
+/*****************************************************************************
+ * Draws the framebuffer on the display.
+ *
+ * The commented-out code is from the text driver.
+ */
 static void glk_draw_frame(char *dat)
 {
   char *  p ;
@@ -601,7 +578,7 @@ static void glk_draw_frame(char *dat)
   int  xs ;
   char *  ps = NULL ;
 
-//  printf( "glk_draw_frame( %p )  glk->framebuf = %p\n", dat, glk->framebuf );
+  debug(RPT_DEBUG, "glk_draw_frame( %p )  glk->framebuf = %p\n", dat, glk->framebuf );
 
   p = glk->framebuf ;
   q = screen_contents ;
@@ -613,7 +590,7 @@ static void glk_draw_frame(char *dat)
         /* Write accumulated string */
         glkputl( PortFD, GLKCommand, 0x79, xs*6+1, y*8, EOF );
         glkputa( PortFD, x - xs, ps );
-//        printf( "draw_frame: Writing at (%d,%d) for %d\n", xs, y, x-xs );
+        debug(RPT_DEBUG, "draw_frame: Writing at (%d,%d) for %d\n", xs, y, x-xs );
         xs = -1 ;
       } else if( *q != *p && xs < 0 ) {
         /* Start new string of changes */
@@ -626,7 +603,7 @@ static void glk_draw_frame(char *dat)
       /* Write accumulated line */
       glkputl( PortFD, GLKCommand, 0x79, xs*6+1, y*8, EOF );
       glkputa( PortFD, glk->wid - xs, ps );
-//      printf( "draw_frame: Writing at (%d,%d) for %d\n", xs, y, glk->wid-xs );
+      debug(RPT_DEBUG, "draw_frame: Writing at (%d,%d) for %d\n", xs, y, glk->wid-xs );
     };
 
   };  /* For y */
@@ -635,19 +612,19 @@ static void glk_draw_frame(char *dat)
 }
 
 
-//////////////////////////////////////////////////////////////////////
-// Tries to read a character from an input device...
-//
-// Return 0 for "nothing available".
-//
-char glk_getkey()
+/**************************************************************************************
+ * Tries to read a character from an input device...
+ *
+ * Return 0 for "nothing available".
+ */
+static char glk_getkey()
 {
   int  c ;
   static int  key = -1 ;
   static struct timeval  lastkey ;
   struct timeval  now ;
-  
-//  puts( "glk_getkey( )" );
+
+  debug(RPT_DEBUG, "glk_getkey( )" );
 
   c = glkgetc( PortFD );
 
@@ -655,10 +632,10 @@ char glk_getkey()
     /* Key down event */
     key = c ;
     gettimeofday( &lastkey, NULL );
-//    printf( "KEY %c at %ld.%06ld\n", c, lastkey.tv_sec, lastkey.tv_usec );
+    debug(RPT_DEBUG, "KEY %c at %ld.%06ld\n", c, lastkey.tv_sec, lastkey.tv_usec );
   } else if( c >= 'a' && c <= 'z' ) {
     /* Key up event */
-//    printf( "KEY %c UP\n", c );
+    debug(RPT_DEBUG, "KEY %c UP\n", c );
     key = -1 ;
     c = 0 ;
   } else {
@@ -670,12 +647,12 @@ char glk_getkey()
       gettimeofday( &now, NULL );
       msec_diff  = (now.tv_sec - lastkey.tv_sec) * 1000 ;
       msec_diff += (now.tv_usec - lastkey.tv_usec) / 1000 ;
-//      printf( "KEY %c down for %d msec\n", key, msec_diff );
+      debug(RPT_DEBUG, "KEY %c down for %d msec\n", key, msec_diff );
       if( msec_diff > 1000 ) {
         /* Generate repeat event */
         c = key | 0x20 ;  /* Upper case to lower case */
         ++lastkey.tv_sec ;  /* HACK HACK. repeat at 1 sec intervals */
-//        printf( "KEY %c REPEAT\n", c );
+        debug(RPT_DEBUG, "KEY %c REPEAT\n", c );
       };
     };
   };
@@ -683,10 +660,13 @@ char glk_getkey()
   /* Remap keys according to what LCDproc expects */
   switch( c ) {
   default :  break ;
-  case 'V' : c = 'A' ; break ; /* Hold/Select */
-  case 'P' : c = 'B' ; break ; /* Left  -- Minus */
-  case 'Q' : c = 'C' ; break ; /* Right -- Plus */
-  case 'L' : c = 'D' ; break ; /* Menu/Exit */
+  case 'V' : c = INPUT_PAUSE_KEY ; break ; /* Hold/Select */
+  case 'P' : c = INPUT_BACK_KEY ; break ; /* Left  -- Minus */
+  case 'Q' : c = INPUT_FORWARD_KEY ; break ; /* Right -- Plus */
+  case 'L' : c = INPUT_MAIN_MENU_KEY ; break ; /* Menu/Exit */
+
+  /* NOTE: The following keys are IGNORED by the server! */
+
   case 'U' : c = 'E' ; break ; /* Up */
   case 'K' : c = 'F' ; break ; /* Down */
 
@@ -698,9 +678,9 @@ char glk_getkey()
   case 'k' : c = 'S' ; break ;
   };
 
-//  if( c ) {
-//    printf( "KEY %c\n", c );
-//  };
+  if( c ) {
+    debug(RPT_DEBUG, "KEY %c\n", c );
+  };
 
   return( c );
 }
