@@ -443,16 +443,13 @@ process_configfile ( char *configfile )
 	if( enable_server_screen == UNSET_INT ) {
 		s = config_get_string( "server", "serverscreen", 0, UNSET_STR );
 		if( strcmp( s, "no" ) == 0 ) {
-			enable_server_screen = SERVER_SCREEN_NEVER;
-		}
-		else if( strcmp( s, "noscreen" ) == 0 ) {
 			enable_server_screen = SERVER_SCREEN_NOSCREEN;
 		}
 		else if( strcmp( s, "yes" ) == 0 ) {
 			enable_server_screen = SERVER_SCREEN_ALWAYS;
 		}
 		else if( strcmp( s, UNSET_STR ) != 0 ) {
-			report( RPT_ERR, "Serverscreen can only be no, noscreen or yes" );
+			report( RPT_ERR, "Serverscreen can only be no or yes" );
 		}
 	}
 
