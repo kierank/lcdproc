@@ -492,7 +492,7 @@ process_configfile ( char *configfile )
 		if( (0 <= i) && (i <= 255) ) {
 			backlight_brightness = i;
 		}
-		else {
+		else if (i != UNSET_INT){
 			report( RPT_ERR, "BacklightBrightness should be an integer value between 0 and 255" );
 		}
 	}
@@ -502,7 +502,7 @@ process_configfile ( char *configfile )
 		if( (0 <= i) && (i <= 255) ) {
 			backlight_off_brightness = i;
 		}
-		else {
+		else if (i != UNSET_INT){
 			report( RPT_ERR, "BacklightOffBrightness should be an integer value between 0 and 255" );
 		}
 	}
@@ -594,7 +594,7 @@ set_default_settings()
 	if (backlight_brightness == UNSET_INT)
 		backlight_brightness = DEF_BACKLIGHT_BRIGHTNESS;
 	if (backlight_off_brightness == UNSET_INT)
-		backlight_off_brightness = DEF_BACKLIGHT_BRIGHTNESS;
+		backlight_off_brightness = DEF_BACKLIGHT_OFF_BRIGHTNESS;
 
 
 	if (reportToSyslog == UNSET_INT )
