@@ -82,17 +82,17 @@ handle_input ()
 
 	/* Sequence:
 	 * 	Does the current screen want the key?
-	 * 	IfTrue: handle and quit
+	 * 	IfTrue: Let the current screen handle it
 	 * 	IfFalse:
-	 * 	    Let ALL clients handle it if they want
-	 * 	    Let Server handle it, too
-	 *
-	 * This leads to a unique situation:
-	 *     First: multiple clients may handle the same key in multiple ways
-	 *     Second: the server may handle the key differently yet
-	 *
-	 * Solution: Only the current screen can handle the key press.
-	 * Alternately, only one client can handle the key press.
+	 * 	    Let the first client that wants the key handle it
+	 * 	Finally let the server handle all key presses, too
+	 */
+
+	/* NOTE: The INPUT_* keys (A,B,C,D) should only be requested
+	 *       by a screen or client to be informed when a key is
+	 *       pressed e.g. to enter the server menu.
+	 *       Those keys should not be used to really cause the
+	 *       client to do something useful.
 	 */
 
 	/* TODO:  Interpret and translate keys!*/
@@ -104,20 +104,16 @@ handle_input ()
 		/* This screen wants this key.  Tell it we got one*/
 		snprintf(str, sizeof(str), "key %c\n", key);
 		sock_send_string(s->parent->sock, str);
-		/* Nobody else gets this key*/
+		/* The server gets this key as well*/
 	}
 
-	/* if the current screen doesn't want it,
-	 * let the server have it...
-	 */
-
 	else {
-		/* Give key to clients who want it*/
+		/* Give the key to the first client that wants it*/
 
 		c = FirstClient(clients);
 
 		while (c) {
-			/* If the client should have this keypress...*/
+			/* If the client wants this keypress...*/
 			if(KeyWanted(c->data->client_keys,key)) {
 				/* Send keypress to client*/
 				snprintf(str, sizeof(str), "key %c\n", key);
@@ -126,10 +122,10 @@ handle_input ()
 			};
 			c = NextClient(clients);
 		} /* while clients*/
-
-		/* Give server a shot at all keys*/
-		server_input (key);
 	}
+
+	/* Give server a shot at all keys*/
+	server_input (key);
 
 	return 0;
 }
