@@ -1028,7 +1028,7 @@ can be done by specifying "--enable-drivers=all" or by
 <title>Configuration</title>
 
 <para>
-Since LCDproc 0.4.3 the HD44780 driver can be cnfigured from the configfile.
+Since LCDproc 0.4.3 the HD44780 driver can be configured from the configfile (LCDd.conf).
 </para>
 
 <para>
@@ -1108,6 +1108,42 @@ file anyway.
 
 </sect2>
 
+<sect2 id="questions-answers">
+<title>Questions & Answers</title>
+
+<qandaset>
+
+<qandaentry>
+<question><para>
+What should a properly powered HD44780 LCD show? 
+</para></question>
+<answer><para>
+It will show lines filled with blocks. The position of these lines will depend on the LCD size. A 2x20 will fill the first line, a 4x20 will fill the first and third lines and a 2x40 will fill the first line on both halfs on the LCD. 
+</para></answer>
+</qandaentry>
+
+<qandaentry>
+<question><para>
+What should be the BIOS LPT port type?
+</para></question>
+<answer><para>
+They should all work. We are only using the features of the SPP (normal) type, so set it to this if in doubt.
+</para></answer>
+</qandaentry>
+
+<qandaentry>
+<question><para>
+What is the difference between numerous connection variants and which one is the best, simplest or most compatible.
+</para></question>
+<answer><para>
+There's no real answer to that, if there was a real better connection type we would only use this one. Connections using 8 bits are twice as fast as the one using 4 bits. The winamp connection is compatible with the WinAmp plugin.
+</para></answer>
+</qandaentry>
+
+</qandaset>
+
+</sect2>
+
 <sect2 id="hd44780-miscellania">
 <title>Miscellania</title>
 
@@ -1130,6 +1166,10 @@ Converted to docbook March 2002, Rene Wagner <email>reenoo@gmx.de</email>
 
 <para>
 Updated April 2002, Rene Wagner <email>reenoo@gmx.de</email>
+</para>
+
+<para>
+Added the Q&amp;A September 2002, Guillaume Filion <email>gfk@logidac.com</email>
 </para>
 
 </sect2>
