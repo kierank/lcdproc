@@ -48,7 +48,7 @@ etc=@sysconfdir@
 
 lcdproc=${bindir}/lcdproc
 
-[ -f ${lcdproc} ] || exit 0
+[ -x ${lcdproc} ] || exit 0
 
 
 start() {

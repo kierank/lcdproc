@@ -10,7 +10,7 @@
 #               Modified for Debian GNU/Linux
 #               by Ian Murdock <imurdock@gnu.ai.mit.edu>.
 #
-# Version:      $Id: init-LCDd.debian.in,v 1.1.2.2 2002/01/02 18:39:12 reenoo Exp $
+# Version:      $Id: init-LCDd.debian.in,v 1.1.2.3 2002/02/27 14:23:08 reenoo Exp $
 
 DESC="LCDd @VERSION@"
 
@@ -23,7 +23,7 @@ etc=@sysconfdir@
 LCDd=${sbindir}/LCDd
 configfile=${etc}/LCDd.conf
 
-test -f ${LCDd} || exit 0
+test -x ${LCDd} || exit 0
 
 case "$1" in
 start)
@@ -38,13 +38,13 @@ stop)
         printf " LCDd"
         printf ".\n"
         ;;
-restart)
+restart | force-restart)
         $0 stop
         sleep 1
         $0 start
         ;;
 *)
-        printf "Usage: $0 {start|stop|restart}\n" >&2
+        printf "Usage: $0 {start|stop|restart|force-reload}\n" >&2
         exit 1
         ;;
 esac

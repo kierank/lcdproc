@@ -49,7 +49,7 @@ etc=@sysconfdir@
 LCDd=${sbindir}/LCDd
 configfile=${etc}/LCDd.conf
 
-[ -f ${LCDd} ] || exit 0
+[ -x ${LCDd} ] || exit 0
 
 start() {
 	echo -n "Starting up LCDd: "
