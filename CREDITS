@@ -71,7 +71,7 @@ Charles Steinkuehler:
 	- Work on HD44780 timing code
 
 Harald Klein:
-	- Lirc driver(current version)
+	- Lirc driver (initial version of the current code)
 	- Metar Client
 
 Philip Pokorny:
@@ -96,10 +96,12 @@ Rene Wagner <reenoo@gmx.de>:
 	- LCDM001 driver
 	- ASCII emulation of BigNum
 	- CFontz v2.0 patches merging,
+	- LIRC driver updates (new API, merged David's code)
 	- Lots of driver updates for 0.4.3 (configfile, reporting):
 	- CFontz, curses, glk, MtxOrb,
 	- EPM list file for automatic package generation,
-	- Lots of other stuff for 0.4.3 pre-release
+	- current documentation in docbook format
+	- Lots of other stuff for the 0.4.3 release
 
 Andre Breiler:
 	- Matrix Orbital driver
