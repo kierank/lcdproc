@@ -3,7 +3,7 @@
 lcdproc - displays system status on LCDproc server (LCDd(8))
 .SH SYNOPSIS
 .B lcdproc
-[\-s \fIserver\fP] [\-p \fIport\fP] [\fImode\fP [\fImode\fP ...]]
+[\-s \fIserver\fP] [\-p \fIport\fP] [\-d] [\fImode\fP [\fImode\fP ...]]
 .SH DESCRIPTION
 lcdproc connects to the LCDproc server to display status information about the system.
 .PP
@@ -17,6 +17,9 @@ Set the hostname which LCDproc is running on, assumed to be localhost unless oth
 .TP 8
 .B \-p \fIport\fP
 Set the port which LCDproc is accepting connections on, assumed to be 13666 unless otherwise set
+.TP 8
+.B \-d
+Daemonize right after startup
 .TP 8
 .B \fImode\fP
 Where mode is one of the following letters:
