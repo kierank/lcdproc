@@ -14,6 +14,9 @@ v0.4.4
  + Added option in curses to use our own ascii map
  * Fixed the bignum/backstore and flickering in CFontz
  + Added CFontz633 backported from CVS 0.5
+ * recovered some old code of the curses driver (See LCDd.conf)
+ * Finished the LCDM001 driver
+ * Fixed a memory leak in do_mainloop
 
 v0.4.3
  - Removed possibility of passing arguments to the drivers from the
