@@ -153,7 +153,11 @@ int init_screens();
 void do_mainloop();
 void lcd_list_drivers();
 
+#if defined(__FILE__)
+#define ESSENTIAL(f) {int r; if( ( r=(f) )<0 ) { report( RPT_CRIT,"Critical error: %s:%d, abort", __FILE__, __LINE__); return r;}}
+#else
 #define ESSENTIAL(f) {int r; if( ( r=(f) )<0 ) { report( RPT_CRIT,"Critical error, abort"); return r;}}
+#endif
 
 int
 main (int argc, char **argv)
