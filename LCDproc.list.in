@@ -76,7 +76,6 @@ f 750 root root /etc/rc.d/init.d/lcdproc ${srcdir}/scripts/init-lcdproc.rpm
 d 755 root root ${doc}/LCDproc -
 f 644 root root ${doc}/LCDproc/README ${srcdir}/README
 f 644 root root ${doc}/LCDproc/README.IRman ${srcdir}/README.IRman
-f 644 root root ${doc}/LCDproc/README.lirc ${srcdir}/README.lirc
 f 644 root root ${doc}/LCDproc/CREDITS ${srcdir}/CREDITS
 f 644 root root ${doc}/LCDproc/BUGS ${srcdir}/BUGS
 f 644 root root ${doc}/LCDproc/ChangeLog ${srcdir}/ChangeLog
