@@ -72,10 +72,10 @@ typedef struct lcd_logical_driver {
 	// more?
 
 	// Config file functions, filled by server
-	char (*config_get_bool)	(char * sectionname, char * keyname,
-				int skip, char default_value);
-	int (*config_get_int)	(char * sectionname, char * keyname,
-				int skip, int default_value);
+	unsigned char (*config_get_bool)	(char * sectionname, char * keyname,
+				int skip, unsigned char default_value);
+	long int (*config_get_int)	(char * sectionname, char * keyname,
+				int skip, long int default_value);
 	double (*config_get_float) (char * sectionname, char * keyname,
 				int skip, double default_value);
 	char *(*config_get_string) (char * sectionname, char * keyname,
@@ -100,5 +100,7 @@ typedef struct lcd_physical_driver {
 
 //extern lcd_logical_driver lcd;
 extern lcd_logical_driver *lcd_ptr;
+
+int * lcd_find_init (char *driver);
 
 #endif

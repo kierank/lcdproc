@@ -33,8 +33,13 @@ Richard Rognlie - GIF driver
 Harald Klein - Lirc driver, Metar Client
 
 Rene Wagner <reenoo@gmx.de> - LCDM001 driver, ASCII emulation
-	of BigNum, CFontz driver update (configfile, reporting)
-	curses driver update (configfile and reporting support)
+	of BigNum,
+	CFontz v2.0 patches merging,
+	Lots of driver updates for 0.4.3 (configfile, reporting):
+	CFontz, curses, glk, MtxOrb,
+	EPM list file for automatic package generation,
+	Lots of other stuff for 0.4.3 pre-release
+
 
 
 Please let us know if your name is missing, or your credit

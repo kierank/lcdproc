@@ -1,5 +1,5 @@
 /* acconfig.h
-*   $Id: acconfig.h,v 1.20 2001/11/30 23:53:16 gfk Exp $
+*   $Id: acconfig.h,v 1.20.2.1 2002/01/01 15:46:04 reenoo Exp $
 *   This file is in the public domain.
 *
 *   Descriptive text for the C preprocessor macros that
@@ -48,6 +48,8 @@
 
 #undef LB216_DRV
 
+#undef LCDM001_DRV
+
 #undef LCDPORT
 
 #undef LINUX
@@ -58,13 +60,13 @@
 
 #undef MTXORB_DRV
 
-#undef LCDM001_DRV
-
 #undef SED1330_DRV
 
 #undef SED1520_DRV
 
 #undef STV5730_DRV
+
+#undef SVGALIB_DRV
 
 #undef T6963_DRV
 

@@ -467,7 +467,7 @@ void sed1330_update_cursor()
 	char csrloc[2];
 	char csrform[2];
 	char disp_en;
-	char fc; // named after CF register in SED1330
+	char fc=0; // named after CF register in SED1330
 
 	debug( RPT_INFO, "sed1330_update_cursor" );
 

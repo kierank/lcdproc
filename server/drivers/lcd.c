@@ -1,22 +1,19 @@
 /*
  * Driver master (lcd.c)
+ * This file is part of LCDd, the lcdproc server.
+ *
+ * This file is released under the GNU General Public License. Refer to the
+ * COPYING file distributed with this package.
+ *
+ * Copyright (c) 1999, William Ferrell, Scott Scriven
+ *               2001, Joris Robijn
+ *               2002, Rene Wagner
+ *
  *
  * This code actually sets up the drivers as requested,
  * initializes drivers, and allocates memory for drivers.
  *
  */
-
-/*
- * These drivers don't seem to be in the build process yet;
- * so here we fake it and define these variables...!
- *
- * Not pretty, but it works and its up here so everyone
- * can see... and you can yank them out of the comments
- * to make it work.
- */
-
-// #define SVGALIB_DRV
-// #define T6963_DRV
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -386,7 +383,7 @@ lcd_drv_patch_init (struct lcd_logical_driver *driver)
  *
  */
 
-void *
+int *
 lcd_find_init (char *driver) {
 	int i;
 
@@ -395,7 +392,7 @@ lcd_find_init (char *driver) {
 
 	for (i = 0; drivers[i].name; i++) {
 		if (strcasecmp(driver, drivers[i].name) == 0) {
-			return (*drivers[i].init);
+			return ((int *)*drivers[i].init);
 		}
 	}
 	return NULL;

@@ -7,6 +7,7 @@
  *
  * Copyright (c) 1999, William Ferrell, Scott Scriven
  *               2001, Joris Robijn
+ *               2002, Rene Wagner
  *
  *
  * This code does all driver handling, loading, initializing, unloading.
@@ -29,12 +30,18 @@
 #include "configfile.h"
 
 #include "drivers/lcd.h"
-/* lcd.h is used for the driver API definition*/
+/* lcd.h is used for the driver API definition */
 
 
 LinkedList * loaded_drivers = NULL;
 
-long int empty_function() { return 0; }
+int empty_int_function() { return 0; }
+void empty_void_function() { return;}
+char empty_char_function() { return 0; }
+char * empty_char_pointer_function() { return ""; }
+
+void empty_icon_function (int which, char dest) { return; }
+void empty_chr_function (int x, int y, char c) { return; };
 
 static int fill_driver_functions( lcd_logical_driver * driver );
 
@@ -44,7 +51,7 @@ int
 load_driver ( char * name, char * filename, char * args )
 {
 	int res;
-	void (*driver_init)();
+	int (*driver_init)();
 	lcd_logical_driver * driver;
 
 	report( RPT_INFO, "load_driver(%s,%s,%s)", name, filename, args );
@@ -116,7 +123,7 @@ unload_all_drivers ()
 
 
 static int
-fill_driver_functions( lcd_logical_driver * driver )
+fill_driver_functions( struct lcd_logical_driver * driver )
 {
 	driver->wid = LCD_STD_WIDTH;
 	driver->hgt = LCD_STD_HEIGHT;
@@ -132,41 +139,41 @@ fill_driver_functions( lcd_logical_driver * driver )
 	/* Set pointers to empty function*/
 
 	/* Basic functions*/
-	driver->init = empty_function;
-	driver->close = empty_function;
+	driver->init = empty_int_function;
+	driver->close = empty_void_function;
 
-	driver->getinfo = empty_function;
+	driver->getinfo = empty_char_pointer_function;
 	/* and don't forget other get_* functions later...*/
 
-	driver->clear = empty_function;
-	driver->flush = empty_function;
-	driver->string = empty_function;
-	driver->chr = empty_function;
+	driver->clear = empty_void_function;
+	driver->flush = empty_void_function;
+	driver->string = empty_void_function;
+	driver->chr = empty_chr_function;
 
 	/* Extended functions*/
-	driver->init_vbar = empty_function;
-	driver->vbar = empty_function;
-	driver->init_hbar = empty_function;
-	driver->hbar = empty_function;
-	driver->init_num = empty_function;
-	driver->num = empty_function;
-	driver->heartbeat = empty_function;
+	driver->init_vbar = empty_void_function;
+	driver->vbar = empty_void_function;
+	driver->init_hbar = empty_void_function;
+	driver->hbar = empty_void_function;
+	driver->init_num = empty_void_function;
+	driver->num = empty_void_function;
+	driver->heartbeat = empty_void_function;
 
 	/* Hardware functions*/
-	driver->contrast = empty_function;
-	driver->backlight = empty_function;
-	driver->output = empty_function;
+	driver->contrast = empty_int_function;
+	driver->backlight = empty_void_function;
+	driver->output = empty_void_function;
 
 	/* Userdef character functions*/
-	driver->set_char = empty_function;
-	driver->icon = empty_function;
+	driver->set_char = empty_void_function;
+	driver->icon = empty_icon_function;
 
 	/* Key functions*/
-	driver->getkey = empty_function;
+	driver->getkey = empty_char_function;
 
 	/* Ancient functions*/
-	driver->flush_box = empty_function;
-	driver->draw_frame = empty_function;
+	driver->flush_box = empty_void_function;
+	driver->draw_frame = empty_void_function;
 
 	/* Config file functions*/
 	driver->config_get_bool		= config_get_bool;
