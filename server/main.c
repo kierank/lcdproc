@@ -913,6 +913,7 @@ do_mainloop ()
 			free(message);
 		} else {
 			report(RPT_DEBUG, "Error: Received NULL pointer");
+			free(message); /*fixes memory leak*/
 		}
 		if (s && s->timeout != -1) {
 
