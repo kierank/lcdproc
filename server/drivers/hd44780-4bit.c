@@ -192,8 +192,6 @@ lcdstat_HD44780_senddata (unsigned char displayID, unsigned char flags, unsigned
 	unsigned char h = (ch >> 4) & 0x0f;     // high and low nibbles
 	unsigned char l = ch & 0x0f;
 
-	printf( "senddata %d %d %d\n", displayID, flags, ch );
-
 	if (flags == RS_INSTR)
 		portControl = 0;
 	else //if (flags == RS_DATA)
