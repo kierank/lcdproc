@@ -11,6 +11,7 @@ Coming soon: (already implemented in 0.5 = CVS main branch)
  + LCDproc Developer's Guide
 
 v0.4.4
+ + Added Apache Network Server (ANS) LCD driver
  + Added option in curses to use our own ascii map
  * Fixed the bignum/backstore and flickering in CFontz
  + Added CFontz633 driver backported from CVS 0.5 (temporarily
