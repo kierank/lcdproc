@@ -342,13 +342,13 @@ CFontz_chr (int x, int y, char c)
 int
 CFontz_contrast (int contrast)
 {
-	int realcontrast;
+	int realcontrast = -1;
 	char out[4];
 	static int status = 140;
 
 	if (contrast > 0) {
 		status = contrast;
-		realcontrast = (((int) (status)) * 100) / 255;
+		realcontrast = (int) (status * 100 / 255);
 		snprintf (out, sizeof(out), "%c%c", 15, realcontrast);
 		write (fd, out, 3);
 	}
@@ -363,20 +363,23 @@ void
 CFontz_backlight (int on)
 {
 	static int current = -1;
+	int realbacklight = -1;
 	char out[4];
 
 	if (on == current)
 		return;
 
 	/* validate backlight value */
-	if (on > 100)
-		on = 100;
+	if (on > 255)
+		on = 255;
 	if (on < 0)
 		on = 0;
 
 	current = on;
-	snprintf (out, sizeof(out), "%c%c", 14, current);
 
+	realbacklight = (int) (current * 100 / 255);
+
+	snprintf (out, sizeof(out), "%c%c", 14, realbacklight);
 	write (fd, out, 3);
 }
 
