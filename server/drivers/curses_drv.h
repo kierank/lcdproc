@@ -48,11 +48,11 @@ void curses_drv_num (int x, int num);
 void curses_drv_heartbeat (int type);
 
 /*Default settings for config file parsing*/
-#define CONF_DEF_FOREGR "blue"
-#define CONF_DEF_BACKGR "cyan"
-#define CONF_DEF_BACKLIGHT "red"
-#define CONF_DEF_SIZE "20x4"
-#define CONF_DEF_TOP_LEFT_X 7
-#define CONF_DEF_TOP_LEFT_Y 7
+#define CURSESDRV_DEF_FOREGR "blue"
+#define CURSESDRV_DEF_BACKGR "cyan"
+#define CURSESDRV_DEF_BACKLIGHT "red"
+#define CURSESDRV_DEF_SIZE "20x4"
+#define CURSESDRV_DEF_TOP_LEFT_X 7
+#define CURSESDRV_DEF_TOP_LEFT_Y 7
 
 #endif

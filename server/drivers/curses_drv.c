@@ -72,6 +72,7 @@ SunOS (5.5.1):
 #include "curses_drv.h"
 #include "shared/report.h"
 #include "configfile.h"
+#include "input.h"
 
 // ACS_S9 and ACS_S1 are defined as part of XSI Curses standard, Issue 4.
 // However, ACS_S3 and ACS_S7 are not; these definitions were created to support
@@ -120,7 +121,7 @@ void curses_drv_restore_screen (void);
 static char icon_char = '@';
 static WINDOW *lcd_win;
 
-/*this is really ugly ;) but works ;)*/
+/*BigNum ASCII emulation code*/
 static char num_icon [10][4][3] = 	{{{' ','_',' '}, /*0*/
 					  {'|',' ','|'},
 					  {'|','_','|'},
@@ -161,7 +162,7 @@ static char num_icon [10][4][3] = 	{{{' ','_',' '}, /*0*/
 					  {'|','_','|'},
 					  {' ','_','|'},
 					  {' ',' ',' '}}};
-/*end of ugly code ;) Rene Wagner*/
+/*end of BignNum ASCII emulation code by Rene Wagner*/
 
 chtype get_color (char *colorstr) {
 	if (strcasecmp(colorstr, "red") == 0)
@@ -240,8 +241,8 @@ curses_drv_init (struct lcd_logical_driver *driver, char *args)
 		backlight_color = DEFAULT_BACKGROUND_COLOR;
 
 	// Screen position (top left)
-	int	screen_begx = CONF_DEF_TOP_LEFT_X,
-		screen_begy = CONF_DEF_TOP_LEFT_Y;
+	int	screen_begx = CURSESDRV_DEF_TOP_LEFT_X,
+		screen_begy = CURSESDRV_DEF_TOP_LEFT_Y;
 
 	curses_drv = driver;
 
@@ -252,17 +253,17 @@ curses_drv_init (struct lcd_logical_driver *driver, char *args)
 
 	/*Get color settings*/
 	/*foreground color*/
-	strncpy(buf, config_get_string ( DriverName , "foreground" , 0 , CONF_DEF_FOREGR),sizeof(buf));
+	strncpy(buf, config_get_string ( DriverName , "foreground" , 0 , CURSESDRV_DEF_FOREGR),sizeof(buf));
 	buf[sizeof(buf)-1]=0;
 	fore_color = set_foreground_color(buf);
 	debug( RPT_DEBUG, "CURSES: using foreground color: %s", buf);
 	/*background color*/
-	strncpy(buf, config_get_string ( DriverName , "background" , 0 , CONF_DEF_BACKGR),sizeof(buf));
+	strncpy(buf, config_get_string ( DriverName , "background" , 0 , CURSESDRV_DEF_BACKGR),sizeof(buf));
 	buf[sizeof(buf)-1]=0;
 	back_color = set_background_color(buf);
 	debug( RPT_DEBUG, "CURSES: using background color: %s", buf);
 	/*backlight color*/
-	strncpy(buf, config_get_string ( DriverName , "backlight" , 0 , CONF_DEF_BACKLIGHT), sizeof(buf));
+	strncpy(buf, config_get_string ( DriverName , "backlight" , 0 , CURSESDRV_DEF_BACKLIGHT), sizeof(buf));
 	buf[sizeof(buf)-1]=0;
 	backlight_color = set_background_color(buf);
 	debug( RPT_DEBUG, "CURSES: using backlight color: %s", buf);
@@ -271,27 +272,27 @@ curses_drv_init (struct lcd_logical_driver *driver, char *args)
 	//      Or maybe don't do so? - Rene Wagner
 
 	/*Get size settings*/
-	strncpy(buf, config_get_string ( DriverName , "size" , 0 , CONF_DEF_SIZE), sizeof(buf));
+	strncpy(buf, config_get_string ( DriverName , "size" , 0 , CURSESDRV_DEF_SIZE), sizeof(buf));
 	buf[sizeof(buf)-1]=0;
 	if( sscanf(buf , "%dx%d", &wid, &hgt ) != 2
 	|| (wid <= 0)
 	|| (hgt <= 0)) {
-		report (RPT_WARNING, "CURSES: Cannot read size: %s. Using default value %s.\n", buf, CONF_DEF_SIZE);
-		sscanf( CONF_DEF_SIZE , "%dx%d", &wid, &hgt );
+		report (RPT_WARNING, "CURSES: Cannot read size: %s. Using default value %s.\n", buf, CURSESDRV_DEF_SIZE);
+		sscanf( CURSESDRV_DEF_SIZE , "%dx%d", &wid, &hgt );
 	}
 	driver->wid = wid;
 	driver->hgt = hgt;
 
 	/*Get position settings*/
-	if (0<=config_get_int ( DriverName , "topleftx" , 0 , CONF_DEF_TOP_LEFT_X) && config_get_int ( DriverName , "topleftx" , 0 , CONF_DEF_TOP_LEFT_X) <= 255) {
-		screen_begx = config_get_int ( DriverName , "topleftx" , 0 , CONF_DEF_TOP_LEFT_X);
+	if (0<=config_get_int ( DriverName , "topleftx" , 0 , CURSESDRV_DEF_TOP_LEFT_X) && config_get_int ( DriverName , "topleftx" , 0 , CURSESDRV_DEF_TOP_LEFT_X) <= 255) {
+		screen_begx = config_get_int ( DriverName , "topleftx" , 0 , CURSESDRV_DEF_TOP_LEFT_X);
 	} else {
-		report (RPT_WARNING, "CURSES: topleftx must between 0 and 255. Using default value %d.\n",CONF_DEF_TOP_LEFT_X);
+		report (RPT_WARNING, "CURSES: topleftx must between 0 and 255. Using default value %d.\n",CURSESDRV_DEF_TOP_LEFT_X);
 	}
-	if (0<=config_get_int ( DriverName , "toplefty" , 0 , CONF_DEF_TOP_LEFT_Y) && config_get_int ( DriverName , "toplefty" , 0 , CONF_DEF_TOP_LEFT_Y) <= 255) {
-		screen_begy = config_get_int ( DriverName , "toplefty" , 0 , CONF_DEF_TOP_LEFT_Y);
+	if (0<=config_get_int ( DriverName , "toplefty" , 0 , CURSESDRV_DEF_TOP_LEFT_Y) && config_get_int ( DriverName , "toplefty" , 0 , CURSESDRV_DEF_TOP_LEFT_Y) <= 255) {
+		screen_begy = config_get_int ( DriverName , "toplefty" , 0 , CURSESDRV_DEF_TOP_LEFT_Y);
 	} else {
-		report (RPT_WARNING, "CURSES: toplefty must between 0 and 255. Using default value %d.\n",CONF_DEF_TOP_LEFT_Y);
+		report (RPT_WARNING, "CURSES: toplefty must between 0 and 255. Using default value %d.\n",CURSESDRV_DEF_TOP_LEFT_Y);
 	}
 
 	//debug: sleep(1);
@@ -693,16 +694,16 @@ curses_drv_getkey ()
 			return 0;
 			break;
 		case KEY_LEFT:
-			return 'D';
+			return INPUT_MAIN_MENU_KEY;
 			break;
 		case KEY_UP:
-			return 'B';
+			return INPUT_BACK_KEY;
 			break;
 		case KEY_DOWN:
-			return 'C';
+			return INPUT_FORWARD_KEY;
 			break;
 		case KEY_RIGHT:
-			return 'A';
+			return INPUT_PAUSE_KEY;
 			break;
 		case ERR:
 			return 0;
