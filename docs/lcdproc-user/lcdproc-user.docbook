@@ -8,6 +8,7 @@
   <!ENTITY drivers SYSTEM "drivers.docbook">
   <!ENTITY running SYSTEM "running.docbook">
   <!ENTITY contact SYSTEM "contact.docbook">
+  <!ENTITY license SYSTEM "license.docbook">
 
   <!ENTITY hd44780 SYSTEM "drivers/hd44780.docbook">
   <!ENTITY mtxorb SYSTEM "drivers/mtxorb.docbook">
@@ -24,5 +25,6 @@
 &drivers;
 &running;
 &contact;
+&license;
 
 </book>
