@@ -1,5 +1,5 @@
 /* acconfig.h
-*   $Id: acconfig.h,v 1.8 2000/11/29 18:48:53 willfe Exp $
+*   $Id: acconfig.h,v 1.9 2001/03/29 19:24:18 willfe Exp $
 *   This file is in the public domain.
 *
 *   Descriptive text for the C preprocessor macros that
@@ -16,6 +16,8 @@
 
 
 #undef LIRCIN_DRV
+
+#undef BAYRAD_DRV
 
 #undef CFONTZ_DRV
 
