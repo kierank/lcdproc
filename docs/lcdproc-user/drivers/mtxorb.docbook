@@ -199,10 +199,9 @@
 	  <para>
 	    While connecting the serial cable to the module, be sure to configure the
 	    module's serial interface settings. Typically, setting the module to its fastest
-	    setting (19,200 baud, 8-N-1) is recommended. Even though the speed settings can
-	    the configured from the config file <filename>/etc/LCDd.conf</filename>, at present,
-	    the Matrix Orbital module driver in LCDproc is hardwired to use these settings;
-	    using different ones will require minor changes to the driver's code.
+	    setting (19,200 baud, 8-N-1) is recommended. The speed settings can
+	    be configured from the config file <filename>/etc/LCDd.conf</filename>. If not specified in the config file,
+	    the Matrix Orbital module driver in LCDproc default to use these settings.
 	  </para>
 	</sect4>
       </sect3>

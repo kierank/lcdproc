@@ -1,5 +1,10 @@
 Known Bugs:
 --------------
+
+V0.4.3:
+   - MtxOrb driver
+       - "lcdproc K" does not display properly in between digit.
+
 V0.4-pre1:
    - The server tends to crash if the joystick driver is the last one loaded.
      Specifically, if the "E" key is pressed...
