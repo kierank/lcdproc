@@ -1,7 +1,7 @@
 //////////////////////////////////////////////////////////////////////////
 // This is a driver for 122x32 pixel graphic displays based on the      //
 // SED1520 Controller connected to the parallel port. Check             //
-// www.adams-online.de/lcd for where to buy                             //
+// www.usblcd.de/lcdproc for where to buy                               //
 // and how to build the hardware. This Controller has no built in       //
 // character generator. Therefore all fonts and pixels are generated    //
 // by this driver.                                                      //
@@ -14,10 +14,11 @@
 // Moved the delay timing code by Charles Steinkuehler to timing.h.     //
 // Guillaume Filion <gfk@logidac.com>, December 2001                    //
 //                                                                      //
-// (C) 2001 Robin Adams ( robin@adams-online.de )                       //
+// (C) 2001,2002 Robin Adams ( robin@adams-online.de )                  //
 //                                                                      //
 // This driver is released under the GPL. See file COPYING in this      //
 // package for further details.                                         //
+// Update 11.5.02 RA: use configfile, reporting                         //
 //////////////////////////////////////////////////////////////////////////
 
 #include <stdlib.h>
@@ -28,6 +29,8 @@
 #include <string.h>
 #include <sys/errno.h>
 #include <time.h>
+#include "shared/report.h"
+#include "configfile.h"
 #include "port.h"
 #include "timing.h"
 #define uPause timing_uPause
@@ -45,7 +48,7 @@
 #define CS2 0x04
 #define CS1 0x02
 #define WR 0x01
-#define IODELAY 500
+#define IODELAY 50
 
 #include "shared/str.h"
 #include "lcd.h"
@@ -132,73 +135,25 @@ drawchar2fb (int x, int y, unsigned char z)
 
 /////////////////////////////////////////////////////////////////
 // This initialises the stuff. We support supplying port as 
-// a command line argument.
+// a configfile option.
 // 
 int
 sed1520_init (struct lcd_logical_driver *driver, char *args)
 {
-    char *argv[64], *str;
-    int argc, i;
 
     sed1520 = driver;
 
-    if (args)
-	if ((str = (char *) malloc (strlen (args) + 1)))
-	    strcpy (str, args);
-	else
-	  {
-	      fprintf (stderr, "Error mallocing\n");
-	      return -1;
-	  }
-    else
-	str = NULL;
+    #define DriverName "sed1520"
 
-    argc = get_args (argv, args, 64);
-    for (i = 0; i < argc; i++)
-      {
-	  if (0 == strcmp (argv[i], "-p")
-	      || 0 == strcmp (argv[i], "--port\0"))
-	    {
-		if (i + 1 >= argc)
-		  {
-		      fprintf (stderr,
-			       "sed1520_init: %s requires an argument\n",
-			       argv[i]);
-		      return -1;
-		  }
-		else
-		  {
-		      int myport;
-		      if (sscanf (argv[i + 1], "%i", &myport) != 1)
-			{
-			    fprintf (stderr,
-				     "sed1520_init: Couldn't read port address -"
-				     " using default value 0x%x\n", sed1520_lptport);
-			    return -1;
-			}
-		      else
-			{
-			    sed1520_lptport = myport;
-			    ++i;
-			}
-		  }
-	    }
-	  else if (0 == strcmp (argv[i], "-h")
-		   || 0 == strcmp (argv[i], "--help"))
-	    {
-		//int i;
-		printf
-		    ("LCDproc sed1520 driver\n\t-p n\t--port n\tSelect the output device to use port n\n");
-		printf ("put the options in quotes like this:  '-p 0x278'\n");
-		printf ("\t-h\t--help\t\tShow this help information\n");
-		return -1;
-	    }
-      }
+    // Port 
+    sed1520_lptport = config_get_int( DriverName, "port", 0, LPTPORT );
+
+    report( RPT_INFO, "SED1520: Using port 0x%x", sed1520_lptport);
 
     driver->wid = 20;
     driver->hgt = 4;
 
-	if (timing_init() == -1)
+    if (timing_init() == -1)
 		return -1;
 
     // Initialize the Port and the sed1520s
@@ -220,7 +175,7 @@ sed1520_init (struct lcd_logical_driver *driver, char *args)
     if (!driver->framebuf)
 	free (driver->framebuf);
 
-    driver->framebuf = malloc (122 * 4);
+    driver->framebuf = malloc (122 * 4 * 2);
     if (!driver->framebuf)
       {
 	  sed1520_close ();
@@ -244,16 +199,8 @@ sed1520_init (struct lcd_logical_driver *driver, char *args)
 
     driver->icon = sed1520_icon;
     driver->draw_frame = sed1520_draw_frame;
-    // We dont't need init for vbar,hbar and friends.
-    //driver->init_hbar = NULL;
-    //driver->init_vbar = NULL;
-    //driver->init_num = NULL;
-    // Neither contrast nor backlight are controllable.
-    //driver->contrast = NULL;
-    //driver->backlight = NULL;
-    // There are some unused input lines that may be used for input,
-    // but nothing is programmed so far.
-    //driver->getkey = NULL;
+    driver->heartbeat = sed1520_heartbeat;
+
     return 200;			// 200 is arbitrary.  (must be 1 or more)
 }
 
@@ -381,7 +328,7 @@ sed1520_num (int x, int num)
 // can be altered. !Important: Characters have to be redraw
 // by drawchar2fb() to show their new shape. Because we use
 // a non-standard 6x8 font a *dat not calculated from
-// sed1520->width and sed1520->height will fail. 
+// sed1520->cellwid and sed1520->cellhgt will fail. 
 //
 void
 sed1520_set_char (int n, char *dat)
@@ -523,6 +470,13 @@ sed1520_draw_frame (char *dat)
     int i, j;
     if (!dat)
 	return;
+
+    // Did the framebuffer change ? If not, do nothing.
+    // Saves A LOT of CPU time. IO and delays are costly. 
+
+    if(memcmp(dat,(dat+488),488)==0) return;
+    memcpy((dat+488),dat,488);
+
     for (i = 0; i < 4; i++)
       {
 	  selectpage (i);
@@ -533,4 +487,32 @@ sed1520_draw_frame (char *dat)
 	  for (j = 61; j < 122; j++)
 	      writedata (dat[j + (i * 122)], CS1);
       }
+}
+
+/////////////////////////////////////////////////////////////
+// Does the heartbeat...
+//
+void
+sed1520_heartbeat( int type )
+{
+	static int timer = 0;
+	int whichIcon;
+	int j;
+
+	char heartdata[2][6] = {
+		{ 0x63, 0x41, 0x03, 0x41, 0x63, 0x7F },
+		{ 0x63, 0x5D, 0x3B, 0x5D, 0x63, 0x7F },
+	};
+
+	whichIcon = (! ((timer + 4) & 5));
+
+         selectpage (0);
+	  selectcolumn (55, CS1) ;
+	  for (j = 0; j < 6; j++) {
+
+	      writedata (heartdata[whichIcon][j], CS1);
+              sed1520->framebuf[116+j]=heartdata[whichIcon][j];
+              sed1520->framebuf[116+488+j]=heartdata[whichIcon][j];
+           }
+	timer++;
 }

@@ -16,5 +16,6 @@ void sed1520_set_char (int n, char *dat);
 void sed1520_icon (int which, char dest);
 void sed1520_flush_box (int lft, int top, int rgt, int bot);
 void sed1520_draw_frame (char *dat);
+void sed1520_heartbeat (int type);
 
 #endif
