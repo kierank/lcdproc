@@ -45,15 +45,19 @@ framedelay ()
 	usleep (TIME_UNIT);
 }
 
+/*
+
+lcd_ptr->heartbeat(heartbeat); does this now
+
 static void
 draw_heartbeat ()
 {
 	static int timer = 0;
 
-	if (heartbeat) {
+	if (heartbeat) {*/
 		/* Set this to pulsate like a real heart beat...
 		* (binary is fun...  :)
-		*/
+		*/ /*
 		lcd_ptr->icon (!((timer + 4) & 5), 0);
 		lcd_ptr->chr (lcd_ptr->wid, 1, 0);
 	}
@@ -61,7 +65,7 @@ draw_heartbeat ()
 
 	timer++;
 	timer &= 0x0f;
-}
+}*/
 
 static int PAD = 255;
 
@@ -111,7 +115,7 @@ do_menu (Menu menu)
 			/* sleep for 1/8th second...*/
 			framedelay ();
 			/* do the heartbeat...*/
-			draw_heartbeat ();
+			lcd_ptr->heartbeat (heartbeat);
 			/* Check for client input...*/
 		}
 
@@ -261,8 +265,8 @@ draw_menu (Menu menu, menu_info * info)
 	if (bottom < info->length)
 		lcd_ptr->chr (1, hgt, 'v');
 
-	draw_heartbeat ();
-	/*lcd_ptr->flush();*/
+	lcd_ptr->heartbeat (heartbeat);
+	lcd_ptr->flush();
 
 	return 0;
 }
