@@ -79,8 +79,6 @@ load_driver ( char * name, char * filename, char * args )
 	driver = malloc( sizeof( lcd_logical_driver ));
 	/*memset( driver, 0, sizeof (lcd_logical_driver ));*/
 
-	lcd_ptr = driver;
-
 	fill_driver_functions( driver );
 
 
@@ -96,6 +94,11 @@ load_driver ( char * name, char * filename, char * args )
 
 	/* Add driver to list*/
 	LL_Push( loaded_drivers, driver );
+
+	/* Set lcd_ptr (which is used for output) to driver, if it's
+	 * the first output driver in the list (lcd_ptr==NULL)*/
+	if ((lcd_ptr == NULL) && (driver->chr != empty_chr_function))
+		lcd_ptr = driver;
 
 	/* Check the driver type*/
 	if( !driver->daemonize ) {
