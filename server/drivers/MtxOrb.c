@@ -487,7 +487,7 @@ MtxOrb_string (int x, int y, char *string)
 
 	x--; y--; /* Convert 1-based coords to 0-based... */
 	offset = (y * MtxOrb->wid) + x;
-	siz = (MtxOrb->wid * MtxOrb->hgt) - offset - 1;
+	siz = (MtxOrb->wid * MtxOrb->hgt) - offset;
 	siz = siz > strlen(string) ? strlen(string) : siz;
 
 	memcpy(MtxOrb->framebuf + offset, string, siz);
