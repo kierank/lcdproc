@@ -20,6 +20,7 @@ extern menu_item options_menu[];
 extern menu_item screens_menu[];
 extern menu_item shutdown_menu[];
 extern menu_item Backlight_menu[];
+extern menu_item Heartbeat_menu[];
 
 /* Brings up the main menu... */
 void server_menu ();

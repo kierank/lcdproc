@@ -35,8 +35,11 @@
 
 #include "drivers/lcd.h"
 #include "drivers.h"
-#include "menu.h"
 #include "input.h"
+#include "screenlist.h"
+#include "menu.h"
+
+static int menutimer=-1;
 
 /* FIXME: Implement this where it is supposed to be...*/
 void
@@ -48,27 +51,39 @@ framedelay ()
 	usleep (TIME_UNIT);
 }
 
-/*
-
-lcd_ptr->heartbeat(heartbeat); does this now
-
 static void
-draw_heartbeat ()
+draw_heartbeat (int hearttimer)
 {
-	static int timer = 0;
+	char *slash_phases = "-\\|/";
 
-	if (heartbeat) {*/
-		/* Set this to pulsate like a real heart beat...
-		* (binary is fun...  :)
-		*/ /*
-		lcd_ptr->icon (!((timer + 4) & 5), 0);
-		lcd_ptr->chr (lcd_ptr->wid, 1, 0);
+	/* FIXME: The timer stuff is just a workaround
+	 *        Errors with the rotating slash still occur when
+	 *        entering or leaving the server menu
+	 */
+
+	if (menutimer == -1) {
+		menutimer = timer;
+	} else {
+		menutimer = hearttimer;
 	}
-	lcd_ptr->flush ();
 
-	timer++;
-	timer &= 0x0f;
-}*/
+	switch (heartbeat_state){
+		case HEARTBEAT_ON:
+			/* heartbeat mode "on" */
+			lcd_ptr->heartbeat(HEARTBEAT_ON);
+			break;
+		case HEARTBEAT_OFF:
+			/* heartbeat mode "off" */
+			/* do nothing */
+			break;
+		case HEARTBEAT_SLASH:
+			/* Replace heartbeat with a rotating slash */
+			lcd_ptr->chr (lcd_ptr->wid, 1, slash_phases[hearttimer & 3]);
+			lcd_ptr->flush();
+			break;
+	}
+	menutimer++;
+}
 
 static int PAD = 255;
 
@@ -79,7 +94,7 @@ typedef struct menu_info {
 
 static int draw_menu (Menu menu, menu_info * info);
 static int fill_menu_info (Menu menu, menu_info * info);
-static int menu_handle_action (menu_item * item);
+/*static int menu_handle_action (menu_item * item);*/
 
 static int slid_func (menu_item * item);
 
@@ -121,7 +136,7 @@ do_menu (Menu menu)
 			/* read from the driver */
 			key = drivers_getkey ();
 			/* do the heartbeat...*/
-			lcd_ptr->heartbeat (heartbeat);
+			draw_heartbeat(menutimer);
 			/* Check for client input...*/
 		}
 
@@ -191,7 +206,7 @@ do_menu (Menu menu)
 		default:
 			break;
 		}
-
+		draw_heartbeat(menutimer-1);
 	}
 
 	return status;
@@ -271,7 +286,8 @@ draw_menu (Menu menu, menu_info * info)
 	if (bottom < info->length)
 		lcd_ptr->chr (1, hgt, 'v');
 
-	lcd_ptr->heartbeat (heartbeat);
+
+	draw_heartbeat (menutimer-1);
 	lcd_ptr->flush();
 
 	return 0;
@@ -293,11 +309,12 @@ fill_menu_info (Menu menu, menu_info * info)
 
 }
 
-static int
+/*static int
 menu_handle_action (menu_item * item)
 {
 	return MENU_OK;
 }
+*/
 
 static int
 slid_func (menu_item * item)
@@ -344,7 +361,7 @@ slid_func (menu_item * item)
 			/* read from the driver */
 			key = drivers_getkey ();
 			/* do the heartbeat...*/
-			lcd_ptr->heartbeat (heartbeat);
+			draw_heartbeat (menutimer);
 			/* Check for client input...*/
 		}
 

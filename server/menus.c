@@ -37,7 +37,6 @@ int Reboot_func ();
 int Close_func ();
 int OK_func ();
 int Time24_func (int input);
-int Heartbeat_func (int input);
 int Server_screen_func (int input);
 int Contrast_func (int input);
 int Backlight_Brightness_func (int input);
@@ -45,6 +44,10 @@ int Backlight_Off_Brightness_func (int input);
 int Backlight_Off_func ();
 int Backlight_On_func ();
 int Backlight_Open_func ();
+int Heartbeat_Off_func ();
+int Heartbeat_On_func ();
+int Heartbeat_Slash_func ();
+int Heartbeat_Open_func ();
 
 menu_item main_menu[] = {
 	{"LCDproc", 0, 0},			  /* Title*/
@@ -60,7 +63,7 @@ menu_item options_menu[] = {
 /*   "24-hour Time", TYPE_CHEK,    (void *)Time24_func,*/
 	{"Contrast...", TYPE_SLID, (void *) Contrast_func},
 	{"Backlight", TYPE_MENU, (void *) Backlight_menu},
-	{"Heartbeat", TYPE_CHEK, (void *) Heartbeat_func},
+	{"Heartbeat", TYPE_MENU, (void *) Heartbeat_menu},
 /*  { "Backlight...", TYPE_SLID,      (void *)Backlight_func},
  *   "OK",         TYPE_FUNC,      (void *)OK_func,
  *   "Close Menu",   TYPE_FUNC,    (void *)Close_func,
@@ -94,6 +97,16 @@ menu_item Backlight_menu[] = {
 	{" - Off", TYPE_FUNC, Backlight_Off_func},
 	{" - On", TYPE_FUNC, Backlight_On_func},
 	{" - Open", TYPE_FUNC, Backlight_Open_func},
+	{0, 0, 0},
+};
+
+menu_item Heartbeat_menu[] = {
+	{"HEARTBEAT MENU", TYPE_TITL, 0},	/* Title*/
+	{"Heartbeat Mode:", TYPE_FUNC, 0},	/* Label*/
+	{" - Off", TYPE_FUNC, Heartbeat_Off_func},
+	{" - On", TYPE_FUNC, Heartbeat_On_func},
+	{" - Slash", TYPE_FUNC, Heartbeat_Slash_func},
+	{" - Open", TYPE_FUNC, Heartbeat_Open_func},
 	{0, 0, 0},
 };
 
@@ -189,21 +202,6 @@ Time24_func (int input)
 	 * unless you want something else (like MENU_CLOSE)
 	 */
 }
-
-int
-Heartbeat_func (int input)
-{
-	if (input == MENU_READ)
-		return (heartbeat != HEART_OFF);
-	if (input == MENU_CHECK) {
-		if (heartbeat != HEART_OFF)
-			heartbeat = HEART_OFF;
-		else
-			heartbeat = HEART_OPEN;
-	}
-	return ((heartbeat != HEART_OFF) | MENU_OK);
-}
-
 
 int
 Server_screen_func (int input)
@@ -323,5 +321,36 @@ int
 Backlight_Open_func ()
 {
 	backlight = BACKLIGHT_OPEN;
+	return MENU_OK;
+}
+
+int
+Heartbeat_Off_func ()
+{
+	heartbeat_state = BACKLIGHT_OFF;
+	heartbeat = BACKLIGHT_OFF;
+	return MENU_OK;
+}
+
+int
+Heartbeat_On_func ()
+{
+	heartbeat_state = BACKLIGHT_ON;
+	heartbeat = BACKLIGHT_ON;
+	return MENU_OK;
+}
+
+int
+Heartbeat_Slash_func ()
+{
+	heartbeat_state = HEARTBEAT_SLASH;
+	heartbeat = HEARTBEAT_SLASH;
+	return MENU_OK;
+}
+
+int
+Heartbeat_Open_func ()
+{
+	heartbeat = BACKLIGHT_OPEN;
 	return MENU_OK;
 }

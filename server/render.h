@@ -42,6 +42,7 @@
 #define DEF_BACKLIGHT_OFF_BRIGHTNESS 0
 
 extern int heartbeat;
+extern int heartbeat_state;
 extern int backlight;
 extern int backlight_state;
 extern int backlight_brightness;
