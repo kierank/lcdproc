@@ -1,5 +1,5 @@
 /* acconfig.h
-*   $Id: acconfig.h,v 1.16 2001/11/02 18:56:51 gfk Exp $
+*   $Id: acconfig.h,v 1.17 2001/11/03 14:33:03 gfk Exp $
 *   This file is in the public domain.
 *
 *   Descriptive text for the C preprocessor macros that
@@ -55,6 +55,8 @@
 #undef SED1520_DRV
 
 #undef STV5730_DRV
+
+#undef T6963_DRV
 
 /* Define the package name */
 #undef PACKAGE
