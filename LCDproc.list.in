@@ -3,7 +3,7 @@
 # Up to now this file is only tested for generating RPM on Mdk 8.1
 
 # Copyright (C) 2001  Rene Wagner <reenoo@gmx.de>
-# First autoconf ready version by Guillaume Filion <gfk@logidac.com>
+# First autoconf ready version (c) 2001 by Guillaume Filion <gfk@logidac.com>
 
 # This file is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,7 +27,7 @@ $etc=@sysconfdir@
 $man=@mandir@
 $srcdir=@srcdir@
 $version=@VERSION@
-$doc=@infodir@
+$doc=@prefix@/doc
 
 %product LCDproc
 %copyright (C) 1999-2001 William Ferrell, Scott Scriven and several other contributors see README and CREDITS for details
@@ -44,8 +44,20 @@ $doc=@infodir@
 %version ${version}
 
 %preinstall <<EOF
+echo
+echo
 echo "    ATTENTION: This is a DEVELOPMENT VERSION of LCDproc!"
 echo "    IT IS NEITHER GUARANTEED TO RUN NOR TO BE USEFUL FOR ANY PURPOSE!"
+echo
+echo
+EOF
+
+%postinstall <<EOF
+echo
+echo "    Make sure you have modified the LCDd configfile before adding"
+echo "    the init scripts permanently to your setup!"
+echo "    Otherwise LCDd might \"lock\" your system when running in foreground"
+echo
 EOF
 
 # init scripts and system specific stuff
@@ -57,13 +69,18 @@ f 750 root root /etc/init.d/lcdproc ${srcdir}/scripts/init-lcdproc.debian
 
 # RPM based distributions
 %format rpm
-f 750 root root /etc/rc.d/init.d/LCDd ${srcdir}/scripts/init-LCDd.rpm
+f 640 root root /etc/LCDd.conf ${srcdir}/LCDd.conf
+f 750 root root /etc/rc.d/init.d/lcdd ${srcdir}/scripts/init-LCDd.rpm
 f 750 root root /etc/rc.d/init.d/lcdproc ${srcdir}/scripts/init-lcdproc.rpm
 
 # Sorry, no scripts for other systems :(
 # TODO: Add init scripts for more systems here
 
 
+%format !rpm
+
+# configuration file
+f 640 root root ${etc}/LCDd.conf ${srcdir}/LCDd.conf
 
 %format all
 
@@ -89,18 +106,15 @@ f 644 root root ${doc}/LCDproc/netstuff.txt ${srcdir}/docs/netstuff.txt
 f 644 root root ${man}/man1/lcdproc.1 ${srcdir}/docs/lcdproc.1
 f 644 root root ${man}/man8/LCDd.8 ${srcdir}/docs/LCDd.8
 
-# configuration file
-f 640 root root ${etc}/LCDd.conf ${srcdir}/LCDd.conf
-
 # server binary
-f 750 root root ${sbindir}/LCDd ${srcdir}/server/LCDd
+f 750 root root ${sbin}/LCDd ${srcdir}/server/LCDd
 
 # main client
-f 755 root root ${bindir}/lcdproc ${srcdir}/clients/lcdproc/lcdproc
+f 755 root root ${bin}/lcdproc ${srcdir}/clients/lcdproc/lcdproc
 
 # other clients
-f 755 root root ${bindir}/lcdfortune ${srcdir}/clients/examples/fortune.pl
-f 755 root root ${bindir}/lcdiosock ${srcdir}/clients/examples/iosock.pl
-f 755 root root ${bindir}/lcdheadlines ${srcdir}/clients/headlines/lcdheadlines
-f 755 root root ${bindir}/lcdtail ${srcdir}/clients/examples/tail.pl
-f 755 root root ${bindir}/lcdx11amp ${srcdir}/clients/examples/x11amp.pl
+f 755 root root ${bin}/lcdfortune ${srcdir}/clients/examples/fortune.pl
+f 755 root root ${bin}/lcdiosock ${srcdir}/clients/examples/iosock.pl
+f 755 root root ${bin}/lcdheadlines ${srcdir}/clients/headlines/lcdheadlines
+f 755 root root ${bin}/lcdtail ${srcdir}/clients/examples/tail.pl
+f 755 root root ${bin}/lcdx11amp ${srcdir}/clients/examples/x11amp.pl
