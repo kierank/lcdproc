@@ -335,11 +335,14 @@ slid_func (menu_item * item)
 		}
 		/*lcd_ptr->flush();*/
 
-		for (key = drivers_getkey (); key == 0; key = lcd_ptr->getkey ()) {
+		key = drivers_getkey (); /* A for loop doesn't work properly */
+		while ( key == 0) {
+			/* sleep for 1/8th second...*/
+			framedelay();
+			/* read from the driver */
+			key = drivers_getkey ();
 			/* do the heartbeat...*/
 			lcd_ptr->heartbeat (heartbeat);
-			/* sleep for 1/8th second...*/
-			framedelay ();
 			/* Check for client input...*/
 		}
 
