@@ -99,10 +99,11 @@ load_driver ( char * name, char * filename, char * args )
 
 	/* Check the driver type*/
 	if( !driver->daemonize ) {
-		return 2;
+		return 2; /* it should be run in foreground */
 	}
 
-	return 1; /* We can't see if it's an input driver only...*/
+	/* Does it do output ? */
+	return ( driver->chr != empty_chr_function ) ? 1 : 0;
 }
 
 
