@@ -23,7 +23,7 @@ EXTRA_libLCDdrivers_a_SOURCES = MtxOrb.c MtxOrb.h text.c text.h \
 	svgalib_drv.c svgalib_drv.h \
 	t6963.c t6963.h t6963_font.h \
 	wirz-sli.c wirz-sli.h \
-	SGX120L.c SGX120L.h
+	SGX120.c SGX120.h
 libLCDdrivers_a_DEPENDENCIES = @DRIVERS@
 libLCDdrivers_a_LIBADD = @DRIVERS@
 # NOTE: $(srcdir)/..  is to get .h files from the server directory
