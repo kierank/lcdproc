@@ -45,6 +45,7 @@ David Glaude (dglaudemailing@gmx.net):
 	- Crystal Fontz driver (heritage from MtxOrb + Bignum fix for 0.4.4)
 	- Matrix orbital GLK driver (heritage from MtxOrb, done nothing)
 	- Crystal Fontz 633 driver (from scratch)
+	- CwLnx (www.cwlinux.com) driver added (credit to Andrew Ip)
 
 Todd Porter:
 	- Windows 95/98 and NT version
@@ -142,6 +143,9 @@ Mike Patnode:
 
 Bernhard Tittelbach <xro@gmx.net>:
 	- Fix for the memory leak in do_mainloop()
+
+Andrew Ip:
+	- Initial code for CwLnx driver (based on CFontz)
 
 Further developers in the sourceforge lcdproc team:
 Mindaugas Idzelis       aim4min

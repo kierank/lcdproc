@@ -18,6 +18,7 @@ v0.4.4
  * Finished the LCDM001 driver
  * Fixed a memory leak in do_mainloop
  * MtxOrb fix problem when used via USB 2 serial adapter
+ + Added CwLnx driver (www.cwlinux.com)
 
 v0.4.3
  - Removed possibility of passing arguments to the drivers from the
