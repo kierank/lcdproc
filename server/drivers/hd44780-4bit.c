@@ -128,7 +128,16 @@ hd_init_4bit (HD44780_functions * hd44780_functions, lcd_logical_driver * driver
 	port_out (lptPort, 0x03);
 	if (extIF)
 		port_out (lptPort + 2, 0 ^ OUTMASK);
-	hd44780_functions->uPause (4100);
+	hd44780_functions->uPause (15000);
+
+	port_out (lptPort, enableLines | 0x03);
+	if (extIF)
+		port_out (lptPort + 2, ALLEXT ^ OUTMASK);
+	if( delayBus ) hd44780_functions->uPause (1);
+	port_out (lptPort, 0x03);
+	if (extIF)
+		port_out (lptPort + 2, 0 ^ OUTMASK);
+	hd44780_functions->uPause (5000);
 
 	port_out (lptPort, enableLines | 0x03);
 	if (extIF)
@@ -146,7 +155,7 @@ hd_init_4bit (HD44780_functions * hd44780_functions, lcd_logical_driver * driver
 	port_out (lptPort, 0x03);
 	if (extIF)
 		port_out (lptPort + 2, 0 ^ OUTMASK);
-	hd44780_functions->uPause (40);
+	hd44780_functions->uPause (100);
 
 	// now in 8-bit mode...  set 4-bit mode
 	port_out (lptPort, 0x02);
@@ -159,7 +168,7 @@ hd_init_4bit (HD44780_functions * hd44780_functions, lcd_logical_driver * driver
 	port_out (lptPort, 0x02);
 	if (extIF)
 		port_out (lptPort + 2, 0 ^ OUTMASK);
-	hd44780_functions->uPause (40);
+	hd44780_functions->uPause (100);
 
 	// Set up two-line, small character (5x8) mode
 	hd44780_functions->senddata (0, RS_INSTR, FUNCSET | TWOLINE | SMALLCHAR );
@@ -254,6 +263,10 @@ unsigned char lcdstat_HD44780_readkeypad (unsigned int YData)
 	// Put port back into idle state for backlight
 	port_out (lptPort, backlight_bit);
 
-	// And convert value back.
-	return ( (readval >> 4 & 0x03) | (readval >> 5 & 0x04) | (readval >> 3 & 0x08) | (readval << 1 & 0x10) ) & ~stuckinputs;
+	// And convert value back (MSB first).
+	return (((readval & FAULT) / FAULT <<4) |		/* pin 15 */
+		((readval & SELIN) / SELIN <<3) |		/* pin 13 */
+		((readval & PAPEREND) / PAPEREND <<2) |		/* pin 12 */
+		((readval & BUSY) / BUSY <<1) |			/* pin 11 */
+		((readval & ACK) / ACK )) & ~stuckinputs;	/* pin 10 */
 }

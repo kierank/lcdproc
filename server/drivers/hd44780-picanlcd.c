@@ -1,5 +1,5 @@
 /*
- * "PIC-an_LCD" serial driver module for Hitachi HD44780 based LCD displays.
+ * "PIC-an-LCD" serial driver module for Hitachi HD44780 based LCD displays.
  *
  * Copyright (c)  1997, Matthias Prinke <m.prinke@trashcan.mcnet.de>
  *		  1998, Richard Rognlie <rrognlie@gamerz.net>
@@ -13,6 +13,7 @@
  *
  * See the PIC-an-LCD documentation for data on how it should be connected
  * to the computer.
+ * http://dalewheat.com/products/PIC-an-LCD/index.html
  *
  */
 
@@ -33,6 +34,10 @@
 #include <termios.h>
 
 #include <errno.h>
+
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 // Generally, any function that accesses the LCD control lines needs to be
 // implemented separately for each HW design. This is typically (but not
@@ -68,24 +73,35 @@ hd_init_picanlcd (HD44780_functions * hd44780_functions, lcd_logical_driver * dr
 	/* Get serial device to use */
 	strncpy(device, config_get_string ( DriverName , "device" , 0 , DEFAULT_DEVICE),sizeof(device));
 	device[sizeof(device)-1]=0;
-	report (RPT_INFO,"HD44780: PC-an_LCD: Using device: %s", device);
+	report (RPT_INFO,"HD44780: PC-an-LCD: Using device: %s", device);
 
 	// Set up io port correctly, and open it...
 	fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY);
 	if (fd == -1) {
-		report(RPT_ERR, "HD44780: PC-an_LCD: could not open device %s (%s)\n", device, strerror(errno));
+		report(RPT_ERR, "HD44780: PC-an-LCD: could not open device %s (%s)\n", device, strerror(errno));
 		return -1;
 	}
 
-	// Get serial device parameters
+	/* Get serial device parameters */
 	tcgetattr(fd, &portset);
-	// This is necessary in Linux, but does not exist in irix.
-#ifdef LINUX
-	cfmakeraw(&portset);
+
+	/* We use RAW mode */
+#ifdef HAVE_CFMAKERAW
+	/* The easy way */
+	cfmakeraw( &portset );
+#else
+	/* The hard way */
+	portset.c_iflag &= ~( IGNBRK | BRKINT | PARMRK | ISTRIP
+	                      | INLCR | IGNCR | ICRNL | IXON );
+	portset.c_oflag &= ~OPOST;
+	portset.c_lflag &= ~( ECHO | ECHONL | ICANON | ISIG | IEXTEN );
+	portset.c_cflag &= ~( CSIZE | PARENB | CRTSCTS );
+	portset.c_cflag |= CS8 | CREAD | CLOCAL ;
 #endif
-	// Set port speed to 9600 baud
+	/* Set port speed to 9600 baud */
 	cfsetospeed(&portset, B9600);
-	// Set TCSANOW mode of serial device
+
+	/* Set TCSANOW mode of serial device */
 	tcsetattr(fd, TCSANOW, &portset);
 
 	hd44780_functions->senddata = picanlcd_HD44780_senddata;

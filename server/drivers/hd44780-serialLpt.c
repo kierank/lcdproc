@@ -109,6 +109,7 @@ hd_init_serialLpt (HD44780_functions * hd44780_functions, lcd_logical_driver * d
 	hd44780_functions->uPause (100);
 
 	hd44780_functions->senddata (0, RS_INSTR, FUNCSET | IF_4BIT | TWOLINE | SMALLCHAR);
+	hd44780_functions->uPause (40);
 
 	common_init ();
 
@@ -172,7 +173,11 @@ unsigned char lcdserLpt_HD44780_scankeypad ()
 	hd44780_functions->uPause (2);
 
 	readval = ~ port_in (lptPort + 1) ^ INMASK;
-	inputs_zero = ( (readval >> 4 & 0x03) | (readval >> 5 & 0x04) | (readval >> 3 & 0x08) | (readval << 1 & 0x10) );
+	inputs_zero =  (((readval & FAULT) / FAULT <<4) |		/* pin 15 */
+			((readval & SELIN) / SELIN <<3) |		/* pin 13 */
+			((readval & PAPEREND) / PAPEREND <<2) |		/* pin 12 */
+			((readval & BUSY) / BUSY <<1) |			/* pin 11 */
+			((readval & ACK) / ACK ));			/* pin 10 */
 
 	if( inputs_zero == 0 ) {
 		// No keys were pressed
@@ -192,7 +197,12 @@ unsigned char lcdserLpt_HD44780_scankeypad ()
 		if( !scancode ) {
 			// Read input line(s)
 			readval = ~ port_in (lptPort + 1) ^ INMASK;
-			keybits = ( (readval >> 4 & 0x03) | (readval >> 5 & 0x04) | (readval >> 3 & 0x08) | (readval << 1 & 0x10) );
+			keybits = (((readval & FAULT) / FAULT <<4) |		/* pin 15 */
+				((readval & SELIN) / SELIN <<3) |		/* pin 13 */
+				((readval & PAPEREND) / PAPEREND <<2) |		/* pin 12 */
+				((readval & BUSY) / BUSY <<1) |			/* pin 11 */
+				((readval & ACK) / ACK ));			/* pin 10 */
+
 			if( keybits != inputs_zero ) {
 				shiftingbit = 1;
 				for (shiftcount=0; shiftcount<KEYPAD_MAXX && !scancode; shiftcount++) {

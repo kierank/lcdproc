@@ -183,6 +183,10 @@ unsigned char lcdwinamp_HD44780_readkeypad (unsigned int YData)
 	// Set output back to idle state for backlight
 	port_out (lptPort + 2, backlight_bit ^ OUTMASK );
 
-	// And convert value back.
-	return ( (readval >> 4 & 0x03) | (readval >> 5 & 0x04) | (readval >> 3 & 0x08) | (readval << 1 & 0x10) ) & ~stuckinputs;
+	// And convert value back (MSB first).
+	return (((readval & FAULT) / FAULT <<4) |		/* pin 15 */
+		((readval & SELIN) / SELIN <<3) |		/* pin 13 */
+		((readval & PAPEREND) / PAPEREND <<2) |		/* pin 12 */
+		((readval & BUSY) / BUSY <<1) |			/* pin 11 */
+		((readval & ACK) / ACK )) & ~stuckinputs;	/* pin 10 */
 }
