@@ -37,8 +37,8 @@
 *  ---
 * 
 *  $Source: /cvsroot/lcdproc/lcdproc/clients/lcdproc/cpu_smp.c,v $
-*  $Revision: 1.5 $ $Date: 2000/12/20 00:39:16 $
-*  Checked in by: $Author: cjdebenh $
+*  $Revision: 1.6 $ $Date: 2001/05/25 03:14:27 $
+*  Checked in by: $Author: ppokorny $
 *
 *******************************************************************************/
 
@@ -49,8 +49,8 @@
 #include <unistd.h>
 #include <ctype.h>
 
-#include "../../shared/sockets.h"
-#include "../../shared/debug.h"
+#include "shared/sockets.h"
+#include "shared/debug.h"
 
 #include "main.h"
 #include "mode.h"
