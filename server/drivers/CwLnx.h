@@ -1,7 +1,7 @@
 /*  This is the LCDproc driver for Cwlinux devices (http://www.cwlinux.com)
 
     Copyright (C) 2002, Andrew Ip
-                  2002, David Glaude
+                  2002, 2004, David Glaude
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -48,7 +48,6 @@ void CwLnx_string(int x, int y, char string[]);
 #define CWLNX_DEF_SPEED B19200
 #define CWLNX_DEF_SIZE "20x4"
 
-/* These are the keys for a (possibly) broken LK202-25...*/
 /* NOTE: You should configure these settings in the configfile
  *       These defines are just used to get *some* defaults
  */
