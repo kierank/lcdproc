@@ -1,5 +1,5 @@
 /* acconfig.h
-*   $Id: acconfig.h,v 1.22 2002/10/22 06:49:24 hmilz Exp $
+*   $Id: acconfig.h,v 1.23 2002/10/22 14:11:38 gfk Exp $
 *   This file is in the public domain.
 *
 *   Descriptive text for the C preprocessor macros that
@@ -47,8 +47,6 @@
 #undef API_VERSION
 
 #undef MODULE_EXTENSION
-
-#undef SGX120_DRV
 
 #undef SLI_DRV
 
