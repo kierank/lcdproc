@@ -106,7 +106,6 @@ typedef enum {
 	barb = 255
 } bar_type;
 
-static unsigned char *lcd_contains; // what we think is actually on the LCD
 static int custom = 0;
 static enum {MTXORB_LCD, MTXORB_LKD, MTXORB_VFD, MTXORB_VKD} MtxOrb_type;
 static int fd;
@@ -160,10 +159,13 @@ static char MtxOrb_parse_keypad_setting (char * sectionname, char * keyname, cha
 {
 	char return_val = 0;
 	char * s;
+	char buf [255];
 
 	s = config_get_string ( sectionname, keyname, 0, NULL);
 	if (s != NULL){
-		return_val = *s;
+		strncpy (buf, s, sizeof(buf));
+		buf[sizeof(buf)-1]=0;
+		return_val = buf[0];
 	} else {
 		return_val=default_value;
 	}
@@ -198,8 +200,8 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 	int contrast = MTXORB_DEF_CONTRAST;
 	char device[256] = MTXORB_DEF_DEVICE;
 	int speed = MTXORB_DEF_SPEED;
-	char *size;
-	char *type;
+	char size[256] = MTXORB_DEF_SIZE;
+	char buf[256] = "";
 	int tmp, w, h;
 
 	MtxOrb_type = MTXORB_LKD;  // Assume it's an LCD w/keypad
@@ -220,7 +222,8 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 	report (RPT_INFO,"MtxOrb: Using device: %s", device);
 
 	/* Get display size */
-	size=config_get_string ( DriverName , "size" , 0 , MTXORB_DEF_SIZE);
+	strncpy(size, config_get_string ( DriverName , "size" , 0 , MTXORB_DEF_SIZE),sizeof(size));
+	size[sizeof(size)-1]=0;
 	if( sscanf(size , "%dx%d", &w, &h ) != 2
 	|| (w <= 0) || (w > LCD_MAX_WIDTH)
 	|| (h <= 0) || (h > LCD_MAX_HEIGHT)) {
@@ -254,27 +257,23 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 			speed = B19200;
 			break;
 		default:
-			{
-				int baud=0;
-				speed = MTXORB_DEF_SPEED;
-				switch (speed) {
-					case B1200:
-						baud=1200;
-						break;
-					case B2400:
-						baud=2400;
-						break;
-					case B9600:
-						baud=9600;
-						break;
-					case B19200:
-						baud=19200;
-						break;
-				}
-				report (RPT_WARNING , 
-						"MtxOrb: Speed must be 1200, 2400, 9600 or "
-							"19200. Using default value of %u baud!", baud);
+			speed = MTXORB_DEF_SPEED;
+			switch (speed) {
+				case B1200:
+					strncpy(buf,"1200", sizeof(buf));
+					break;
+				case B2400:
+					strncpy(buf,"2400", sizeof(buf));
+					break;
+				case B9600:
+					strncpy(buf,"9600", sizeof(buf));
+					break;
+				case B19200:
+					strncpy(buf,"19200", sizeof(buf));
+					break;
 			}
+			report (RPT_WARNING , "MtxOrb: Speed must be 1200, 2400, 9600 or 19200. Using default value of %s baud!", buf);
+			strncpy(buf,"", sizeof(buf));
 	}
 
 
@@ -284,19 +283,19 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 	}
 
 	/* Get display type */
-	type=config_get_string ( DriverName , "type" , 0 , MTXORB_DEF_TYPE);
+	strncpy(buf, config_get_string ( DriverName , "type" , 0 , MTXORB_DEF_TYPE),sizeof(size));
+	buf[sizeof(buf)-1]=0;
 
-	if (strncasecmp(type, "lcd", 3) == 0) {
+	if (strncasecmp(buf, "lcd", 3) == 0) {
 		MtxOrb_type = MTXORB_LCD;
-	} else if (strncasecmp(type, "lkd", 3) == 0) {
+	} else if (strncasecmp(buf, "lkd", 3) == 0) {
 		MtxOrb_type = MTXORB_LKD;
-	} else if (strncasecmp (type, "vfd", 3) == 0) {
+	} else if (strncasecmp (buf, "vfd", 3) == 0) {
 		MtxOrb_type = MTXORB_VFD;
-	} else if (strncasecmp (type, "vkd", 3) == 0) {
+	} else if (strncasecmp (buf, "vkd", 3) == 0) {
 		MtxOrb_type = MTXORB_VKD;
 	} else {
-		report (RPT_ERR, "MtxOrb: unknown display type %s; "
-							"must be one of lcd, lkd, vfd, or vkd", type);
+		report (RPT_ERR, "MtxOrb: unknwon display type %s; must be one of lcd, lkd, vfd, or vkd", buf);
 		return (-1);
 		}
 
@@ -342,18 +341,6 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 	        report(RPT_ERR, "MtxOrb: Error: unable to create framebuffer.");
 		return -1;
 	}
-	
-	// Initialize to be empty, just to be safe.
-	memset (MtxOrb->framebuf, ' ', (MtxOrb->wid * MtxOrb->hgt));
-
-    lcd_contains = malloc(MtxOrb->wid * MtxOrb->hgt);
-    if (!lcd_contains) {
-        report(RPT_ERR, "MtxOrb: Error: unable to create lcd_contains.");
-        return -1;
-    }
-	// Fill it with the dirty char so the first LCD screen will all be sent.
-    memset(lcd_contains, DIRTY_CHAR, MtxOrb->wid * MtxOrb->hgt);
-
 
 	/* Set up io port correctly, and open it... */
 	fd = open (device, O_RDWR | O_NOCTTY);
@@ -488,10 +475,6 @@ MtxOrb_close ()
 
 	MtxOrb->framebuf = NULL;
 
-    if (lcd_contains)
-        free (lcd_contains);
-    lcd_contains=NULL;
-
 	report(RPT_INFO, "MtxOrb: closed");
 }
 
@@ -524,41 +507,16 @@ MtxOrb_flush ()
 static void
 MtxOrb_flush_box (int lft, int top, int rgt, int bot)
 {
-    int y;
-    int x;
-    int mv=0;
-    unsigned char *p, *q;
-    
-    debug(RPT_DEBUG, "MtxOrb: flush_box(%d,%d,%d,%d)", lft, top, rgt, bot);
+	int y;
+	char out[LCD_MAX_WIDTH];
 
-    // We can't just write it out because it could contain
-    // the dirty character.
-    for (y = top; y <= bot; y++) {
-        p=(unsigned char *)MtxOrb->framebuf + (y * MtxOrb->wid) + lft;
-        q = lcd_contains + (y*MtxOrb->wid) + lft;
-        mv = 1;
+	debug(RPT_DEBUG, "MtxOrb: flush_box(%d,%d,%d,%d)", lft, top, rgt, bot);
 
-        for (x = lft; x <= rgt; x++) {
-
-            if ((*p == *q) || (*p == DIRTY_CHAR))
-                mv = 1;
-            else {
-
-                if (mv == 1)
-                {
-                    char out[5];
-                    snprintf(out, sizeof(out), "\x0FEG%c%c", x, y);
-                    write (fd, out, 4);
-                    mv = 0;
-                }
-                write (fd, p, 1);
-				*q = *p;
-            }
-            p++;
-            q++;
-        }
-    }
-
+	for (y = top; y <= bot; y++) {
+		snprintf (out, sizeof(out), "\x0FEG%c%c", lft, y);
+		write (fd, out, 4);
+		write (fd, MtxOrb->framebuf + (y * MtxOrb->wid) + lft, rgt - lft + 1);
+	}
 	debug(RPT_DEBUG, "MtxOrb: frame buffer box flushed");
 }
 
@@ -1016,11 +974,6 @@ MtxOrb_init_num ()
  * hiden behind the hardware bignum dirty so that they get cleaned
  * when draw_frame is called. There is no dirty char so I will use 254
  * hoping nobody is using that char. GLU
- *
- * Nobody is going to be using 254 - as that's the command escape character! CJL
- *
- * TODO: No support for num==10 - this is meant to be a colon - CJL
- *
  */
 
 /*************************************************************************
@@ -1117,21 +1070,39 @@ MtxOrb_draw_frame (char *dat)
 {
 	char out[12];
 	int i,j,mv = 1;
-	unsigned char *p, *q;
+	static char *old = NULL;
+	char *p, *q;
 
 	if (!dat)
 		return;
 
-    p = (unsigned char*)dat;
-    q = lcd_contains;
+	if (old == NULL) {
+		old = malloc(MtxOrb->wid * MtxOrb->hgt);
+
+		write(fd, "\x0FEG\x01\x01", 4);
+		write(fd, dat, MtxOrb->wid * MtxOrb->hgt);
+
+		strncpy(old, dat, MtxOrb->wid * MtxOrb->hgt);
+
+		return;
+
+	} else {
+		if (! new_framebuf(MtxOrb, old))
+			return;
+	}
+
+	p = dat;
+	q = old;
 
 	for (i = 1; i <= MtxOrb->hgt; i++) {
 		for (j = 1; j <= MtxOrb->wid; j++) {
 
-			if ((*p == *q) || (*p == DIRTY_CHAR))
+			if ((*p == *q) && (*p > 8))
 				mv = 1;
 			else {
-				/* Draw characters that have changed.
+				/* Draw characters that have changed, as well
+				 + as custom characters.  We know not if a custom
+				 * character has changed.
 				 */
 
 				if (mv == 1) {
@@ -1146,7 +1117,15 @@ MtxOrb_draw_frame (char *dat)
 		}
 	}
 
-	memcpy(lcd_contains, dat, MtxOrb->wid * MtxOrb->hgt);
+
+	/*for (i = 0; i < MtxOrb->hgt; i++) {
+	 *	snprintf (out, sizeof(out), "\x0FEG\x001%c", i + 1);
+	 *	write (fd, out, 4);
+	 *	write (fd, dat + (MtxOrb->wid * i), MtxOrb->wid);
+	 *}
+	 */
+
+	strncpy(old, dat, MtxOrb->wid * MtxOrb->hgt);
 }
 
 /* TODO: Recover the code for I2C connectivity to MtxOrb
