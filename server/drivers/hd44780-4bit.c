@@ -192,6 +192,8 @@ lcdstat_HD44780_senddata (unsigned char displayID, unsigned char flags, unsigned
 	unsigned char h = (ch >> 4) & 0x0f;     // high and low nibbles
 	unsigned char l = ch & 0x0f;
 
+	printf( "senddata %d %d %d\n", displayID, flags, ch );
+
 	if (flags == RS_INSTR)
 		portControl = 0;
 	else //if (flags == RS_DATA)
@@ -200,10 +202,14 @@ lcdstat_HD44780_senddata (unsigned char displayID, unsigned char flags, unsigned
 	portControl |= backlight_bit;
 
 	if (displayID <= 3) {
-		if (displayID == 0)
-			enableLines = EnMask[0] | EnMask[1] | EnMask[2];
-		else
+		if (displayID == 0) {
+			enableLines = EnMask[0] | EnMask[1];
+			if (extIF) {
+				enableLines |= EnMask[2];
+			}
+		} else {
 			enableLines = EnMask[displayID - 1];
+		}
 
 		port_out (lptPort, portControl | h);
 		if( delayBus ) hd44780_functions->uPause (1);
@@ -240,7 +246,7 @@ lcdstat_HD44780_senddata (unsigned char displayID, unsigned char flags, unsigned
 
 void lcdstat_HD44780_backlight (unsigned char state)
 {
-	backlight_bit = (state?0:0x20);	// D5 line
+	backlight_bit = ((!have_backlight||state)?0:BL);
 
 	port_out (lptPort, backlight_bit);
 }
