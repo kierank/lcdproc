@@ -450,8 +450,15 @@ lcdm001_string (int x, int y, char string[])
 static void
 lcdm001_output (int on)
 {
+	static int lcdm001_output_state = -1;
+
 	char out[5];
 	int one = 0, two = 0;
+
+	if (lcdm001_output_state == on)
+		return;
+
+	lcdm001_output_state = on;
 
 	/* The output value has to be split into two
 	 * 8bit values, which are then sent to the device
