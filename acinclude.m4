@@ -53,35 +53,35 @@ fi
 			;;
 		curses)
 			AC_CHECK_HEADERS(ncurses.h curses.h)
- 			AC_CHECK_LIB(ncurses, main, 
- 				AC_CHECK_HEADER(ncurses.h,
+ 			AC_CHECK_LIB(ncurses, main, [
+ 				AC_CHECK_HEADER(ncurses.h, [
  					dnl We have ncurses.h and libncurses, add driver.
 	 				LIBCURSES="-lncurses"
  					DRIVERS="$DRIVERS curses_drv.o"
  					AC_DEFINE(CURSES_DRV)
  					actdrivers=["$actdrivers curses"]
- 				,
+ 				],[
 dnl				else
-					AC_MSG_WARN([Could not find ncurses.h]),
-				)
- 			,
+					AC_MSG_WARN([Could not find ncurses.h])],
+				[])
+ 			],[
 dnl			else
- 				AC_CHECK_LIB(curses, main, 
- 					AC_CHECK_HEADER(curses.h,
+ 				AC_CHECK_LIB(curses, main, [
+ 					AC_CHECK_HEADER(curses.h,[
  						dnl We have curses.h and libcurses, add driver.
  						LIBCURSES="-lcurses"
  						DRIVERS="$DRIVERS curses_drv.o"
  						AC_DEFINE(CURSES_DRV)
  						actdrivers=["$actdrivers curses"]
- 					,
+ 					],[
 dnl					else
-						AC_MSG_WARN([Could not find curses.h]),
-					)
- 				,
+						AC_MSG_WARN([Could not find curses.h])],
+					[])
+ 				],[
 dnl				else
- 					AC_MSG_WARN([The curses driver needs the curses (or ncurses) library.]),
- 				)
- 			)
+ 					AC_MSG_WARN([The curses driver needs the curses (or ncurses) library.])],
+ 				[])
+ 			])
  			
  			AC_CURSES_ACS_ARRAY
  			
@@ -135,26 +135,26 @@ dnl				else
  			)
 			;;
 		irman)
- 			AC_CHECK_LIB(irman, main, 
+ 			AC_CHECK_LIB(irman, main, [
  				LIBIRMAN="-lirman"
  				DRIVERS="$DRIVERS irmanin.o"
  				AC_DEFINE(IRMANIN_DRV)
  				actdrivers=["$actdrivers irman"]
- 				,
+ 				],[
 dnl				else
  				AC_MSG_WARN([The irman driver needs the irman library.])
- 			)
+ 			])
 			;;
 		lircin)
-			AC_CHECK_LIB(lirc_client, main, 
+			AC_CHECK_LIB(lirc_client, main, [
 				LIBLIRC_CLIENT="-llirc_client"
 				DRIVERS="$DRIVERS lircin.o"
 				AC_DEFINE(LIRCIN_DRV)
 				actdrivers=["$actdrivers lircin"]
-				,
+				],[
 dnl				else
 				AC_MSG_WARN([The lirc driver needs the lirc client library])
-			)
+			])
 			;;
 		sed1330)
 			if test "$ac_cv_port_have_lpt" = yes
@@ -187,14 +187,15 @@ dnl				else
 			fi
 			;;
 		svgalib)
-			AC_CHECK_LIB(vga, main, 
+			AC_CHECK_LIB(vga, main, [
 				LIBSVGA="-lvga -lvgagl"
 				DRIVERS="$DRIVERS svgalib_drv.o"
 				AC_DEFINE(SVGALIB_DRV)
 				actdrivers=["$actdrivers svgalib"]
-				,
+				],[
 dnl				else
-				AC_MSG_WARN([The svgalib driver needs the vga library]))
+				AC_MSG_WARN([The svgalib driver needs the vga library])
+			])
 			;;
 		t6963)
 			if test "$ac_cv_port_have_lpt" = yes
