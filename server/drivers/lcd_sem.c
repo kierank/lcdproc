@@ -18,9 +18,10 @@
  * GNU's GPL. In particular, this program is free software and comes WITHOUT
  * ANY WARRANTY.
  * 
- * $Id: lcd_sem.c,v 1.4 2000/11/09 11:12:54 blt Exp $
+ * $Id: lcd_sem.c,v 1.5 2001/12/25 19:28:54 gfk Exp $
  */
 
+#include <config.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>			  /* for semaphore functions */
@@ -30,8 +31,9 @@
 
 #include "lcd_sem.h"
 
-#ifdef _SEM_SEMUN_UNDEFINED
-/* according to X/OPEN we have to define it ourselves */
+// according to X/OPEN we have to define it ourselves
+//#ifdef _SEM_SEMUN_UNDEFINED
+#ifndef HAVE_UNION_SEMUN
 union semun {
 	int val;                    /* value for SETVAL */
 	struct semid_ds *buf;       /* buffer for IPC_STAT, IPC_SET */
@@ -55,7 +57,7 @@ static key_t getkey (register char *p);
 static struct sembuf semaphore_wait = { SEM_WAIT };
 static struct sembuf semaphore_signal = { SEM_SIGNAL };
 
-static char rcsId[] = "$Id: lcd_sem.c,v 1.4 2000/11/09 11:12:54 blt Exp $";
+static char rcsId[] = "$Id: lcd_sem.c,v 1.5 2001/12/25 19:28:54 gfk Exp $";
 
 /*
  * getkey  returns the key for the semaphore
@@ -148,6 +150,7 @@ sem_signal (int sid)
 int
 sem_remove (int sid)
 {
+#ifdef EIDRM
 	int i;
 	union semun dummy;
 
@@ -163,5 +166,6 @@ sem_remove (int sid)
 		}
 	}
 
+#endif
 	return 0;
 }
