@@ -196,7 +196,7 @@ Heartbeat_func (int input)
 	if (input == MENU_READ)
 		return (heartbeat != HEART_OFF);
 	if (input == MENU_CHECK) {
-		if (heartbeat)
+		if (heartbeat != HEART_OFF)
 			heartbeat = HEART_OFF;
 		else
 			heartbeat = HEART_OPEN;
