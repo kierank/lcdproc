@@ -251,7 +251,7 @@ lcdm001_init (struct lcd_logical_driver *driver, char *args)
 		}
   		return -1;
 	} else {
-		report (RPT_INFO, "opened LCDM001 display on %s\n", device);
+		report (RPT_INFO, "LCDM001: opened display on %s\n", device);
 	}
 	tcgetattr(fd, &portset);
 #ifdef HAVE_CFMAKERAW
@@ -276,7 +276,7 @@ lcdm001_init (struct lcd_logical_driver *driver, char *args)
 	/*Set cursorblink to default */
 	lcdm001_cursorblink (DEFAULT_CURSORBLINK);
 	/* Turn all LEDs off */
-	snprintf (out, sizeof(out), "\%cL%c%c", 126, 0, 0);
+	snprintf (out, sizeof(out), "%cL%c%c", 126, 0, 0);
 	write (fd, out, 4);
 
         /*
