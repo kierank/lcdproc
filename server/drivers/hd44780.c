@@ -236,8 +236,8 @@ HD44780_init (lcd_logical_driver * driver, char *args)
 		}
 	}
 
-	if (timing_init() == -1)
-		return -1;
+  	if (timing_init() == -1)
+  		return -1;
 
 	// Make sure the frame buffer is there...
 	if (!HD44780->framebuf)
@@ -293,9 +293,11 @@ HD44780_init (lcd_logical_driver * driver, char *args)
 	}
 	hd44780_functions->uPause = timing_uPause;
 	hd44780_functions->scankeypad = HD44780_scankeypad;
-
-	connectionMapping[connectiontype_index].init_fn (hd44780_functions, driver, args, port);
-
+	
+	
+	if (connectionMapping[connectiontype_index].init_fn (hd44780_functions, driver, args, port) < 0)
+		return -1;
+	
 	HD44780_clear ();
 	sprintf (buf, "HD44780 %dx%d", HD44780->wid, HD44780->hgt );
 	HD44780_string (1, 1, buf);

@@ -33,7 +33,7 @@
 # include "config.h"
 #endif
 
-#define DEFAULT_DEVICE  "/dev/usblcd"
+#define DEFAULT_DEVICE  "/dev/usb/lcd"
 
 #define GET_HARD_VERSION	1
 #define GET_DRV_VERSION		2
