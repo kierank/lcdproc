@@ -324,13 +324,13 @@ CFontz_chr (int x, int y, char c)
 	y--;
 	x--;
 
-	if (c < 32 && c >= 0)
+	if (c < 32 && (int)c >= 0)
 		c += 128;
 
 	/*
 	 * For V2 of the firmware to get the block to display right
 	*/
-	if (newfirmware && c==-1) {
+	if (newfirmware && (int)c==-1) {
 	c=214;
 	}
 
@@ -806,7 +806,7 @@ CFontz_string (int x, int y, char string[])
 
 		
 		// For V2 of the firmware to get the block to display right
-		if (newfirmware && string[i]==-1) {
+		if (newfirmware && (int)string[i]==-1) {
 		string[i]=214;
 		}
 

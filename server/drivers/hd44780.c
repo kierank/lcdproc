@@ -236,8 +236,8 @@ HD44780_init (lcd_logical_driver * driver, char *args)
 		}
 	}
 
-	// no timing functions needed for picanlcd and usblcd
-	if ((connectionMapping[connectiontype_index].type != HD_picanlcd) && (connectionMapping[connectiontype_index].type != HD_usblcd)) {
+	// no timing functions needed for picanlcd, anslcd and usblcd
+	if ( (connectionMapping[connectiontype_index].type != HD_picanlcd) && (connectionMapping[connectiontype_index].type != HD_anslcd) && (connectionMapping[connectiontype_index].type != HD_usblcd)) {
   		if (timing_init() == -1)
   			return -1;
 	}
@@ -295,7 +295,7 @@ HD44780_init (lcd_logical_driver * driver, char *args)
 		return -1;
 	}
 
-	if ((connectionMapping[connectiontype_index].type == HD_picanlcd) || (connectionMapping[connectiontype_index].type == HD_usblcd)) {
+	if ((connectionMapping[connectiontype_index].type == HD_picanlcd) || (connectionMapping[connectiontype_index].type == HD_anslcd) || (connectionMapping[connectiontype_index].type == HD_usblcd)) {
 		hd44780_functions->uPause = HD44780_uPause_dummy;
 	} else {
 		hd44780_functions->uPause = HD44780_uPause;

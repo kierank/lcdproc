@@ -519,7 +519,7 @@ static void glk_icon(int which, char dest)
 
   debug(RPT_DEBUG, "Char %i set to icon %i\n", dest, which);
 
-  if( dest < 0 || dest > 7 ) {
+  if( (int)dest < 0 || dest > 7 ) {
     /* Illegal custom character */
     return ;
   };
