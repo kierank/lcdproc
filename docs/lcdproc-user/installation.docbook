@@ -17,11 +17,12 @@ debian tool), you can skip this this chapter.
 </note>
 
 <para>
-To build this version, you'll need autoconf and friends installed.
+If you're building this version from CVS, you'll need 
+autoconf, automake, aclocal & autoheader installed.
 </para>
 
 <para>
-Run:
+If you have autoconf and friends, run:
 </para>
 
 <screen>
@@ -29,10 +30,8 @@ Run:
 </screen>
 
 <para>
-This produces the configure script and supporting files, and also
-runs configure with defaults. You want to run configure again with
-your own options, trust me :) I suspect the default drivers it sets
-aren't going to match your setup.
+This produces the configure script and supporting files. It has allready 
+been run if you using the tarball distribution.
 </para>
 
 <para>
@@ -44,7 +43,7 @@ Once the above command has run, the rest is pretty standard:
 </screen>
 
 <para>
-[read about the options, figure out what to use]
+Read about the options, figure out what to use.
 </para>
 
 <screen>
@@ -52,9 +51,9 @@ Once the above command has run, the rest is pretty standard:
 </screen>
 
 <para>
-[replace /usr/local with the prefixdir you want (e.g. /usr
+Be sure to replace /usr/local with the prefixdir you want (e.g. /usr
 for RedHat) and ncurses,cfontz with comma-separated list
-of drivers you want]
+of drivers you want.
 </para>
 
 <screen>

@@ -179,7 +179,7 @@ if any, and run as this user instead. Defaults to User=nobody.
 <note>
 <para>
 If you want to use the server menu, to shutdown or reboot your system,
- you will have to set this toroot. Otherwise LCDd does not have the
+ you will have to set this to root. Otherwise LCDd does not have the
  privileges to run commands like <command>init 6</command>.
 </para>
 </note>

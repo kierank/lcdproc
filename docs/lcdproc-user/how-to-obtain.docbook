@@ -33,8 +33,8 @@ Therefore running LCDproc 0.4.1 is NOT RECOMMENDED!
 <term>LCDproc 0.4.2</term>
 <listitem>
 <para>
-LCDproc 0.4.1 was meant to be the next stable release of LCDproc. As 0.4.1 it uses the old
-command line configuration.
+LCDproc 0.4.2 was meant to be the next stable release of LCDproc. As 0.4.1 
+it uses the old command line configuration.
 </para>
 <note>
 <para>
