@@ -799,6 +799,7 @@ MtxOrb_getinfo (void)
 				case '\x33': strcat(info, "LK402-12 "); break;
 				case '\x34': strcat(info, "LK162-12 "); break;
 				case '\x35': strcat(info, "LK204-25PC "); break;
+				case '\x36': strcat(info, "LK202-24-USB "); break;
 				default:
 					report(RPT_WARNING, "MtxOrb: getinfo(): Unknown device");
 					break;
