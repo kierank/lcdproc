@@ -650,6 +650,7 @@ void
 CFontz_num (int x, int num)
 {
 	char out[5];
+	custom = bign;
 	snprintf (out, sizeof(out), "%c%c%c%c", 28, 0,  x-1, num+48);
 	write (fd, out, 4);
 }
