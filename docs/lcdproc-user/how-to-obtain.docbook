@@ -199,20 +199,42 @@ you should (you don't have to) copy them to another place on your machine:
 </sect1>
 
 <sect1 id="apt-get">
-<title>apt-get</title>
+<title>Debian GNU/Linux</title>
 
 <para>
-Debian GNU/Linux users can get the debian package of LCDproc, which is in the unstable and testing distributions.
+Debian GNU/Linux users can get the debian package of LCDproc. Please note that
+there may be different versions in stable, testing, unstable and experimental.
 </para>
 
 <para>
-Provided apt-get is configured properly. You should be able to install the package running:
+Provided apt is configured properly (<filename>/etc/apt/aources.list</filename> etc.). 
+You should be able to install the package running:
 </para>
 
 <screen>
 <prompt>$</prompt> <userinput>su</userinput>
 <prompt>Password:</prompt> <userinput>top secret</userinput>
 <prompt>#</prompt> <userinput>apt-get install lcdproc</userinput>
+<prompt>#</prompt> <userinput>dpkg -l lcdproc</userinput>
+</screen>
+
+<para>
+The last command will print the version of the package that has been installed.
+</para>
+
+</sect1>
+
+<sect1 id="gentoo-portage">
+<title>Gentoo Linux</title>
+
+<para>
+Gentoo Linux users can build lcdproc from the portage tree. 
+</para>
+
+<screen>
+<prompt>$</prompt> <userinput>su</userinput>
+<prompt>Password:</prompt> <userinput>top secret</userinput>
+<prompt>#</prompt> <userinput>emerge lcdproc</userinput>
 </screen>
 
 </sect1>

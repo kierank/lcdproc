@@ -24,7 +24,7 @@ docbook files in the CVS).
 </para></note>
 
 <para>
-This document was written for LCDproc 0.4.3. At the time of writing there had already
+This document was initially written for LCDproc 0.4.3. At the time of writing there had already
 been the "LCDproc User's Guide" written by William W. Ferrel in 1999. His version covered
 an early version of LCDproc and therefore concentrated on Matrix Orbital displays.
 </para>
@@ -104,7 +104,7 @@ configuration file, which is normally <filename>/etc/LCDd.conf</filename>.
 <title>The LCDproc "Main" Client - lcdproc</title>
 
 <para>
-While <application>LCDd</application> only offer the functionality of
+While <application>LCDd</application> only offers the functionality of
 displaying text on a display, <application>lcdproc</application> actually
 retrieves data worth displaying.
 </para>

@@ -12,7 +12,7 @@ start building it.
 <note>
 <para>
 If you have installed the debian package with apt-get (or another
-debian tool), you can skip this this chapter.
+debian tool) or built lcdproc using gentoo portage, you can skip this this chapter.
 </para>
 </note>
 
@@ -52,7 +52,7 @@ Read about the options, figure out what to use.
 
 <para>
 Be sure to replace /usr/local with the prefixdir you want (e.g. /usr
-for RedHat) and ncurses,cfontz with comma-separated list
+for RedHat) and ncurses,cfontz with a comma-separated list
 of drivers you want.
 </para>
 
@@ -82,7 +82,7 @@ can run:
 
 <note>
 <para>
-make install is absolutely OPTIONAL
+make install is absolutely OPTIONAL.
 You can also run LCDproc directly from the source directory. See
 <link linkend="lcdd-commandline">below</link> for details.
 </para>
@@ -118,7 +118,7 @@ can of course use the debian package of epm:
 <para>
 There are of course other and maybe better ways to generate
 packages for your system. The reason for us to choose EPM
-was that it provide the developers with a tool that makes it
+was that it provides the developers with a tool that makes it
 possible to write one list file for all platforms defining
 what the resulting package is meant to look like. This way we
 do not have to learn all the package managing tools of the

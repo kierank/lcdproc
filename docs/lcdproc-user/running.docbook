@@ -27,7 +27,7 @@ There are several reasons for running LCDd from the command line
 <para>
 If you run LCDd as a "normal" user, it will not change to the user
 specified in the config file.
-For parallel port devices you will need root privileges anyway ;)
+For parallel port devices you will need root privileges anyway.
 </para>
 </note>
 

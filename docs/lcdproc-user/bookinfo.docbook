@@ -25,19 +25,19 @@
 
 </authorgroup>
 
-<date>2002-03-01</date>
-<releaseinfo>0.0.1</releaseinfo>
+<date>2003-12-14</date>
+<releaseinfo>0.4.4</releaseinfo>
 
 <abstract>
 <para>
-This document is a guide to LCDproc written for users. It covers LCDproc 0.4.3 ONLY.
+This document is a guide to LCDproc written for users. It covers LCDproc 0.4.4 ONLY.
 Some things may be valid for 0.5 as well, but a lot has changed since 0.4.1 and a lot
 will change for 0.5.
 </para>
 </abstract>
 
 <copyright>
-<year>2002</year>
+<year>2003</year>
 <holder>Rene Wagner</holder>
 </copyright>
 <copyright>
@@ -63,7 +63,7 @@ Free Documentation License".
 <keywordset>
 <keyword>documentation</keyword>
 <keyword>LCDproc</keyword>
-<keyword>0.4.3</keyword>
+<keyword>0.4.4</keyword>
 <keyword>user's guide</keyword>
 </keywordset>
 

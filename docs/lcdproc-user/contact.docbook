@@ -12,7 +12,7 @@ in our efforts.
 
 <para>
 The main reason for that is the fact that we do NOT have all
-the hardware people have writte. drivers for. Unfortunately
+the hardware people have written drivers for. Unfortunately
 some developers have kind of vanished and don't react to mails
 from the mailing list any more.
 </para>
@@ -43,7 +43,7 @@ For details on how to subscribe to the list see
 <para>
 We like people to subscribe to the list with their real names.
 Of course we cannot and do not want to force you to do so.
-Anyway, we need to know your name, if you want to contribute code
+Anyways, we need to know your name, if you want to contribute code
 to LCDproc (legal issues of copyrights).
 </para>
 
@@ -68,7 +68,7 @@ a command. Make sure LCDd HAS the rights to do so.</para></listitem>
 <listitem>
 <para>
 When experiencing problems with LCDd, make sure that your hardware is OK.
-E.g. you should make sure that the wireing for your (in this case most
+E.g. you should make sure that the wiring for your (in this case most
 likely parallel) device is correct.
 </para>
 </listitem>
@@ -76,7 +76,7 @@ likely parallel) device is correct.
 Incorrect speed settings (baud rate) are most likely to produce garbage
 scrolling on your display.
 Refer to the specifications of your device. If your device needs a speed
-setting that is not supported by LCDd send us a mail.</para></listitem>
+setting that is not supported by LCDd send a message to the list.</para></listitem>
 <listitem><para>Make sure that you have modified the configuration file according
 to your needs and that LCDd actually uses the configuration file. I.e. you might
 have to run LCDd with the -c <link linkend="lcdd-commandline-options">option</link>
@@ -84,7 +84,7 @@ have to run LCDd with the -c <link linkend="lcdd-commandline-options">option</li
 </itemizedlist>
 
 <para>
-Anyway, no question is too stupid to ask ;) Feel free to ask whatever you want.
+Anyways, no question is too stupid to ask ;) Feel free to ask whatever you want.
 Unfortunately replying to mails takes time as well (a damn lot of time). So, if
 you want LCDproc to develop faster, please try to solve a problem yourself first.
 </para>
