@@ -1,5 +1,5 @@
 /* acconfig.h
-*   $Id: acconfig.h,v 1.20.2.1.2.3 2002/10/22 19:20:46 hmilz Exp $
+*   $Id: acconfig.h,v 1.20.2.1.2.4 2002/11/21 22:01:48 dglaude Exp $
 *   This file is in the public domain.
 *
 *   Descriptive text for the C preprocessor macros that
@@ -23,6 +23,8 @@
 #undef CFONTZ_DRV
 
 #undef CFONTZ633_DRV
+
+#undef CWLNX_DRV
 
 #undef CURSES_DRV
 

@@ -18,6 +18,7 @@ EXTRA_libLCDdrivers_a_SOURCES = MtxOrb.c MtxOrb.h text.c text.h \
 	bayrad.h bayrad.c \
 	CFontz.c CFontz.h lircin.c lircin.h debug.h \
 	CFontz633.c CFontz633.h CFontz633io.c CFontz633io.h \
+	CwLnx.h CwLnx.c \
 	glk.c glk.h glkproto.c glkproto.h \
 	svgalib_drv.c svgalib_drv.h \
 	t6963.c t6963.h t6963_font.h \

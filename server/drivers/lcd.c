@@ -79,6 +79,10 @@ static void lcd_drv_heartbeat (int type);
 #include "CFontz633.h"
 #endif
 
+#ifdef CWLNX_DRV
+#include "CwLnx.h"
+#endif
+
 #ifdef LB216_DRV
 #include "lb216.h"
 #endif
@@ -183,6 +187,10 @@ lcd_physical_driver drivers[] = {
 #ifdef CFONTZ633_DRV
 	{"CFontz633", CFontz633_init,},
 	{"CrystalFontz633", CFontz633_init,},
+#endif
+#ifdef CWLNX_DRV
+	{"CwLnx", CwLnx_init,},
+	{"Cwlinux", CwLnx_init,},
 #endif
 #ifdef HD44780_DRV
 	{"HD44780", HD44780_init,},
