@@ -56,6 +56,7 @@
 
 #include "shared/str.h"
 #include "render.h"
+#include "shared/report.h"
 #include "lcd.h"
 #include "hd44780.h"
 // #include "drv_base.h"
@@ -190,7 +191,7 @@ HD44780_init (lcd_logical_driver * driver, char *args)
 	for (connectiontype_index = 0; strcmp (s, connectionMapping[connectiontype_index].connectionTypeStr) != 0 && connectionMapping[connectiontype_index].type != HD_unknown; ++connectiontype_index);
 
 	if (connectionMapping[connectiontype_index].type == HD_unknown) {
-		fprintf (stderr, "HD44780_init: Unknown connection type: %s\n", s);
+		report (RPT_ERR, "HD44780_init: Unknown connection type: %s", s);
 		return -1; // fatal error
 	} else
 		connection = connectionMapping[connectiontype_index].type;
@@ -199,7 +200,7 @@ HD44780_init (lcd_logical_driver * driver, char *args)
 	s = driver->config_get_string( DriverName, "vspan", 0, "" );
 	if( s[0] != 0 ) {
 		if (parse_span_list (&spanList, &numLines, &dispVOffset, &numDisplays, &dispSizes, s) == -1) {
-			fprintf (stderr, "HD44780_init: invalid vspan value: %s\n", s );
+			report (RPT_ERR, "HD44780_init: invalid vspan value: %s", s );
 			return -1;
 		}
 	}
@@ -207,7 +208,8 @@ HD44780_init (lcd_logical_driver * driver, char *args)
 	// Get and parse size
 	s = driver->config_get_string( DriverName, "size", 0, "20x4" );
 	if( sscanf( s, "%dx%d", &(driver->wid), &(driver->hgt) ) != 2 ) {
-		fprintf( stderr, "HD44780_init: Cannot read size: %s\n", s );
+		report (RPT_ERR, "HD44780_init: Cannot read size: %s", s );
+		return -1;
 	}
 
 	// default case for when spans aren't indicated
@@ -219,16 +221,20 @@ HD44780_init (lcd_logical_driver * driver, char *args)
 				spanList[i] = 1;
 				numLines = HD44780->hgt;
 			}
-		} else
-			fprintf (stderr, "Error mallocing for span list\n");
+		} else {
+			report (RPT_ERR, "HD44780_init: Error mallocing");
+			return -1;
+		}
 	}
 	if (numDisplays == 0) {
 		if ((dispVOffset = (int *) malloc (sizeof (int))) && (dispSizes = (int *) malloc (sizeof (int)))) {
 			dispVOffset[0] = 0;
 			dispSizes[0] = HD44780->hgt;
 			numDisplays = 1;
-		} else
-			fprintf (stderr, "Error mallocing for display sizes list\n");
+		} else {
+			report (RPT_ERR, "HD44780_init: Error mallocing");
+			return -1;
+		}
 	}
 
 	if (timing_init() == -1)
@@ -239,13 +245,14 @@ HD44780_init (lcd_logical_driver * driver, char *args)
 		HD44780->framebuf = (unsigned char *) malloc (HD44780->wid * HD44780->hgt);
 
 	if (!HD44780->framebuf) {
-		//HD44780_close();
+		report (RPT_ERR, "HD44780_init: Error mallocing");
 		return -1;
 	}
 
 	// Allocate and clear the buffer for incremental updates
 	lcd_contents = (unsigned char *) malloc (HD44780->wid * HD44780->hgt);
 	if (!lcd_contents) {
+		report (RPT_ERR, "HD44780_init: Error mallocing");
 		return -1;
 	}
 	memset(lcd_contents, ' ', HD44780->wid * HD44780->hgt);
@@ -282,6 +289,7 @@ HD44780_init (lcd_logical_driver * driver, char *args)
 	}
 
 	if ((hd44780_functions = (HD44780_functions *) malloc (sizeof (HD44780_functions))) == NULL) {
+		report (RPT_ERR, "HD44780_init: Error mallocing");
 		return -1;
 	}
 	hd44780_functions->uPause = timing_uPause;
@@ -411,17 +419,13 @@ HD44780_flush_box (int lft, int top, int rgt, int bot)
 {
 	int x, y;
 
-	//  printf("Flush (%i,%i)-(%i,%i)\n", lft, top, rgt, bot);
-
 	for (y = top; y <= bot; y++) {
 		HD44780_position (lft, y);
-		//printf("\n%d,%d :",lft,y);
 		for (x = lft; x <= rgt; x++) {
 
 			hd44780_functions->senddata (spanList[y], RS_DATA, HD44780->framebuf[(y * HD44780->wid) + x]);
 			hd44780_functions->uPause (40*delayMult);  // Minimum exec time for all commands
 		}
-		//write(fd, HD44780->framebuf[(y*HD44780->wid)+lft, rgt-lft+1]);
 	}
 
 }
@@ -818,7 +822,7 @@ char HD44780_getkey()
 			// It's a new keypress
 			pressed_key_time = curr_time;
 			pressed_key_repetitions = 0;
-			printf( "Key: %c  (%d,%d)\n", ch, scancode&0x0F, (scancode&0xF0)>>4 );
+			report( RPT_INFO, "Key: %c  (%d,%d)", ch, scancode&0x0F, (scancode&0xF0)>>4 );
 		}
 	}
 
@@ -937,11 +941,11 @@ parse_span_list (int *spanListArray[], int *spLsize, int *dispOffsets[], int *dO
 				// find the next number (\0 is also outside this range)
 				for (++j; spanlist[j] < '1' || spanlist[j] > '9'; ++j);
 			} else {
-				fprintf (stderr, "Error reallocing for span list\n");
+				report (RPT_ERR, "Error reallocing for span list");
 				retVal = -1;
 			}
 		} else {
-			fprintf (stderr, "Error reading spansize\n");
+			report (RPT_ERR, "Error reading spansize");
 			retVal = -1;
 		}
 	}
