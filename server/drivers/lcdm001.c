@@ -271,18 +271,18 @@ lcdm001_init (struct lcd_logical_driver *driver, char *args)
 		report (RPT_INFO, "LCDM001: opened display on %s", device);
 	}
 	tcgetattr(fd, &portset);
-#ifdef HAVE_CFMAKERAW
-	/* The easy way: */
-	cfmakeraw( &portset );
-#else
-	/* The hard way: */
+	
+	/* cfmakeraw seems to be simple to use but not error free
+	 * e.g. it doesn't work properly on FreeBSD
+	 * So, we have to do it the hard way:
+	 */
 	portset.c_iflag &= ~( IGNBRK | BRKINT | PARMRK | ISTRIP
 	                      | INLCR | IGNCR | ICRNL | IXON );
 	portset.c_oflag &= ~OPOST;
 	portset.c_lflag &= ~( ECHO | ECHONL | ICANON | ISIG | IEXTEN );
 	portset.c_cflag &= ~( CSIZE | PARENB | CRTSCTS );
 	portset.c_cflag |= CS8 | CREAD | CLOCAL ;
-#endif
+
 	cfsetospeed(&portset, speed);
 	cfsetispeed(&portset, speed);
 	tcsetattr(fd, TCSANOW, &portset);
@@ -597,8 +597,6 @@ lcdm001_icon (int which, char dest)
 
 /*********************************************************************
  * Draws the framebuffer on the display.
- *
- * The commented-out code is from the text driver.
  */
 void
 lcdm001_draw_frame (char *dat)
