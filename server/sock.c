@@ -164,7 +164,7 @@ sock_poll_clients ()
 				/* Connection request on original socket. */
 				int new;
 				size = sizeof (clientname);
-				new = accept (orig_sock, (struct sockaddr *) &clientname, &size);
+				new = accept (orig_sock, (struct sockaddr *) &clientname, (int *) &size);
 				if (new < 0) {
 					report (RPT_ERR, "sock_poll_clients: Accept error");
 					return -1;
