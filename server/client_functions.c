@@ -35,6 +35,7 @@
 #include "clients.h"
 #include "parse.h"
 #include "screen.h"
+#include "screenlist.h"
 #include "widget.h"
 #include "client_functions.h"
 
