@@ -15,5 +15,6 @@ void stv5730_num (int x, int num);
 void stv5730_icon (int which, char dest);
 void stv5730_flush_box (int lft, int top, int rgt, int bot);
 void stv5730_draw_frame (char *dat);
+void stv5730_heartbeat (int type);
 
 #endif

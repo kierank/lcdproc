@@ -25,6 +25,9 @@
 #include <string.h>
 #include <sys/errno.h>
 #include <time.h>
+#include "shared/report.h"
+#include "configfile.h"
+#include "render.h"
 #include "port.h"
 #include "timing.h"
 
@@ -51,11 +54,10 @@
 #define STV5730_MUTE	0x80
 
 // If it doesn't work try increasing this value
-#define IODELAY		400
+#define IODELAY		4
 
-
-// Change that to NTSC if you are from the US...
-#define	PAL
+#define	PAL		1
+#define	NTSC		2
 
 
 #define STV5730_HGT	11
@@ -71,17 +73,26 @@
 // Choose Colors: FLINE: First line text color, TEXT: Text color, CBACK: Character Background Color
 //                CBORD: Character Border Color, SBACK: Screen Background color
 // 0:Black, 1: Blue, 2:Green, 3: Cyan, 4: Red, 5: Magenta, 6: Yellow, 7: White 
-#define STV5730_COL_FLINE	4
-#define STV5730_COL_TEXT	1
-#define STV5730_COL_CBACK	3
-#define STV5730_COL_CBORD	0
-#define STV5730_COL_SBACK	2
+#define DEFAULT_COL_FLINE	4
+#define DEFAULT_COL_TEXT	1
+#define DEFAULT_COL_CBACK	3
+#define DEFAULT_COL_CBORD	0
+#define DEFAULT_COL_SBACK	2
 
 
 
 unsigned int stv5730_lptport = LPTPORT;
 unsigned int stv5730_charattrib = STV5730_ATTRIB;
 unsigned int stv5730_flags = 0;
+
+unsigned int stv5730_col_fline = 0;
+unsigned int stv5730_col_text = 0;
+unsigned int stv5730_col_cback = 0;
+unsigned int stv5730_col_cbord = 0;
+unsigned int stv5730_col_sback = 0;
+unsigned int stv5730_vidsys = 0;
+unsigned int stv5730_zoomfirst = 0;
+unsigned int stv5730_mode = 0;
 
 // Translation map ascii->stv5730 charset
 unsigned char stv5730_to_ascii[256] =
@@ -273,82 +284,49 @@ stv5730_drawchar2fb (int x, int y, unsigned char z)
 int
 stv5730_init (struct lcd_logical_driver *driver, char *args)
 {
-    char *argv[64], *str;
-    int argc, i;
+    int i;
+
+    #define DriverName "stv5730"
 
     stv5730 = driver;
 
-    if (args)
-	if ((str = (char *) malloc (strlen (args) + 1)))
-	    strcpy (str, args);
-	else
-	  {
-	      fprintf (stderr, "Error mallocing\n");
-	      return -1;
-	  }
-    else
-	str = NULL;
+    stv5730_lptport = config_get_int( DriverName, "port", 0, LPTPORT);
+    stv5730_vidsys  = config_get_int( DriverName, "VidSys", 0, PAL);
+    stv5730_mode    = config_get_int( DriverName, "Mode", 0, 0);
+    stv5730_zoomfirst = config_get_int( DriverName, "ZoomFirst", 0, 1);
+    if(stv5730_vidsys<1 || stv5730_vidsys>2) stv5730_vidsys=PAL;
+    if(stv5730_mode<0   || stv5730_vidsys>2) stv5730_mode=0;
+    if(stv5730_zoomfirst<0 || stv5730_zoomfirst>1) stv5730_zoomfirst=1;
 
-    argc = get_args (argv, args, 64);
-    for (i = 0; i < argc; i++)
-      {
-	  if (0 == strcmp (argv[i], "-p")
-	      || 0 == strcmp (argv[i], "--port\0"))
-	    {
-		if (i + 1 >= argc)
-		  {
-		      fprintf (stderr,
-			       "stv5730_init: %s requires an argument\n",
-			       argv[i]);
-		      return -1;
-		  }
-		else
-		  {
-		      int myport;
-		      if (sscanf (argv[i + 1], "%i", &myport) != 1)
-			{
-			    fprintf (stderr,
-				     "stv5730_init: Couldn't read port address -"
-				     " using default value 0x%x\n",
-				     stv5730_lptport);
-			    return -1;
-			}
-		      else
-			{
-			    stv5730_lptport = myport;
-			    ++i;
-			}
-		  }
-	    }
-	  else if (0 == strcmp (argv[i], "-h")
-		   || 0 == strcmp (argv[i], "--help"))
-	    {
-		//int i;
-		printf
-		    ("LCDproc stv5730 driver\n\t-p n\t--port n\tSelect the output device to use port n\n");
-		printf ("put the options in quotes like this:  '-p 0x278'\n");
-		printf ("\t-h\t--help\t\tShow this help information\n");
-		return -1;
-	    }
-      }
+    stv5730_col_fline = config_get_int( DriverName, "ColFline", 0, DEFAULT_COL_FLINE);
+    stv5730_col_text  = config_get_int( DriverName, "ColText" , 0, DEFAULT_COL_TEXT);
+    stv5730_col_cback = config_get_int( DriverName, "ColCback", 0, DEFAULT_COL_CBACK);
+    stv5730_col_cbord = config_get_int( DriverName, "ColCbord", 0, DEFAULT_COL_CBORD);
+    stv5730_col_sback = config_get_int( DriverName, "ColSback", 0, DEFAULT_COL_SBACK);
+
+    if(stv5730_col_fline<0 || stv5730_col_fline>7) stv5730_col_fline=DEFAULT_COL_FLINE;
+    if(stv5730_col_text<0  || stv5730_col_text>7 ) stv5730_col_text =DEFAULT_COL_TEXT;
+    if(stv5730_col_cback<0 || stv5730_col_cback>7) stv5730_col_cback=DEFAULT_COL_CBACK;
+    if(stv5730_col_cbord<0 || stv5730_col_cbord>7) stv5730_col_cbord=DEFAULT_COL_CBORD;
+    if(stv5730_col_sback<0 || stv5730_col_sback>7) stv5730_col_sback=DEFAULT_COL_SBACK;
 
     driver->wid = STV5730_WID;
     driver->hgt = STV5730_HGT;
 
-	if (timing_init() == -1)
+    if (timing_init() == -1)
 		return -1;
 
     // Initialize the Port and the stv5730
     if (port_access (stv5730_lptport) || port_access (stv5730_lptport + 1))
       {
-	  printf
-	      ("Couldn't get IO-permission for 0x%X ! Are we running as root ?\n ",
+	  report
+	       (RPT_CRIT, "Couldn't get IO-permission for 0x%X ! Are we running as root ?\n ",
 	       stv5730_lptport); return -1;
       };
 
     if (stv5730_detect ())
       {
-	  printf ("No STV5730 hardware found at 0x%X !\n ", stv5730_lptport);
+	  report (RPT_CRIT, "No STV5730 hardware found at 0x%X !\n ", stv5730_lptport);
 	  return -1;
       };
 
@@ -367,42 +345,44 @@ stv5730_init (struct lcd_logical_driver *driver, char *args)
     stv5730_write16bit (STV5730_REG_CONTROL);
     stv5730_write16bit (0x1FF4);
 
-    printf ("Detecting Video Signal: ");
+    report (RPT_INFO, "Detecting Video Signal: ");
     usleep (50000);
 
-    if (stv5730_is_mute ())
+    if(stv5730_mode==0){
+     if (stv5730_is_mute ()) stv5730_mode=1; else stv5730_mode=2;
+    } 
+    
+    if (stv5730_mode==1)
       {
-	  printf ("No Video Signal found, using full page mode.\n");
+	  report(RPT_INFO, "No Video Signal found, using full page mode.\n");
 	  // Setup Mode + Control for full page mode
 	  stv5730_charattrib = STV5730_ATTRIB;
 	  stv5730_write16bit (STV5730_REG_MODE);
 	  stv5730_write16bit (0x15A6);
 
 	  stv5730_write16bit (STV5730_REG_CONTROL);
-#ifdef PAL
-	  stv5730_write16bit (0x1FD5);
-#endif
-#ifdef NTSC
-	  stv5730_write16bit (0x1ED4);
-#endif
+          if(stv5730_vidsys==PAL) {
+	   stv5730_write16bit (0x1FD5);
+          } else {
+	   stv5730_write16bit (0x1ED4);
+          }
 
 
       }
     else
       {
-	  printf ("Video Signal found, using mixed mode (B&W).\n");
+	  report (RPT_INFO, "Video Signal found, using mixed mode (B&W).\n");
 	  // Setup Mode + Control for mixed mode, disable color
 	  stv5730_charattrib = 0;
 	  stv5730_write16bit (STV5730_REG_MODE);
 	  stv5730_write16bit (0x1576);
 
 	  stv5730_write16bit (STV5730_REG_CONTROL);
-#ifdef PAL
-	  stv5730_write16bit (0x1DD4);
-#endif
-#ifdef NTSC
-	  stv5730_write16bit (0x1CF4);
-#endif
+          if(stv5730_vidsys==PAL) {
+	   stv5730_write16bit (0x1DD4);
+          } else {
+	   stv5730_write16bit (0x1CF4);
+          }
       }
 
     // Position Register
@@ -411,13 +391,16 @@ stv5730_init (struct lcd_logical_driver *driver, char *args)
 
     // Color Register
     stv5730_write16bit (STV5730_REG_COLOR);
-    stv5730_write16bit (0x1000 + (STV5730_COL_SBACK << 9) +
-			(STV5730_COL_CBORD << 6) + STV5730_COL_CBACK);
+    stv5730_write16bit (0x1000 + (stv5730_col_sback << 9) +
+			(stv5730_col_cbord << 6) + stv5730_col_cback);
 
     // Zoom Register: Zoom first line
     stv5730_write16bit (STV5730_REG_ZOOM);
-    stv5730_write16bit (0x1000 + 4);
-
+    if(stv5730_zoomfirst==1) {
+      stv5730_write16bit (0x1000 + 4);
+    } else {
+      stv5730_write16bit (0x1000);
+    }
     // Set the Row Attributes
     for (i = 0; i <= 10; i++)
       {
@@ -454,21 +437,11 @@ stv5730_init (struct lcd_logical_driver *driver, char *args)
     driver->close = stv5730_close;
     driver->flush = stv5730_flush;
     driver->flush_box = stv5730_flush_box;
-    // We dont't have any programmable chars.
-    //driver->set_char = NULL;
 
     driver->icon = stv5730_icon;
+    driver->heartbeat = stv5730_heartbeat;
     driver->draw_frame = stv5730_draw_frame;
-    // We dont't need init for vbar,hbar and friends.
-    //driver->init_hbar = NULL;
-    //driver->init_vbar = NULL;
-    //driver->init_num = NULL;
-    // Neither contrast nor backlight are controllable.
-    //driver->contrast = NULL;
-    //driver->backlight = NULL;
-    // There are some unused input lines that may be used for input,
-    // but nothing is programmed so far.
-    //driver->getkey = NULL;
+
     return 200;			// 200 is arbitrary.  (must be 1 or more)
 }
 
@@ -684,9 +657,9 @@ stv5730_draw_frame (char *dat)
     for (i = 0; i < STV5730_HGT; i++)
       {
 	  if (i == 0)
-	      atr = (STV5730_COL_FLINE << 8);
+	      atr = (stv5730_col_fline << 8);
 	  else
-	      atr = (STV5730_COL_TEXT << 8);
+	      atr = (stv5730_col_text << 8);
 	  stv5730_write16bit (0x1000 + atr + dat[i * STV5730_WID] +
 			      stv5730_charattrib);
 	  for (j = 1; j < STV5730_WID; j++)
@@ -699,4 +672,37 @@ stv5730_draw_frame (char *dat)
 
 	    };
       }
+}
+/////////////////////////////////////////////////////////////////
+// Does the heartbeat...
+// 
+// 
+void
+stv5730_heartbeat (int type)
+{
+	static int timer = 0;
+	int whichIcon;
+	static int saved_type = HEARTBEAT_ON;
+
+	if (type)
+		saved_type = type;
+
+	if (type == HEARTBEAT_ON) {
+		/* Set this to pulsate like a real heart beat...*/
+		whichIcon = (! ((timer + 4) & 5));
+
+		/* This defines a custom character EVERY time...
+		 * not efficient... is this necessary?
+		 */
+		stv5730_icon (whichIcon, 0);
+                
+		/* Put character on screen...*/
+		stv5730_chr (stv5730->wid, 1, 0);
+
+		/* change display...*/
+		stv5730_flush ();
+	}
+
+	timer++;
+	timer &= 0x0f;
 }
