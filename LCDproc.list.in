@@ -69,18 +69,12 @@ f 750 root root /etc/init.d/lcdproc ${srcdir}/scripts/init-lcdproc.debian
 
 # RPM based distributions
 %format rpm
-f 640 root root /etc/LCDd.conf ${srcdir}/LCDd.conf
 f 750 root root /etc/rc.d/init.d/lcdd ${srcdir}/scripts/init-LCDd.rpm
 f 750 root root /etc/rc.d/init.d/lcdproc ${srcdir}/scripts/init-lcdproc.rpm
 
 # Sorry, no scripts for other systems :(
 # TODO: Add init scripts for more systems here
 
-
-%format !rpm
-
-# configuration file
-f 640 root root ${etc}/LCDd.conf ${srcdir}/LCDd.conf
 
 %format all
 
@@ -105,6 +99,9 @@ f 644 root root ${doc}/LCDproc/netstuff.txt ${srcdir}/docs/netstuff.txt
 # man pages
 f 644 root root ${man}/man1/lcdproc.1 ${srcdir}/docs/lcdproc.1
 f 644 root root ${man}/man8/LCDd.8 ${srcdir}/docs/LCDd.8
+
+# configuration file
+f 640 root root ${etc}/LCDd.conf ${srcdir}/LCDd.conf
 
 # server binary
 f 750 root root ${sbin}/LCDd ${srcdir}/server/LCDd
