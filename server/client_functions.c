@@ -725,7 +725,7 @@ screen_set_func (client * c, int argc, char **argv)
 		}
 
 		/* Handle the backlight parameter*/
-		else if (strcmp (argv[i], "backlight") == 0) {
+		else if (strcmp (p, "backlight") == 0) {
 			if (argc > i + 1) {
 				i++;
 				debug (RPT_DEBUG, "screen_set: backlight=\"%s\"", argv[i]);
