@@ -314,19 +314,19 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 		 * So there's no need to get them from the configfile in keypad test mode.
 		 */
 		/* pause_key */
-		pause_key = MtxOrb_parse_keypad_setting (DriverName, "pause_key", MTXORB_DEF_PAUSE_KEY);
+		pause_key = MtxOrb_parse_keypad_setting (DriverName, "PauseKey", MTXORB_DEF_PAUSE_KEY);
 		report (RPT_DEBUG, "MtxOrb: Using \"%c\" as pause_key.", pause_key);
 
 		/* back_key */
-		back_key = MtxOrb_parse_keypad_setting (DriverName, "back_key", MTXORB_DEF_BACK_KEY);
+		back_key = MtxOrb_parse_keypad_setting (DriverName, "BackKey", MTXORB_DEF_BACK_KEY);
 		report (RPT_DEBUG, "MtxOrb: Using \"%c\" as back_key", back_key);
 
 		/* forward_key */
-		forward_key = MtxOrb_parse_keypad_setting (DriverName, "forward_key", MTXORB_DEF_FORWARD_KEY);
+		forward_key = MtxOrb_parse_keypad_setting (DriverName, "ForwardKey", MTXORB_DEF_FORWARD_KEY);
 		report (RPT_DEBUG, "MtxOrb: Using \"%c\" as forward_key", forward_key);
 
 		/* main_menu_key */
-		main_menu_key = MtxOrb_parse_keypad_setting (DriverName, "main_menu_key", MTXORB_DEF_MAIN_MENU_KEY);
+		main_menu_key = MtxOrb_parse_keypad_setting (DriverName, "MainMenuKey", MTXORB_DEF_MAIN_MENU_KEY);
 		report (RPT_DEBUG, "MtxOrb: Using \"%c\" as main_menu_key", main_menu_key);
 	}
 
