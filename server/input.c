@@ -5,7 +5,8 @@
  * This file is released under the GNU General Public License. Refer to the
  * COPYING file distributed with this package.
  *
- * Copyright (c) 1999, William Ferrell, Scott Scriven
+ * Copyright 	(c) 1999, William Ferrell, Scott Scriven
+ *		(c) 2001, Rene Wagner
  *
  *
  * Handles keypad (and other?) input from the user.
@@ -33,12 +34,6 @@
               E-Z      Ignored
 */
 
-/* This seems somewhat arbitrary, but it IS the original settings:
- */
-#define PAUSE_KEY	'A'
-#define BACK_KEY	'B'
-#define FORWARD_KEY	'C'
-#define MAIN_MENU_KEY	'D'
 
 #include <stdlib.h>
 #include <stdio.h>
