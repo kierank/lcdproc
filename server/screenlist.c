@@ -122,7 +122,7 @@ screenlist_current ()
 			/*debug(RPT_DEBUG, "screenlist_current: ignoring old screen");*/
 			LL_Rewind (screenlist);
 			if (old_s != LL_Find (screenlist, compare_addresses, old_s)) {
-				report (RPT_WARNING, "screenlist: Didn't find screen 0x%8x! Client crashed?", (int) old_s);
+				report (RPT_WARNING, "screenlist: Didn't find screen 0x%8x! Client crashed?", (long) old_s);
 			} else {
 				/*debug(RPT_DEBUG, "screenlist_current: ... sending ignore");*/
 				c = old_s->parent;
