@@ -48,15 +48,14 @@ Driver=curses
 
 <para>
 This tells LCDd to use the curses driver. The first driver specified here
-must be 'the' output driver. Currently LCDd will exit when several output
-drivers have been specified here.
+that is capable of output functionality will be used as 'the' output driver.
 All extra drivers can only serve as input.
 The default driver to use is curses.
 </para>
 
 <warning>
 <para>
-If LCDd is started automatically by an init-script using the curses drivers
+If LCDd is started automatically by an init-script using the curses driver
 will lock <filename>/dev/tty1</filename>! So, be careful about what you are
 doing here.
 </para>
@@ -80,8 +79,8 @@ Arguments="place arguments here"
 
 <para>
 The arguments between the quotes are passed to the driver.
-As said before these are the same arguments that the driver would have
-been passed under the old command line format of
+As said before these are the same arguments that would have
+been passed to the driver using the old command line format of
 </para>
 
 <para>
