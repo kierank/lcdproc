@@ -111,10 +111,6 @@ static int fd;
 static int clear = 1;
 static int backlightenabled = MTXORB_DEF_BACKLIGHT;
 
-static int backlight_state = -1;
-static int output_state = -1;
-static int contrast_state = -1;
-
 static char pause_key = MTXORB_DEF_PAUSE_KEY, back_key = MTXORB_DEF_BACK_KEY;
 static char forward_key = MTXORB_DEF_FORWARD_KEY, main_menu_key = MTXORB_DEF_MAIN_MENU_KEY;
 static int keypad_test_mode = 0;
@@ -558,10 +554,12 @@ MtxOrb_chr (int x, int y, char c)
 static int
 MtxOrb_contrast (int contrast)
 {
+	static int mtxorb_contrast_state = -1;
+
 	char out[4];
 
-	if (contrast==-1 || contrast==contrast_state) {
-	    return contrast_state;
+	if (contrast==-1 || contrast==mtxorb_contrast_state) {
+	    return mtxorb_contrast_state;
 	}
 
 	/* validate contrast value */
@@ -573,15 +571,15 @@ MtxOrb_contrast (int contrast)
 	if (IS_LCD_DISPLAY || IS_LKD_DISPLAY) {
 		snprintf (out, sizeof(out), "\x0FEP%c", contrast);
 		write (fd, out, 3);
-		contrast_state=contrast;
+		mtxorb_contrast_state=contrast;
 
 		report(RPT_DEBUG, "MtxOrb: contrast set to %d", contrast);
 	} else {
 		report(RPT_DEBUG, "MtxOrb: contrast not set to %d - not LCD or LKD display", contrast);
-		contrast_state = -1;
+		mtxorb_contrast_state = -1;
 	}
 
-	return contrast_state;
+	return mtxorb_contrast_state;
 }
 
 /********************************************************************
@@ -598,20 +596,24 @@ MtxOrb_contrast (int contrast)
 static void
 MtxOrb_backlight (int on)
 {
-	if (backlight_state == on)
-		return;
-	backlight_state = on;
+	static int mtxorb_backlight_state = -1;
 
-	if (on && backlightenabled) {
-		write (fd, "\x0FE" "F", 2);
-		report(RPT_DEBUG, "MtxOrb: backlight turned on");
-	} else {
-		if (IS_VKD_DISPLAY || IS_VFD_DISPLAY) {
-			/* turns display off entirely (whoops!) */
-			report(RPT_DEBUG, "MtxOrb: backlight ignored - not LCD or LKD display");
-		} else {
+	if (mtxorb_backlight_state == on)
+		return;
+	mtxorb_backlight_state = on;
+
+	if(backlightenabled) {
+		if (on){
 			write (fd, "\x0FE" "B" "\x000", 3);
-			report(RPT_DEBUG, "MtxOrb: backlight turned off");
+			report(RPT_DEBUG, "MtxOrb: backlight turned on");
+		} else {
+			if (IS_VKD_DISPLAY || IS_VFD_DISPLAY) {
+				/* turns display off entirely (whoops!) */
+				report(RPT_DEBUG, "MtxOrb: backlight ignored - not LCD or LKD display");
+			} else {
+				write (fd, "\x0FE" "F", 2);
+				report(RPT_DEBUG, "MtxOrb: backlight turned off");
+			}
 		}
 	}
 }
@@ -625,14 +627,16 @@ MtxOrb_backlight (int on)
 static void
 MtxOrb_output (int on)
 {
+	static int mtxorb_output_state = -1;
+
 	char out[5];
 
 	on = on & 077;	// strip to six bits
 
-	if (output_state == on)
+	if (mtxorb_output_state == on)
 		return;
 
-	output_state = on;
+	mtxorb_output_state = on;
 
 	report(RPT_DEBUG, "MtxOrb: output pins set: %04X", on);
 
