@@ -1319,6 +1319,9 @@ backlight_func (client * c, int argc, char **argv)
 	} else if (strcmp ("off", argv[1]) == 0) {
 		c->backlight_state = BACKLIGHT_OFF;
 
+	} else if (strcmp ("open", argv[1]) == 0) {
+		c->backlight_state = BACKLIGHT_OPEN;
+
 	} else if (strcmp ("toggle", argv[1]) == 0) {
 		if (c->backlight_state == BACKLIGHT_ON)
 			c->backlight_state = BACKLIGHT_OFF;
