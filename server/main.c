@@ -10,6 +10,7 @@
  *		 2001, Rene Wagner
  *		 2002, Mike Patnode
  *		 2002, Guillaume Filion
+ *		 2002, Bernhard Tittelbach
  *
  *
  * Contains main(), plus signal callback functions and a help screen.
