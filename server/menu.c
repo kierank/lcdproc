@@ -333,7 +333,7 @@ slid_func (menu_item * item)
 
 		for (key = lcd_ptr->getkey (); key == 0; key = lcd_ptr->getkey ()) {
 			/* do the heartbeat...*/
-			draw_heartbeat ();
+			lcd_ptr->heartbeat (heartbeat);
 			/* sleep for 1/8th second...*/
 			framedelay ();
 			/* Check for client input...*/
