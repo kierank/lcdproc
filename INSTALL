@@ -44,8 +44,8 @@ find out what kind of display it is, and check the related information:
 HD44780 and compatible:
   read the HD44780 section in the LCDproc User's Guide (docs/lcdproc-user)
   or alternatively see http://www.robijn.net/lcdproc/
-STV5730: http://www.adams-online.de/lcd/
-SED1520: http://www.adams-online.de/lcd/
+STV5730: http://www.usblcd.de/lcdproc/
+SED1520: http://www.usblcd.de/lcdproc/
 
 If you still have problems you could take a look at the comments in the
 driver source code in server/drivers/. You may have some good indications
