@@ -34,6 +34,9 @@
 #define BACKLIGHT_BLINK 0x100
 #define BACKLIGHT_FLASH 0x200
 
+#define DEF_BACKLIGHT_BRIGHTNESS 255
+#define DEF_BACKLIGHT_OFF_BRIGHTNESS 0
+
 extern int heartbeat;
 extern int backlight;
 extern int backlight_state;

@@ -41,8 +41,8 @@
 int heartbeat = HEART_OPEN;
 int backlight = BACKLIGHT_OPEN;
 int backlight_state = BACKLIGHT_OPEN;
-int backlight_brightness = 255;
-int backlight_off_brightness = 0;
+int backlight_brightness = DEF_BACKLIGHT_BRIGHTNESS;
+int backlight_off_brightness = DEF_BACKLIGHT_OFF_BRIGHTNESS;
 int output_state = 0;
 
 static int reset;
@@ -95,44 +95,51 @@ draw_screen (screen * s, int timer)
 	 * NOTE: dirty stripping of other options...
 	 */
 
-	if ((backlight==BACKLIGHT_OPEN)||(strcmp(s->id,"ClientList")==0)){
-
-	/* Only in BACKLIGHT_OPEN mode clients are allowed to change the backlight
-	 * state. The serverscreen (id=ClientList) has to be allowed to do so anyway,
-	 * in order to enter the "loop".
-	 */
-
-	switch (tmp_state & 1) {
-		case BACKLIGHT_OFF:
-			lcd_ptr->backlight (BACKLIGHT_OFF);
-			break;
-		/* Backlight on (easy)*/
+	switch (backlight){
 		case BACKLIGHT_ON:
-			lcd_ptr->backlight (BACKLIGHT_ON);
+			/*backlight mode "on"*/
+			lcd_ptr->backlight (backlight_brightness);
+			break;
+		case BACKLIGHT_OFF:
+			/*backlight mode "off"*/
+			lcd_ptr->backlight (backlight_off_brightness);
 			break;
 		default:
-			/* Backlight flash: check timer and flip backlight as appropriate*/
-			if (tmp_state & BACKLIGHT_FLASH) {
-				tmp = (!((timer & 7) == 7));
-				if (tmp_state & 1)
-					lcd_ptr->backlight (tmp ? backlight_brightness : backlight_off_brightness);
-				/*lcd_ptr->backlight(backlight_brightness * (!((timer&7) == 7)));*/
-				else
-					lcd_ptr->backlight (!tmp ? backlight_brightness : backlight_off_brightness);
-				/*lcd_ptr->backlight(backlight_brightness * ((timer&7) == 7));*/
+			/* Only in BACKLIGHT_OPEN mode clients are allowed
+			 * to change the backlight state.
+			 */
+			switch (tmp_state & 1) {
+				case BACKLIGHT_OFF:
+					lcd_ptr->backlight (backlight_off_brightness);
+					break;
+				/* Backlight on (easy)*/
+				case BACKLIGHT_ON:
+					lcd_ptr->backlight (backlight_brightness);
+					break;
+				default:
+					/* Backlight flash: check timer and flip backlight as appropriate*/
+					if (tmp_state & BACKLIGHT_FLASH) {
+						tmp = (!((timer & 7) == 7));
+						if (tmp_state & 1)
+							lcd_ptr->backlight (tmp ? backlight_brightness : backlight_off_brightness);
+						/*lcd_ptr->backlight(backlight_brightness * (!((timer&7) == 7)));*/
+						else
+							lcd_ptr->backlight (!tmp ? backlight_brightness : backlight_off_brightness);
+						/*lcd_ptr->backlight(backlight_brightness * ((timer&7) == 7));*/
 
-			/* Backlight blink: check timer and flip backlight as appropriate*/
-			} else if (tmp_state & BACKLIGHT_BLINK) {
-				tmp = (!((timer & 14) == 14));
-				if (tmp_state & 1)
-					lcd_ptr->backlight (tmp ? backlight_brightness : backlight_off_brightness);
-				/*lcd_ptr->backlight(backlight_brightness * (!((timer&14) == 14)));*/
-				else
-					lcd_ptr->backlight (!tmp ? backlight_brightness : backlight_off_brightness);
-				/*lcd_ptr->backlight(backlight_brightness * ((timer&14) == 14));*/
+					/* Backlight blink: check timer and flip backlight as appropriate*/
+					} else if (tmp_state & BACKLIGHT_BLINK) {
+						tmp = (!((timer & 14) == 14));
+						if (tmp_state & 1)
+							lcd_ptr->backlight (tmp ? backlight_brightness : backlight_off_brightness);
+						/*lcd_ptr->backlight(backlight_brightness * (!((timer&14) == 14)));*/
+						else
+							lcd_ptr->backlight (!tmp ? backlight_brightness : backlight_off_brightness);
+						/*lcd_ptr->backlight(backlight_brightness * ((timer&14) == 14));*/
+					}
+					break;
 			}
 			break;
-	}
 	}
 
 	/* Output ports from LCD - outputs depend on the current screen*/
