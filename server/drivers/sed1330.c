@@ -325,7 +325,7 @@ sed1330_init( lcd_logical_driver * driver, char *args )
 	// Init cursor data
 	data->cursor_x = 1;
 	data->cursor_y = 1;
-	data->cursor_state = 1;
+	data->cursor_state = 0;
 
 	// Allocate framebuffer
 	data->framebuf_text = (unsigned char *) malloc( data->bytesperline * driver->hgt );
