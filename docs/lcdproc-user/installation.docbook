@@ -105,6 +105,14 @@ First of all you may need to download EPM from
 and install it according to the instructions that are included
 in its source distribution.
 </para>
+<para>
+Debian users (who do not want to download the official debs via apt-get)
+can of course use the debian package of epm:
+</para>
+
+<screen>
+<prompt>#</prompt> <userinput>apt-get install epm</userinput>
+</screen>
 
 <note>
 <para>
