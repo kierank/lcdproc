@@ -19,9 +19,9 @@ int handle_input ();
 /* These defines should be used by drivers for version 0.4.3 of LCDproc
  * as return values for _getkey().
  */
-#define PAUSE_KEY	'A'
-#define BACK_KEY	'B'
-#define FORWARD_KEY	'C'
-#define MAIN_MENU_KEY	'D'
+#define INPUT_PAUSE_KEY		'A'
+#define INPUT_BACK_KEY		'B'
+#define INPUT_FORWARD_KEY	'C'
+#define INPUT_MAIN_MENU_KEY	'D'
 
 #endif

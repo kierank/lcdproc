@@ -37,5 +37,16 @@ static void MtxOrb_set_known_char (int car, int type);
 #define DEFAULT_LINEWRAP	1
 #define DEFAULT_AUTOSCROLL	1
 #define DEFAULT_CURSORBLINK	0
+
+/* These are the keys for a (possibly) broken LK202-25...*/
+#define KEY_UP    'I'
+#define KEY_DOWN  'F'
+#define KEY_LEFT  'K'
+#define KEY_RIGHT 'A'
+#define KEY_F1    'N'
+/* TODO: add more if you've got any more ;) or correct the settings
+ * the actual translation is done in MtxOrb_getkey()
+ */
+
 #endif
 

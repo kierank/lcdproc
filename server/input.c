@@ -140,21 +140,21 @@ server_input (int key)
 	report(RPT_INFO, "key %d pressed on device", key);
 
 	switch ((char) key) {
-		case PAUSE_KEY:
+		case INPUT_PAUSE_KEY:
 			if (screenlist_action == SCR_HOLD)
 				screenlist_action = 0;
 			else
 				screenlist_action = SCR_HOLD;
 			break;
-		case BACK_KEY:
+		case INPUT_BACK_KEY:
 			screenlist_action = SCR_BACK;
 			screenlist_prev ();
 			break;
-		case FORWARD_KEY:
+		case INPUT_FORWARD_KEY:
 			screenlist_action = SCR_SKIP;
 			screenlist_next ();
 			break;
-		case MAIN_MENU_KEY:
+		case INPUT_MAIN_MENU_KEY:
 			debug (RPT_DEBUG, "got the menu key!");
 			server_menu ();
 			break;

@@ -584,13 +584,13 @@ lcdm001_getkey ()
         char in = 0;
         read (fd, &in, 1);
 	if (in == pause_key) {
-		in = PAUSE_KEY;
+		in = INPUT_PAUSE_KEY;
 	} else if (in == back_key) {
-		in = BACK_KEY;
+		in = INPUT_BACK_KEY;
 	} else if (in == forward_key) {
-		in = FORWARD_KEY;
+		in = INPUT_FORWARD_KEY;
 	} else if (in == main_menu_key) {
-		in = MAIN_MENU_KEY;
+		in = INPUT_MAIN_MENU_KEY;
 	}
 	/*if(in) debug(RPT_DEBUG,"LCDM001: key: %c",in); */
         return in;

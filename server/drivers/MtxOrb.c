@@ -30,6 +30,7 @@
 #include "lcd_lib.h"
 #include "MtxOrb.h"
 #include "drv_base.h"
+#include "input.h"
 
 // I don't want to break anything here so let's do it step by step
 //#define USE_REPORT
@@ -1279,6 +1280,25 @@ MtxOrb_getkey ()
 	char in = 0;
 
 	read (fd, &in, 1);
+	switch (in) {
+		case KEY_LEFT:
+			in = INPUT_BACK_KEY;
+			break;
+		case KEY_RIGHT:
+			in = INPUT_FORWARD_KEY;
+			break;
+		case KEY_DOWN:
+			in = INPUT_MAIN_MENU_KEY;
+			break;
+		case KEY_F1:
+			in = INPUT_PAUSE_KEY;
+			break;
+		/*TODO: add more translations here (if neccessary)*/
+		default:
+			in = 0;
+			break;
+	}
+
 	return in;
 }
 
