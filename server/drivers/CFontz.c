@@ -91,7 +91,7 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 	/*Which serial device should be used*/
 	strncpy(device, config_get_string ( DriverName , "Device" , 0 , DEFAULT_DEVICE),sizeof(device));
 	device[sizeof(device)-1]=0;
-	debug (RPT_INFO,"CFontz: Using device: %s", device);
+	report (RPT_INFO,"CFontz: Using device: %s", device);
 
 	/*Which size*/
 	strncpy(size, config_get_string ( DriverName , "Size" , 0 , DEFAULT_SIZE),sizeof(size));
@@ -99,7 +99,7 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 	if( sscanf(size , "%dx%d", &w, &h ) != 2
 	|| (w <= 0) || (w > LCD_MAX_WIDTH)
 	|| (h <= 0) || (h > LCD_MAX_HEIGHT)) {
-		report (RPT_WARNING, "CFontz_init: Cannot read size: %s. Using default value.\n", size);
+		report (RPT_WARNING, "CFontz: Cannot read size: %s. Using default value.\n", size);
 		sscanf( DEFAULT_SIZE , "%dx%d", &w, &h );
 	}
 	driver->wid = w;
@@ -109,21 +109,21 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 	if (0<=config_get_int ( DriverName , "Contrast" , 0 , DEFAULT_CONTRAST) && config_get_int ( DriverName , "Contrast" , 0 , DEFAULT_CONTRAST) <= 255) {
 		contrast = config_get_int ( DriverName , "Contrast" , 0 , DEFAULT_CONTRAST);
 	} else {
-		report (RPT_WARNING, "CFontz_init: Contrast must between 0 and 255. Using default value.\n");
+		report (RPT_WARNING, "CFontz: Contrast must between 0 and 255. Using default value.\n");
 	}
 
 	/*Which backlight brightness*/
 	if (0<=config_get_int ( DriverName , "Brightness" , 0 , DEFAULT_BRIGHTNESS) && config_get_int ( DriverName , "Brightness" , 0 , DEFAULT_BRIGHTNESS) <= 255) {
 		brightness = config_get_int ( DriverName , "Brightness" , 0 , DEFAULT_BRIGHTNESS);
 	} else {
-		report (RPT_WARNING, "CFontz_init: Brightness must between 0 and 255. Using default value.\n");
+		report (RPT_WARNING, "CFontz: Brightness must be between 0 and 255. Using default value.\n");
 	}
 
 	/*Which backlight-off "brightness"*/
 	if (0<=config_get_int ( DriverName , "OffBrightness" , 0 , DEFAULT_OFFBRIGHTNESS) && config_get_int ( DriverName , "OffBrightness" , 0 , DEFAULT_OFFBRIGHTNESS) <= 255) {
 		offbrightness = config_get_int ( DriverName , "OffBrightness" , 0 , DEFAULT_OFFBRIGHTNESS);
 	} else {
-		report (RPT_WARNING, "CFontz_init: OffBrightness must between 0 and 255. Using default value.\n");
+		report (RPT_WARNING, "CFontz: OffBrightness must be between 0 and 255. Using default value.\n");
 	}
 
 
@@ -131,8 +131,9 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 	tmp = config_get_int ( DriverName , "Speed" , 0 , DEFAULT_SPEED);
 	if (tmp == 1200) speed = B1200;
 	else if (tmp == 2400) speed = B2400;
+	else if (tmp == 4800) speed = B4800;
 	else if (tmp == 9600) speed = B9600;
-	else { report (RPT_WARNING, "CFontz_init: Speed must be 1200, 2400, or 9600. Using default value.\n", speed);
+	else { report (RPT_WARNING, "CFontz: Speed must be 1200, 2400, 4800, or 9600. Using default value.\n", speed);
 	}
 
 	/*New firmware version?*/
@@ -142,7 +143,7 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 
 	/*Reboot display?*/
 	if (config_get_bool( DriverName , "Reboot" , 0 , 0)) {
-		report (RPT_INFO, "LCDd: rebooting CrystalFontz LCD...\n");
+		report (RPT_INFO, "CFontz: Rebooting CrystalFontz LCD...\n");
 		reboot = 1;
 	}
 
@@ -150,8 +151,10 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 	debug( RPT_DEBUG, "CFontz: Opening serial device: %s", device);
 	fd = open (device, O_RDWR | O_NOCTTY | O_NDELAY);
 	if (fd == -1) {
-		report (RPT_ERR, "CFontz_init: failed (%s)\n", strerror (errno));
+		report (RPT_ERR, "CFontz: init() failed (%s)\n", strerror (errno));
 		return -1;
+	} else {
+		report (RPT_INFO, "CFontz: Opened display on %s", device);
 	}
 
 	tcgetattr (fd, &portset);
