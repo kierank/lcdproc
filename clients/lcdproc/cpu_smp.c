@@ -37,8 +37,8 @@
 *  ---
 * 
 *  $Source: /cvsroot/lcdproc/lcdproc/clients/lcdproc/cpu_smp.c,v $
-*  $Revision: 1.8 $ $Date: 2003/12/24 19:47:55 $
-*  Checked in by: $Author: gfk $
+*  $Revision: 1.9 $ $Date: 2005/02/25 15:03:01 $
+*  Checked in by: $Author: marschap $
 *
 *******************************************************************************/
 
@@ -84,7 +84,7 @@ cpu_smp_screen (int rep, int display)
 		machine_get_smpload (load, &numprocs);
 
 		sock_send_string (sock, "screen_add P\n");
-		sock_send_string (sock, "widget_del P heartbeat\n");
+		sock_send_string (sock, "screen_set P -heartbeat off\n");
 
 		sprintf (buffer, "screen_set P -name {CPU Use: %s}\n", get_hostname());
 		sock_send_string (sock, buffer);
