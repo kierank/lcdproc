@@ -18,12 +18,12 @@
  * GNU's GPL. In particular, this program is free software and comes WITHOUT
  * ANY WARRANTY.
  * 
- * $Id: lcd_sem.c,v 1.1 2000/02/21 11:24:09 blt Exp $
+ * $Id: lcd_sem.c,v 1.2 2000/03/30 20:20:41 willfe Exp $
  */
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/types.h>	/* for semaphore functions */
+#include <sys/types.h>		/* for semaphore functions */
 #include <sys/ipc.h>
 #include <sys/sem.h>
 #include <errno.h>
@@ -31,30 +31,30 @@
 #include "lcd_sem.h"
 
 #define SEMAPHORE       "portctrl"
-#define SEMKEY          0x706f7274      /* semaphore key */
-#define SEMCOUNT        1               /* number of semaphores to create */
-#define WMODE           0660		/* access permissions */
+#define SEMKEY          0x706f7274	/* semaphore key */
+#define SEMCOUNT        1	/* number of semaphores to create */
+#define WMODE           0660	/* access permissions */
 
 #define SEM_SIGNAL      0,1,SEM_UNDO
 #define SEM_WAIT        0,-1,SEM_UNDO
 
 /* functions local to this file */
-static key_t getkey(register char *p);
- 
-/* global variables */
-static struct sembuf semaphore_wait = {SEM_WAIT};
-static struct sembuf semaphore_signal = {SEM_SIGNAL};
+static key_t getkey (register char *p);
 
-static char rcsId[] = "$Id: lcd_sem.c,v 1.1 2000/02/21 11:24:09 blt Exp $";
+/* global variables */
+static struct sembuf semaphore_wait = { SEM_WAIT };
+static struct sembuf semaphore_signal = { SEM_SIGNAL };
+
+static char rcsId[] = "$Id: lcd_sem.c,v 1.2 2000/03/30 20:20:41 willfe Exp $";
 
 /*
  * getkey  returns the key for the semaphore
  */
 
 static key_t
-getkey(register char *p)
+getkey (register char *p)
 {
-    return((key_t) SEMKEY);
+   return ((key_t) SEMKEY);
 }
 
 /*
@@ -63,50 +63,42 @@ getkey(register char *p)
  */
 
 int
-sem_get(void)
+sem_get (void)
 {
-    int semid;
-    union semun semval;
+   int semid;
+   union semun semval;
 
-    if ((semid = semget(getkey(SEMAPHORE), SEMCOUNT, 
-			IPC_CREAT | IPC_EXCL | WMODE)) < 0)
-    {
-	switch (errno)
-	{
-	    case EEXIST:
-	    	/* semaphore set exists, get id and return it */
-		if ((semid = semget(getkey(SEMAPHORE), SEMCOUNT,
-		    		IPC_EXCL | WMODE)) < 0)
-		{
-		    perror("semget");
-		    exit(1);
-		}
-		return semid;
-		break;
-	    case EACCES:
-	    	/* don't have permissions for semaphore, need to change key */
-		perror("semget, can't get permissions for semaphore");
-		exit(1);
-		break;
-	    default:
-		perror("semget");
-	    	exit(1);
-		break;
-	}
-    }
-    else
-    {
-	/* initialise semaphore to 1 */
-    	semval.val = 1;
+   if ((semid = semget (getkey (SEMAPHORE), SEMCOUNT, IPC_CREAT | IPC_EXCL | WMODE)) < 0) {
+      switch (errno) {
+      case EEXIST:
+	 /* semaphore set exists, get id and return it */
+	 if ((semid = semget (getkey (SEMAPHORE), SEMCOUNT, IPC_EXCL | WMODE)) < 0) {
+	    perror ("semget");
+	    exit (1);
+	 }
+	 return semid;
+	 break;
+      case EACCES:
+	 /* don't have permissions for semaphore, need to change key */
+	 perror ("semget, can't get permissions for semaphore");
+	 exit (1);
+	 break;
+      default:
+	 perror ("semget");
+	 exit (1);
+	 break;
+      }
+   } else {
+      /* initialise semaphore to 1 */
+      semval.val = 1;
 
-	if (semctl(semid, 0, SETVAL, semval) < 0)
-	{
-	    perror("setval, can't initialise semaphore");
-	    exit(1);
-	}
-    }
-								        
-    return semid;
+      if (semctl (semid, 0, SETVAL, semval) < 0) {
+	 perror ("setval, can't initialise semaphore");
+	 exit (1);
+      }
+   }
+
+   return semid;
 }
 
 /*
@@ -114,15 +106,14 @@ sem_get(void)
  */
 
 int
-sem_wait(int sid)
+sem_wait (int sid)
 {
-    if (semop(sid, &semaphore_wait, 1) < -1)
-    {
-	perror(SEMAPHORE);
-	exit(1);
-    }
+   if (semop (sid, &semaphore_wait, 1) < -1) {
+      perror (SEMAPHORE);
+      exit (1);
+   }
 
-    return 0;
+   return 0;
 }
 
 /*
@@ -130,15 +121,14 @@ sem_wait(int sid)
  */
 
 int
-sem_signal(int sid)
+sem_signal (int sid)
 {
-    if (semop(sid, &semaphore_signal, 1) < -1)
-    {
-	perror(SEMAPHORE);
-	exit(1);
-    }
+   if (semop (sid, &semaphore_signal, 1) < -1) {
+      perror (SEMAPHORE);
+      exit (1);
+   }
 
-    return 0;
+   return 0;
 }
 
 /*
@@ -146,25 +136,22 @@ sem_signal(int sid)
  */
 
 int
-sem_remove(int sid)
+sem_remove (int sid)
 {
-    int i;
-    union semun dummy;
-    
-    if ((i = semctl(sid, 0, IPC_RMID, dummy)) < 0)
-    {
-	switch(i)
-	{
-	    case EIDRM:
-	        /* semaphore removed */
-	        return 0;
-	        break;
-	    default:
-	        perror("semctl, removing semaphore");
-	        exit(1);
-	}
-    }
+   int i;
+   union semun dummy;
 
-    return 0;
+   if ((i = semctl (sid, 0, IPC_RMID, dummy)) < 0) {
+      switch (i) {
+      case EIDRM:
+	 /* semaphore removed */
+	 return 0;
+	 break;
+      default:
+	 perror ("semctl, removing semaphore");
+	 exit (1);
+      }
+   }
+
+   return 0;
 }
-
