@@ -7,6 +7,7 @@
  *
  * Copyright (c) 1999, William Ferrell, Scott Scriven
  *		 2001, Joris Robijn
+ *		 2001, Rene Wagner
  *
  *
  * Contains main(), plus signal callback functions and a help screen.
@@ -217,8 +218,8 @@ main (int argc, char **argv)
  	report( RPT_NOTICE, "Set report level to %d, output to %s", reportLevel, (reportToSyslog?"syslog":"stderr") );
 
 	/* Startup the server*/
-	ESSENTIAL( init_sockets() );
 	ESSENTIAL( init_drivers() );
+	ESSENTIAL( init_sockets() );
 	ESSENTIAL( init_screens() );
 	ESSENTIAL( drop_privs(user) );
 
@@ -604,7 +605,12 @@ init_drivers()
 		res = load_driver (drivernames[i], driverfilenames[i], driverargs[i]);
 		if (res >= 0) {
 			/* Load went OK*/
-
+			if ((res >0)&&(output_loaded)) {
+				/*second output driver loaded - can't work*/
+				report( RPT_ERR, "Only ONE output driver supported!" );
+				unload_all_drivers();
+				return -1;
+			}
 			switch( res ) {
 			  case 0: /* Driver does input only*/
 			  	break;
@@ -808,12 +814,12 @@ exit_program (int val)
 
 	/* Shutdown things if server start was complete*/
 	if( serverStarted ) {
-		goodbye_screen ();		/* display goodbye screen on LCD display*/
-		unload_all_drivers ();		/* release driver memory and file descriptors*/
-
 		client_shutdown ();		/* shutdown clients (must come first)*/
 		screenlist_shutdown ();		/* shutdown screens (must come after client_shutdown)*/
 		sock_close_all ();		/* close all open sockets (must come after client_shutdown)*/
+
+		goodbye_screen ();		/* display goodbye screen on LCD display*/
+		unload_all_drivers ();		/* release driver memory and file descriptors*/
 	}
 
 	exit (0);
