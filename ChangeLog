@@ -1,0 +1,187 @@
+Recent changes:
+
+Key:  
+     - Something removed
+     + Something added
+     * Something changed / fixed
+
+Coming soon: (?) (my list of stuff to do soon...)
+ + Client menus
+ + Configuration file support
+ * Better syntax for driver parameters
+ * Dynamically-loaded driver system
+
+v0.4.2:
+ - Removed multiple output driver support - to simplify life
+ * Removed use of sprintf() (in favor of snprintf) for security
+ + Added ability to use defined port and address to listen on
+   (for security) - now defaults to 127.0.0.1
+ + Revamped curses driver: now supports color; has border; and
+   can be (with recompile) placed anywhere on screen it fits
+ + Added --waittime server argument.  You can now specify how long
+   a screen should stay on the display.  The default is 64 ticks or
+   8 seconds.
+ + Fixed compile problems on non-Linux platforms where cfmakeraw,
+   CBAUD, and ioperm don't exist.  All drivers now use the same code
+   to initialize a serial port.
+v0.4.1:
+ + Changed protocol to 0.3 because we now accept both -foo and foo
+   as argument introducers.  in 0.4-pre10, these were changed
+   from foo to -foo and this broke many clients.  This change
+   should fix that and be backward/forward compatible.
+ + Added a noop function to the protocol.  This is useful for writing
+   shell script clients of LCDproc.
+ + Changed the shared sock_send_string function to NOT send the
+   ending NUL ('\0') byte with the string.  This was confusing
+   in Perl clients which saw NUL's as the first character of
+   each reply.  WARNING: The LCDPROC client depended on this
+   behavior, your client may too.  Use the newline instead.
+   See the code in clients/lcdproc/main.c (look for "switch(buf[i])")
+   to see one way to handle this.  This should allow new clients
+   to connect to old servers and vice-versa.
+ + Messed with include structure in .c files.  It should no longer
+   be necessary to specify ../.. to get to shared code headers.
+   Also, since we are using automake, the global config.h can be
+   found with just #include "config.h" as it's location is included
+   in a -I to the compilers.  As a result "make distcheck" now works.
+ + Added support for client_add_key and friends.  Clients MUST now
+   request keys to get notified.  Keys are NO LONGER broadcast to all
+   clients.  Keys are now tied to a SCREEN and CLIENT.  There are new
+   commands (screen_add_key, screen_del_key) to bind keys to a
+   screen. If the current screen has requested the key just pressed,
+   the client gets the key and no other client gets it.  If the current
+   screen has not requested the current key, then the key is broadcast
+   to all clients who requested that key with client_add_key.  Clients
+   might want to request a "hotkey" with client_add_key so they will
+   be notified of that key no matter what screen is currently on the
+   display, and then request whatever other keys a screen uses with
+   screen_add_key.
+ + Added driver for Matrix Orbital GLK12232-25 graphical display.
+   Display is run in text mode since there isn't enough information in
+   the widgets.  If we knew the max width/height of an hbar/vbar, we
+   could use graphical vbar/hbar's.  Oh well.  BigNums' look really
+   cool though.  You'll need some additional characters in the "Small Font"
+   font (and the BigNumbers font) for this to work.
+ + Rewrote Big Number Clock function in chrono.c.  Many problems with
+   it have been fixed.  It now uses number value 10 to display a colon
+   in between the digits.  Don't know what this will do on a the MtxOrb
+   driver.  GLK driver draws a colon.
+ + Cleaned up the CPU GRAPH (G) function in cpu.c and made get_load take
+   a 'struct load' from the caller to save the last time values.  This
+   allows two callers (CPU GRAPH and CPU LOAD) to call get_load and
+   both get reaosonable values.  Without this, CPU GRAPH was always
+   getting 0 because it was called immediatly after CPU LOAD called
+   get_load and no clock ticks had gone by.
+ + Changed --enable-debug autoconf option to be processed correctly.
+   Debug now turns on -g and turns off -O6
+ + Lots of other little fixes.
+
+v0.4-pre10:
+ + Metar client added (Weather information)
+ + Linux infrared control (LIRC) driver added.
+ + "rotating slash" heartbeat mode (looks weird on CFontz displays)
+   Use "screen_set s -heartbeat slash" to use this.
+ * Switched to client-server protocol V0.2, so arguments can come in
+   any order, and require a "-" on the front.  Instead of
+   "widget_set s w 1 2 foo", use "widget_set s w -x 1 -y 2 -text foo".
+ * Server info screen no longer enabled by default.
+ * Merged Andrew McMeikan's HD44780 driver changes
+ - Removed WHATSNEW
+ + Added ChangeLog (okay, fine, I renamed WHATSNEW and typed a few
+   entries into it :)
+
+V0.4-pre9:
+ * small fixes for irix
+ * Added flag in LCDd to shut off server screen:  
+ 	"-i off" or "--serverinfo off"
+ + Wirz SLI driver
+ + 16x2 support (server only)
+ + MtxOrb generic output support in driver
+ * Misc libc5 fixes
+ + support for arbitrary display sizes; anything 16-80 characters
+   wide, and 2-25 characters tall.  (doesn't work if you try to use
+   a display size bigger than your LCD..  :)
+ * curses driver looks slightly better (titles)
+ * sizes > 20x4 no longer crash
+
+V0.4-pre8:
+ * LCDd gives more updated info in the connect string: 
+	cell size, lcd dimensions.
+ * bargraphs are now the correct length on CFontz displays, in the main
+   lcdproc client.  For other clients, please parse the connect string!
+ * MtxOrb driver supports simultaneous vbars/hbars now, with a
+   mechanism to automatically use custom characters for as many
+   as possible.
+ + 20x2 support in LCDd!  Use "--type 20x2".
+	(LCDd --type 20x2 -d MtxOrb )
+ * LCDd can change backlight brightness instead of shutting it "off"
+ * HD44780 should work again (LCDd forks earlier now.. oops  :)
+ + 20x2 support in lcdproc client for the following screens:
+	C G T M X D B S U A
+   Support will not be added for K and O screens.
+ + BSD support (?)
+ * 20x4 screens should display correctly on 40x4 displays
+
+V0.4-pre7: new driver
+ + CrystalFontz (CFontz) LCD driver added
+ * Backlight control improved
+ + Brightness control added
+
+V0.4-pre6:
+ + Backlight control added.  Modes so far are "on", "off", and "open".
+   Client commands are "on", "off", "toggle", "blink", and "flash".
+ * Main clients' screen titles now include hostname
+ + New sample client: fortune.pl
+ * Added changes from David Glaude:
+ + IRman support
+ + Big Digit support (MtxOrb driver doesn't display it correctly yet)
+ + Big cloc[K] screen
+ * MtxOrb serial speed is configurable with "--speed"
+ * misc bugfixes
+ + ... more
+
+V0.4-pre5:
+ * Fixed bug which could take server down with a dead client
+ * Fixed small scroller bug
+ + Added "frame" widgets..  use "-in <frame_name>" after widget_add
+   to put something in a frame.
+ + The disk screen is back!
+ - Frame rendering isn't finished..  the renderer probably needs a
+   complete rewrite.  Any volunteers?  :)
+
+V0.4-pre4:
+ + Server menus (fairly small so far)
+ + Ability to shut down, reboot, change some options, etc (menu only)
+ * Driver arguments no longer required
+ * Curses driver doesn't start server in background any more...
+ * Argument handling fixed...
+ * Drivers support "--help" for command-line info
+
+V0.4-pre3:
+ + Scroller widgets
+ * Proper errno messages...
+ * "make install" should work now
+ * Joystick driver allows key remapping
+ + Screen "durations" are actually *used* now.  (oops)
+ + Initial support for screen priorities (strict priority queue)
+ * Misc (but annoying!) bugs fixed, which hadn't yet affected anything
+ + Drivers support parameters now (MtxOrb, joy, at least)
+
+
+V0.4-pre2:
+ * Memory leaks fixed
+ + Memory "top" screen (S)
+ + Titles now autoscroll
+ * Fixed small screen-visibility bug  (clients weren't always
+   notified of screen cycles)
+ + Heartbeat modes implemented.  Clients can remove it with
+	     widget_del my_screen heartbeat
+   or turn it back on with
+	     widget_add my_screen heartbeat " "
+   Note that the client only has control over this when the heartbeat
+   is in "open" mode.  (currently, it always is)
+
+
+V0.4-pre1:
+ * Too much to mention...
+

@@ -3,11 +3,13 @@
 
 #include <stdlib.h>
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #ifndef LCDPORT
 #define LCDPORT 13666
 #endif
-
-
 
 /*
   Socket functions available to server and clients...
@@ -16,18 +18,16 @@
   This should have stuff to read/write sockets, open/close them, etc...
  */
 
-
 // Client functions...
-int sock_connect(char *host, unsigned short int port);
-int sock_close(int fd);
+int sock_connect (char *host, unsigned short int port);
+int sock_close (int fd);
 // Send/receive lines of text
-int sock_send_string(int fd, char *string);
+int sock_send_string (int fd, char *string);
 // Recv gives only one line per call...
-int sock_recv_string(int fd, char *dest, size_t maxlen);
+int sock_recv_string (int fd, char *dest, size_t maxlen);
 // Send/receive raw data
-int sock_send(int fd, void *src, size_t size);
-int sock_recv(int fd, void *dest, size_t maxlen);
-
+int sock_send (int fd, void *src, size_t size);
+int sock_recv (int fd, void *dest, size_t maxlen);
 
 // Er, ignore the rest of this file.  I'll clean it up sometime...
 
@@ -80,8 +80,6 @@ int sock_recv(int fd, void *dest, size_t maxlen);
     Key D Next/+
     Key E OtherSequence
 
-
 ******************************************************************/
-
 
 #endif
