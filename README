@@ -14,7 +14,7 @@ The client and the server use a TCP connection to communicate, so it is
 possible to have a client on a box in Sweden showing its stats on a LCD
 display in the United States.
 
-Our web site is located at http://lcdproc.omnipotent.net
+Our web site is located at http://lcdproc.org/
 For new versions and CVS go to http://sourceforge.net/projects/lcdproc/
 
 Check there first for new versions or updates. For remaining questions,
@@ -57,7 +57,7 @@ CREDITS file. Thanks all !
 
 -- LEGAL STUFF ---------------------------------------------------------------
 
-LCDproc is Copyright (C) 1998-2002
+LCDproc is Copyright (C) 1998-2003
 	William Ferrell, Scott Scriven and many other contributors.
 
 This program is free software; you can redistribute it and/or
