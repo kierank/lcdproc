@@ -251,9 +251,9 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 				case B19200:
 					strncpy(buf,"19200", sizeof(buf));
 					break;
+			}
 			report (RPT_WARNING , "MtxOrb: Speed must be 1200, 2400, 9600 or 19200. Using default value of %s baud!", buf);
 			strncpy(buf,"", sizeof(buf));
-			}
 	}
 
 
