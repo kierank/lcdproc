@@ -18,16 +18,20 @@ The following hints might be helpful:
 Wiring errors can easily be made. If you are unexperienced
 with the soldering iron better have someone solder it for
 you. Display modules are sensitive to electro static
-discharges, so touch an earthed surface (computer case,
-water pipes...) before you handle these.
+discharges, so touch a grounded (earthed) surface (metal computer case,
+water pipes...) before you handle these. You may also want to buy a 
+static ground bracelet that you connect to your wrist to a ground. 
+They are usually sold for a couple dollars (or the price of a couple 
+beers in case the dollar is not a valid currency where you live 8) 
+in electronics stores.
 </para>
 </sect2>
 <sect2 id="ppt-power">
 <title>Power Source Unregulated / Noisy</title>
 <para>
-Make sure your power supply delivers steady 5 Volts with-
-out noise or interruptions. The bare wall plug in trans-
-former is not suitable, though you can make it stabilized
+Make sure your power supply delivers steady 5 Volts without 
+noise or interruptions. The bare wall plug in transformer 
+is not suitable, though you can make it stabilized
 by adding an 7805 and a few capacitors.
 Some noise induced in the supply lines my be tricky to
 track, even if you have an oscilloscope.
@@ -48,8 +52,9 @@ VDD pins of the display.
 <sect2 id="ppt-latchup">
 <title>Latchup</title>
 <para>
-Never let the supply voltage get much below the io signal
-voltage. It may lead to a latchup condition which will
+Never let the supply voltage get much below the IO signal
+voltage. It may lead to a latchup condition (the LCD will 
+try to get current from the IO ports) which will
 destroy the controller chip on the display.
 </para>
 </sect2>
@@ -88,7 +93,7 @@ enough and can cause unreliable operation.
 <para>
 If you ever read the HD44780 datasheet you will notice that
 somewhere in the 'signal timing' table is written: 'Enable
-Signal Rise Time  max. 20nS'. That means the Voltage on the
+Signal Rise Time max. 20nS'. That means the Voltage on the
 HD44780 pin called 'Enable' has to rise from 0 Volts to 5
 Volts within 20 Nanoseconds and the other way round. They
 should better print that in big fat red letters, because
@@ -100,7 +105,7 @@ That is a Problem: If you count together the bad driving
 characteristics of the parallel port combined with the
 capacitance of flat ribbon cable you may easily get an
 order of magnitude slower rise time.
-Therefore you should only use really short cable ( shorter
+Therefore you should only use really short cable (shorter
 than 50cm) for connecting the display to the parallel port.
 It may also be useful to use pull-up resistors on the display
 module or a schmitt-trigger.
