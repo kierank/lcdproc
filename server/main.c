@@ -607,7 +607,7 @@ init_drivers()
 			/* Load went OK*/
 			if ((res >0)&&(output_loaded)) {
 				/*second output driver loaded - can't work*/
-				report( RPT_ERR, "Only ONE output driver supported!" );
+				report( RPT_ERR, "CRITICAL ERROR: Only ONE output driver supported!" );
 				unload_all_drivers();
 				return -1;
 			}
