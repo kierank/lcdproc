@@ -131,6 +131,9 @@ lircin_init (struct lcd_logical_driver *driver, char *args)
 		report (RPT_INFO,"lircin: Using default lircrc: ~/.lircrc");
 	}
 
+	/* FIXME: This shouldn't be neccessary */
+	strcpy(s, "");
+
 	/* Get program identifier "prog=..." to be used */
 	if (config_get_string ( DriverName , "prog" , 0 , NULL) != NULL)
 		strncpy(s, config_get_string ( DriverName , "prog" , 0 , ""), sizeof(s));
