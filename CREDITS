@@ -101,6 +101,7 @@ Rene Wagner <reenoo@gmx.de>:
 	- CFontz, curses, glk, MtxOrb,
 	- EPM list file for automatic package generation,
 	- current documentation in docbook format
+	- 0.4.3 backlight and heartbeat implementation
 	- Lots of other stuff for the 0.4.3 release
 
 Andre Breiler:
