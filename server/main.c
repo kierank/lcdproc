@@ -217,7 +217,7 @@ main (int argc, char **argv)
 	ESSENTIAL( process_configfile (configfile) );
 
 	/* Has the default setting for the driver in the config file (driver=none) been changed? */
-	if (strcmp(drivernames[0], "none")==0) {
+	if (drivernames[0]&&(strcmp(drivernames[0], "none")==0)) {
 		fprintf(stderr, "No driver specified. Make sure to edit the config file: %s\n", configfile);
 		exit (-1);
 	}
