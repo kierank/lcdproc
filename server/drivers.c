@@ -29,7 +29,7 @@
 #include "configfile.h"
 
 #include "drivers/lcd.h"
-// lcd.h is used for the driver API definition
+/* lcd.h is used for the driver API definition*/
 
 
 LinkedList * loaded_drivers = NULL;
@@ -49,9 +49,9 @@ load_driver ( char * name, char * filename, char * args )
 
 	report( RPT_INFO, "load_driver(%s,%s,%s)", name, filename, args );
 
-	// First driver ?
+	/* First driver ?*/
 	if( !loaded_drivers ) {
-		// Create linked list
+		/* Create linked list*/
 		loaded_drivers = LL_new ();
 		if( !loaded_drivers ) {
 			report( RPT_ERR, "Error allocating driver list." );
@@ -60,42 +60,42 @@ load_driver ( char * name, char * filename, char * args )
 	}
 
 
-	// Find the driver in the array of driver types
+	/* Find the driver in the array of driver types*/
 	if ((driver_init = (void *) lcd_find_init(name)) == NULL) {
-		// Driver not found
+		/* Driver not found*/
 		report( RPT_ERR, "invalid driver: %s", name);
 		return -1;
 	}
 
 
-	// Allocate memory for new driver struct
+	/* Allocate memory for new driver struct*/
 	driver = malloc( sizeof( lcd_logical_driver ));
-	//memset( driver, 0, sizeof (lcd_logical_driver ));
+	/*memset( driver, 0, sizeof (lcd_logical_driver ));*/
 
 	lcd_ptr = driver;
 
 	fill_driver_functions( driver );
 
 
-	// Rebind the init function and call it
+	/* Rebind the init function and call it*/
 	driver->init = driver_init;
 
 	res = driver->init( driver, args );
 	if( res < 0 ) {
 		report( RPT_ERR, "Driver load failed, return code < 0" );
-		// driver load failed, don't add driver to list
+		/* driver load failed, don't add driver to list*/
 		return -1;
 	}
 
-	// Add driver to list
+	/* Add driver to list*/
 	LL_Push( loaded_drivers, driver );
 
-	// Check the driver type
+	/* Check the driver type*/
 	if( !driver->daemonize ) {
 		return 2;
 	}
 
-	return 1; // We can't see if it's an input driver only...
+	return 1; /* We can't see if it's an input driver only...*/
 }
 
 
@@ -129,21 +129,21 @@ fill_driver_functions( lcd_logical_driver * driver )
 
 	driver->daemonize = 1;
 
-	// Set pointers to empty function
+	/* Set pointers to empty function*/
 
-	// Basic functions
+	/* Basic functions*/
 	driver->init = empty_function;
 	driver->close = empty_function;
 
 	driver->getinfo = empty_function;
-	// and don't forget other get_* functions later...
+	/* and don't forget other get_* functions later...*/
 
 	driver->clear = empty_function;
 	driver->flush = empty_function;
 	driver->string = empty_function;
 	driver->chr = empty_function;
 
-	// Extended functions
+	/* Extended functions*/
 	driver->init_vbar = empty_function;
 	driver->vbar = empty_function;
 	driver->init_hbar = empty_function;
@@ -152,23 +152,23 @@ fill_driver_functions( lcd_logical_driver * driver )
 	driver->num = empty_function;
 	driver->heartbeat = empty_function;
 
-	// Hardware functions
+	/* Hardware functions*/
 	driver->contrast = empty_function;
 	driver->backlight = empty_function;
 	driver->output = empty_function;
 
-	// Uesrdef character functions
+	/* Userdef character functions*/
 	driver->set_char = empty_function;
 	driver->icon = empty_function;
 
-	// Key functions
+	/* Key functions*/
 	driver->getkey = empty_function;
 
-	// Ancient functions
+	/* Ancient functions*/
 	driver->flush_box = empty_function;
 	driver->draw_frame = empty_function;
 
-	// Config file functions
+	/* Config file functions*/
 	driver->config_get_bool		= config_get_bool;
 	driver->config_get_int		= config_get_int;
 	driver->config_get_float	= config_get_float;
@@ -176,7 +176,7 @@ fill_driver_functions( lcd_logical_driver * driver )
 	driver->config_has_section	= config_has_section;
 	driver->config_has_key		= config_has_key;
 
-	// Driver private data
+	/* Driver private data*/
 	driver->store_private_ptr	= store_private_ptr;
 
 	return 0;

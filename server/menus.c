@@ -47,7 +47,7 @@ int Backlight_On_func ();
 int Backlight_Open_func ();
 
 menu_item main_menu[] = {
-	{"LCDproc", 0, 0},			  // Title
+	{"LCDproc", 0, 0},			  /* Title*/
 	{"Options", TYPE_MENU, (void *) options_menu},
 	{"Screens", TYPE_MENU, (void *) screens_menu},
 	{"Shutdown", TYPE_MENU, (void *) shutdown_menu},
@@ -56,29 +56,30 @@ menu_item main_menu[] = {
 };
 
 menu_item options_menu[] = {
-	{"OPTIONS", TYPE_TITL, 0},	  // Title
-//   "24-hour Time", TYPE_CHEK,    (void *)Time24_func,
+	{"OPTIONS", TYPE_TITL, 0},	  /* Title*/
+/*   "24-hour Time", TYPE_CHEK,    (void *)Time24_func,*/
 	{"Contrast...", TYPE_SLID, (void *) Contrast_func},
 	{"Backlight", TYPE_MENU, (void *) Backlight_menu},
 	{"Heartbeat", TYPE_CHEK, (void *) Heartbeat_func},
-//  { "Backlight...", TYPE_SLID,      (void *)Backlight_func},
-//   "OK",         TYPE_FUNC,      (void *)OK_func,
-//   "Close Menu",   TYPE_FUNC,    (void *)Close_func,
-//   "Exit Program", TYPE_FUNC,    (void *)Shutdown_func,
-//   "Another Title",TYPE_TITL,    0,
-//   "Main menu?",   TYPE_MENU,      (void *)main_menu,
-//   "Nothing!",     TYPE_FUNC,      0,
+/*  { "Backlight...", TYPE_SLID,      (void *)Backlight_func},
+ *   "OK",         TYPE_FUNC,      (void *)OK_func,
+ *   "Close Menu",   TYPE_FUNC,    (void *)Close_func,
+ *   "Exit Program", TYPE_FUNC,    (void *)Shutdown_func,
+ *   "Another Title",TYPE_TITL,    0,
+ *   "Main menu?",   TYPE_MENU,      (void *)main_menu,
+ *   "Nothing!",     TYPE_FUNC,      0,
+ */
 	{0, 0, 0},
 };
 
 menu_item screens_menu[] = {
-	{"SCREENS", TYPE_TITL, 0},	  // Title
+	{"SCREENS", TYPE_TITL, 0},	  /* Title*/
 	{"Server Scr", TYPE_CHEK, (void *) Server_screen_func},
 	{0, 0, 0},
 };
 
 menu_item shutdown_menu[] = {
-	{"Shut Down...", TYPE_TITL, 0},	// Title
+	{"Shut Down...", TYPE_TITL, 0},	/* Title*/
 	{"Kill LCDproc", TYPE_FUNC, (void *) Shutdown_func},
 	{"System halt", TYPE_FUNC, (void *) System_halt_func},
 	{"Reboot", TYPE_FUNC, (void *) Reboot_func},
@@ -86,21 +87,21 @@ menu_item shutdown_menu[] = {
 };
 
 menu_item Backlight_menu[] = {
-	{"BACKLIGHT MENU", TYPE_TITL, 0},	// Title
+	{"BACKLIGHT MENU", TYPE_TITL, 0},	/* Title*/
 	{"Brightness...", TYPE_SLID, (void *) Backlight_Brightness_func},
 	{"\"Off\" Brightness", TYPE_SLID, (void *) Backlight_Off_Brightness_func},
-	{"Backlight Mode:", TYPE_FUNC, 0},	// Label
+	{"Backlight Mode:", TYPE_FUNC, 0},	/* Label*/
 	{" - Off", TYPE_FUNC, Backlight_Off_func},
 	{" - On", TYPE_FUNC, Backlight_On_func},
 	{" - Open", TYPE_FUNC, Backlight_Open_func},
 	{0, 0, 0},
 };
 
-///////////////////////////////////////////////////////////////////////
-// Plug-in functions for menu items
-//
+/************************************************************************
+ * Plug-in functions for menu items
+ */
 
-// Exits the program.
+/* Exits the program.*/
 int
 Shutdown_func ()
 {
@@ -109,7 +110,7 @@ Shutdown_func ()
 	return MENU_KILL;
 }
 
-// Shuts down the system, if possible
+/* Shuts down the system, if possible*/
 int
 System_halt_func ()
 {
@@ -125,15 +126,15 @@ System_halt_func ()
 	if (err == 127)
 		return MENU_KILL;
 
-	// If we're root, exit
+	/* If we're root, exit*/
 	if (id == 0)
 		exit_program (0);
 
-	// Otherwise, assume shutdown will fail; and show more stats.
+	/* Otherwise, assume shutdown will fail; and show more stats.*/
 	return MENU_KILL;
 }
 
-// Shuts down the system and restarts it
+/* Shuts down the system and restarts it*/
 int
 Reboot_func ()
 {
@@ -149,11 +150,11 @@ Reboot_func ()
 	if (err == 127)
 		return MENU_KILL;
 
-	// If we're root, exit
+	/* If we're root, exit*/
 	if (id == 0)
 		exit_program (0);
 
-	// Otherwise, assume shutdown will fail; and show more stats.
+	/* Otherwise, assume shutdown will fail; and show more stats.*/
 	return MENU_KILL;
 }
 
@@ -177,14 +178,16 @@ Time24_func (int input)
 	if (input == MENU_READ)
 		return status;
 	if (input == MENU_CHECK)
-		status ^= 1;				  // does something.
+		status ^= 1;				  /* does something.*/
 	return (status | MENU_OK);
-	// The status is "or"-ed with the MENU value to let do_menu()
-	// know what to do after selecting the item.  (two return
-	// values in one.  :)
+	/* The status is "or"-ed with the MENU value to let do_menu()
+	 * know what to do after selecting the item.  (two return
+	 * values in one.  :)
+	 */
 
-	// Also, "MENU_OK" happens to be zero, so it does not matter
-	// unless you want something else (like MENU_CLOSE)
+	/* Also, "MENU_OK" happens to be zero, so it does not matter
+	 * unless you want something else (like MENU_CLOSE)
+	 */
 }
 
 int
@@ -283,9 +286,9 @@ Contrast_func (int input)
 	if (input == MENU_READ)
 		return status;
 	if (input == MENU_PLUS)
-		status += 5;				  // does something.
+		status += 5;				  /* does something.*/
 	if (input == MENU_MINUS)
-		status -= 5;				  // does something.
+		status -= 5;				  /* does something.*/
 
 	if (status < 0)
 		status = 0;
@@ -313,9 +316,9 @@ Backlight_Brightness_func (int input)
 	if (input == MENU_READ)
 		return status;
 	if (input == MENU_PLUS)
-		status += 5;				  // does something.
+		status += 5;				  /* does something.*/
 	if (input == MENU_MINUS)
-		status -= 5;				  // does something.
+		status -= 5;				  /* does something.*/
 
 	if (status < 0)
 		status = 0;
@@ -336,9 +339,9 @@ Backlight_Off_Brightness_func (int input)
 	if (input == MENU_READ)
 		return status;
 	if (input == MENU_PLUS)
-		status += 5;				  // does something.
+		status += 5;				  /* does something.*/
 	if (input == MENU_MINUS)
-		status -= 5;				  // does something.
+		status -= 5;				  /* does something.*/
 
 	if (status < 0)
 		status = 0;

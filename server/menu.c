@@ -34,7 +34,7 @@
 #include "drivers/lcd.h"
 #include "menu.h"
 
-// FIXME: Implement this where it is supposed to be...
+/* FIXME: Implement this where it is supposed to be...*/
 void
 framedelay ()
 {
@@ -50,8 +50,9 @@ draw_heartbeat ()
 	static int timer = 0;
 
 	if (heartbeat) {
-		// Set this to pulsate like a real heart beat...
-		// (binary is fun...  :)
+		/* Set this to pulsate like a real heart beat...
+		* (binary is fun...  :)
+		*/
 		lcd_ptr->icon (!((timer + 4) & 5), 0);
 		lcd_ptr->chr (lcd_ptr->wid, 1, 0);
 	}
@@ -91,28 +92,29 @@ do_menu (Menu menu)
 	fill_menu_info (menu, &info);
 
 	while (!done) {
-		// Keep the cursor off titles... (?)
+		/* Keep the cursor off titles... (?)*/
 		while (menu[info.selected].type == TYPE_TITL) {
 			info.selected++;
-			// If the title is the last thing in the menu...
+			/* If the title is the last thing in the menu...*/
 			if (!menu[info.selected].text)
 				info.selected -= 2;
 		}
 
 		draw_menu (menu, &info);
 
-		// FIXME: This should use a better keypress interface, which
-		// FIXME: handles things according to keybindings...
+		/* FIXME: This should use a better keypress interface, which
+		 * FIXME: handles things according to keybindings...
+		 */
 
 		for (key = lcd_ptr->getkey (); key == 0; key = lcd_ptr->getkey ()) {
-			// sleep for 1/8th second...
+			/* sleep for 1/8th second...*/
 			framedelay ();
-			// do the heartbeat...
+			/* do the heartbeat...*/
 			draw_heartbeat ();
-			// Check for client input...
+			/* Check for client input...*/
 		}
 
-		// Handle the key according to the keybindings...
+		/* Handle the key according to the keybindings...*/
 		switch (key) {
 		case 'D':
 			done = 1;
@@ -163,15 +165,17 @@ do_menu (Menu menu)
 				return MENU_OK;
 			case MENU_QUIT:
 				return MENU_QUIT;
-//        case MENU_KILL:
-//          return MENU_KILL;
+/*        case MENU_KILL:
+ *          return MENU_KILL;
+ */
 			case MENU_ERROR:
 				return MENU_ERROR;
 			}
 
-			// status = menu_handle_action(&menu[info.selected]);
-			// TODO: It should now do special stuff for "mover" widgets,
-			// TODO: and handle the return code appropriately.
+			/* status = menu_handle_action(&menu[info.selected]);*/
+			/* TODO: It should now do special stuff for "mover" widgets,
+			 * TODO: and handle the return code appropriately.
+			 */
 			break;
 		default:
 			break;
@@ -192,7 +196,7 @@ draw_menu (Menu menu, menu_info * info)
 
 	int (*readfunc) (int);
 
-	// these should maybe be removed:
+	/* these should maybe be removed:*/
 	int wid = lcd_ptr->wid, hgt = lcd_ptr->hgt;
 
 	if (!menu)
@@ -200,7 +204,7 @@ draw_menu (Menu menu, menu_info * info)
 
 	lcd_ptr->clear ();
 
-	// Scroll down until the selected item is centered, if possible...
+	/* Scroll down until the selected item is centered, if possible...*/
 	top = info->selected - (hgt / 2);
 	if (top < 0)
 		top = 0;
@@ -211,7 +215,7 @@ draw_menu (Menu menu, menu_info * info)
 	if (top < 0)
 		top = 0;
 
-	// Draw all visible items...
+	/* Draw all visible items...*/
 	for (i = top; i < bottom; i++, y++) {
 		if (i == info->selected)
 			lcd_ptr->chr (2, y, '>');
@@ -257,7 +261,7 @@ draw_menu (Menu menu, menu_info * info)
 		lcd_ptr->chr (1, hgt, 'v');
 
 	draw_heartbeat ();
-	//lcd_ptr->flush();
+	/*lcd_ptr->flush();*/
 
 	return 0;
 }
@@ -269,7 +273,7 @@ fill_menu_info (Menu menu, menu_info * info)
 
 	info->selected = 0;
 
-	// count the entries in the menu
+	/* count the entries in the menu*/
 	for (i = 0; menu[i].text; i++);
 
 	info->length = i;
@@ -298,7 +302,7 @@ slid_func (menu_item * item)
 	lcd_ptr->init_hbar ();
 
 	while (key != 'A' && key != 'D') {
-		// Draw the title...
+		/* Draw the title...*/
 		lcd_ptr->clear ();
 		lcd_ptr->chr (1, y, PAD);
 		lcd_ptr->chr (2, y, PAD);
@@ -306,7 +310,7 @@ slid_func (menu_item * item)
 		for (x = strlen (item->text) + 5; x <= lcd_ptr->wid; x++)
 			lcd_ptr->chr (x, y, PAD);
 
-		// Draw the slider now...
+		/* Draw the slider now...*/
 		value = readfunc (MENU_READ);
 		if (value < 0 || value >= MENU_CLOSE)
 			return value;
@@ -320,14 +324,14 @@ slid_func (menu_item * item)
 			value = ((lcd_ptr->wid - 4) * lcd_ptr->cellwid * value / 256);
 			lcd_ptr->hbar (1, 2, value);
 		}
-		//lcd_ptr->flush();
+		/*lcd_ptr->flush();*/
 
 		for (key = lcd_ptr->getkey (); key == 0; key = lcd_ptr->getkey ()) {
-			// do the heartbeat...
+			/* do the heartbeat...*/
 			draw_heartbeat ();
-			// sleep for 1/8th second...
+			/* sleep for 1/8th second...*/
 			framedelay ();
-			// Check for client input...
+			/* Check for client input...*/
 		}
 
 		switch (key) {
