@@ -133,7 +133,7 @@ draw_screen (screen * s, int timer)
 
 	/*debug(RPT_DEBUG, "draw_screen done");*/
 
-	if (heartbeat) {
+	if (heartbeat!=HEART_OFF) {
 		lcd_ptr->heartbeat(s->heartbeat);
 		/*moved to <driver>_heartbeat() in the driver code*/
 	}
