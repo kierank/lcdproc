@@ -274,6 +274,8 @@ clear_settings ()
 	strncpy( user, UNSET_STR, sizeof(user) );
 	daemon_mode = UNSET_INT;
 	enable_server_screen = UNSET_INT;
+	heartbeat = UNSET_INT;
+	heartbeat_state = UNSET_INT;
 	backlight = UNSET_INT;
 	backlight_state = UNSET_INT;
 
@@ -462,6 +464,45 @@ process_configfile ( char *configfile )
 		}
 	}
 
+	if( heartbeat == UNSET_INT ) {
+		s = config_get_string( "server", "heartbeat", 0, UNSET_STR );
+		if( strcmp( s, "on" ) == 0 ) {
+			heartbeat = HEARTBEAT_ON;
+			heartbeat_state = heartbeat;
+		}
+		else if( strcmp( s, "off" ) == 0 ) {
+			heartbeat = HEARTBEAT_OFF;
+			heartbeat_state = heartbeat;
+		}
+		else if( strcmp( s, "slash" ) == 0 ) {
+			heartbeat = HEARTBEAT_SLASH;
+			heartbeat_state = heartbeat;
+		}
+		else if( strcmp( s, "open" ) == 0 ) {
+			heartbeat = HEARTBEAT_OPEN;
+		}
+		else if( strcmp( s, UNSET_STR ) != 0 ) {
+			report( RPT_ERR, "Backlight should be on, off, slash or open" );
+		}
+	}
+
+	if( heartbeat == HEARTBEAT_OPEN && heartbeat_state == UNSET_INT ) {
+		s = config_get_string( "server", "initialheartbeat", 0, UNSET_STR );
+		if( strcmp( s, "on" ) == 0 ) {
+			heartbeat_state = HEARTBEAT_ON;
+		}
+		else if( strcmp( s, "off" ) == 0 ) {
+			heartbeat_state = HEARTBEAT_OFF;
+		}
+		else if( strcmp( s, "slash" ) == 0 ) {
+			heartbeat = HEARTBEAT_SLASH;
+			heartbeat_state = heartbeat;
+		}
+		else if( strcmp( s, UNSET_STR ) != 0 ) {
+			report( RPT_ERR, "Initial heartbeat should be on, off, or slash" );
+		}
+	}
+
 	if( backlight == UNSET_INT ) {
 		s = config_get_string( "server", "backlight", 0, UNSET_STR );
 		if( strcmp( s, "on" ) == 0 ) {
@@ -622,6 +663,11 @@ set_default_settings()
 
 	if (default_duration == UNSET_INT)
 		default_duration = DEFAULT_SCREEN_DURATION;
+
+	if (heartbeat == UNSET_INT)
+		heartbeat = HEARTBEAT_OPEN;
+	if (backlight_state == UNSET_INT)
+		heartbeat_state = HEARTBEAT_ON;
 
 	if (backlight == UNSET_INT)
 		backlight = BACKLIGHT_OPEN;
