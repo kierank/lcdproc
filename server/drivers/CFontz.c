@@ -1,6 +1,12 @@
 /*  This is the LCDproc driver for CrystalFontz devices (http://crystalfontz.com)
 
-    Copyright (C) 2001 ????
+    Copyright (C) 1999, William Ferrell and Scott Scriven
+		  2001, Philip Pokorny
+		  2001, David Douthitt
+		  2001, David Glaude
+		  2001, Joris Robijn
+		  2001, Eddie Sheldrake
+		  2001, Rene Wagner
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,9 +22,6 @@
     along with this program; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
 
-/*configfile support added by Rene Wagner (c) 2001*/
-/*backlight support modified by Rene Wagner (c) 2001*/
-/*block patch by Eddie Sheldrake (c) 2001 inserted by Rene Wagner*/
 
 #include <stdlib.h>
 #include <stdio.h>

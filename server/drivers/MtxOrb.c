@@ -7,7 +7,13 @@
 
     NOTE: GLK displays have a different driver.
 
-    Copyright (C) 2001 ????
+    Copyright (C) 1999, William Ferrell and Scott Scriven
+		  2001, André Breiler
+		  2001, Philip Pokorny
+		  2001, David Douthitt
+		  2001, David Glaude
+		  2001, Joris Robijn
+		  2001, Rene Wagner
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,9 +28,6 @@
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
     Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
-
-/* configfile support added by Rene Wagner (c) 2001*/
-/* general cleanup by Rene Wagner (c) 2001*/
 
 #include <stdlib.h>
 #include <stdio.h>

@@ -1,3 +1,29 @@
+/*  This is the LCDproc driver for ncurses.
+    It displays an emulated LCD display at on a terminal screen
+    using ncurses.
+
+    Copyright (C) 1999, William Ferrell and Scott Scriven
+		  1999, Björn Andersson
+		  2001, Philip Pokorny
+		  2001, David Douthitt
+		  2001, Guilaume Filion
+		  2001, David Glaude
+		  2001, Rene Wagner
+
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation; either version 2 of the License, or
+    any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software
+    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+
 #ifndef LCD_CURSES_H
 #define LCD_CURSES_H
 
