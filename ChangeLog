@@ -32,6 +32,8 @@ v0.4.3
    (http://www.easysw.com/epm) to generate packages of LCDproc
  + Added documentation in docbook format
    (LCDproc User's Guide - docs/lcdproc-user)
+ * Ported some screens of lcdproc to *BSD.
+ * Ported the parallel port functions in port.h to *BSD.
 
 v0.4.2:
  - Removed multiple output driver support - to simplify life
