@@ -147,6 +147,7 @@ void clear_settings();
 int process_command_line (int argc, char **argv);
 int process_configfile (char *cfgfile);
 void set_default_settings();
+void output_GPL_notice();
 int daemonize();
 int init_sockets();
 int drop_privs(char *user);
@@ -247,6 +248,7 @@ main (int argc, char **argv)
 		report(RPT_NOTICE, "Server forking to background");
 		ESSENTIAL( daemonize() );
 	} else {
+		output_GPL_notice();
 		report(RPT_NOTICE, "Server running in foreground");
 	}
 #endif
@@ -664,6 +666,32 @@ set_default_settings()
 	if( freemainmenukey == UNSET_INT ) {
 		freemainmenukey = DEFAULT_FREEMAINMENUKEY;
 	}
+}
+
+void
+output_GPL_notice()
+{
+	/* This will only be invoked when running in foreground
+	 * So, directly output to stderr
+	 */
+	fprintf (stderr, "LCDd %s, LCDproc Protocol %s\n", VERSION, PROTOCOL_VERSION);
+	fprintf (stderr, "Part of LCDproc\n");
+	fprintf (stderr, "Copyright (C) 1998-2002 William Ferrell, Scott Scriven\n");
+	fprintf (stderr, "                        and many other contributors\n\n");
+	fprintf (stderr, "This program is free software; you can redistribute it and/or\n");
+	fprintf (stderr, "modify it under the terms of the GNU General Public License\n");
+	fprintf (stderr, "as published by the Free Software Foundation; either version 2\n");
+	fprintf (stderr, "of the License, or (at your option) any later version.\n\n");
+
+	fprintf (stderr, "This program is distributed in the hope that it will be useful,\n");
+	fprintf (stderr, "but WITHOUT ANY WARRANTY; without even the implied warranty of\n");
+	fprintf (stderr, "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n");
+	fprintf (stderr, "GNU General Public License for more details.\n\n");
+
+	fprintf (stderr, "The file COPYING contains the GNU General Public License.\n");
+	fprintf (stderr, "You should have received a copy of the GNU General Public License\n");
+	fprintf (stderr, "along with this program; if not, write to the Free Software\n");
+	fprintf (stderr, "Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.\n\n");
 }
 
 
