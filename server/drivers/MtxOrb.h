@@ -49,14 +49,20 @@ int MtxOrb_init (lcd_logical_driver * driver, char *device);
 #define DEFAULT_CURSORBLINK	0
 
 /* These are the keys for a (possibly) broken LK202-25...*/
+/* NOTE: You should configure these settings in the configfile
+ *       These defines are just used to get *some* defaults
+ */
 #define KEY_UP    'I'
 #define KEY_DOWN  'F'
 #define KEY_LEFT  'K'
 #define KEY_RIGHT 'A'
 #define KEY_F1    'N'
-/* TODO: add more if you've got any more ;) or correct the settings
- * the actual translation is done in MtxOrb_getkey()
- */
+
+#define MTXORB_DEFAULT_PAUSE_KEY	KEY_F1
+#define MTXORB_DEFAULT_BACK_KEY		KEY_LEFT
+#define MTXORB_DEFAULT_FORWARD_KEY	KEY_RIGHT
+#define MTXORB_DEFAULT_MAIN_MENU_KEY	KEY_DOWN
+
 
 #endif
 

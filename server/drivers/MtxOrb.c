@@ -114,6 +114,10 @@ static int backlightenabled = DEFAULT_BACKLIGHT;
 static int backlight_state = -1;
 static int output_state = -1;
 
+static char pause_key = MTXORB_DEFAULT_PAUSE_KEY, back_key = MTXORB_DEFAULT_BACK_KEY;
+static char forward_key = MTXORB_DEFAULT_FORWARD_KEY, main_menu_key = MTXORB_DEFAULT_MAIN_MENU_KEY;
+static int keypad_test_mode = 0;
+
 static int def[9] = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
 static int use[9] = { 1, 0, 0, 0, 0, 0, 0, 0, 0 };
 
@@ -151,6 +155,24 @@ static void MtxOrb_set_known_char (int car, int type);
 /*
  * End of what was in MtxOrb.h
  */
+
+/* Parse one key from the configfile */
+static char MtxOrb_parse_keypad_setting (char * sectionname, char * keyname, char default_value)
+{
+	char return_val = 0;
+	char * s;
+	char buf [255];
+
+	s = config_get_string ( sectionname, keyname, 0, NULL);
+	if (s != NULL){
+		strncpy (buf, s, sizeof(buf));
+		buf[sizeof(buf)-1]=0;
+		return_val = buf[0];
+	} else {
+		return_val=default_value;
+	}
+	return return_val;
+}
 
 /* Very private function that clear internal definition.*/
 static void
@@ -279,6 +301,35 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 		return (-1);
 		}
 
+	/* Get keypad settings*/
+
+	/* keypad test mode? */
+	if (config_get_bool( DriverName , "keypad_test_mode" , 0 , 0)) {
+		report (RPT_INFO, "MtxOrb: Entering keypad test mode...\n");
+		keypad_test_mode = 1;
+	}
+
+	if (!keypad_test_mode) {
+		/* We don't send any chars to the server in keypad test mode.
+		 * So there's no need to get them from the configfile in keypad test mode.
+		 */
+		/* pause_key */
+		pause_key = MtxOrb_parse_keypad_setting (DriverName, "pause_key", MTXORB_DEFAULT_PAUSE_KEY);
+		report (RPT_DEBUG, "MtxOrb: Using \"%c\" as pause_key.", pause_key);
+
+		/* back_key */
+		back_key = MtxOrb_parse_keypad_setting (DriverName, "back_key", MTXORB_DEFAULT_BACK_KEY);
+		report (RPT_DEBUG, "MtxOrb: Using \"%c\" as back_key", back_key);
+
+		/* forward_key */
+		forward_key = MtxOrb_parse_keypad_setting (DriverName, "forward_key", MTXORB_DEFAULT_FORWARD_KEY);
+		report (RPT_DEBUG, "MtxOrb: Using \"%c\" as forward_key", forward_key);
+
+		/* main_menu_key */
+		main_menu_key = MtxOrb_parse_keypad_setting (DriverName, "main_menu_key", MTXORB_DEFAULT_MAIN_MENU_KEY);
+		report (RPT_DEBUG, "MtxOrb: Using \"%c\" as main_menu_key", main_menu_key);
+	}
+
 	/* End of config file parsing*/
 
 
@@ -345,7 +396,15 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 	/*
 	 * Configure the display functions
 	 */
-	driver->daemonize = 1; /* make the server daemonize after initialization*/
+
+	if (!keypad_test_mode) {
+		/* make the server daemonize after initialization*/
+		driver->daemonize = 1;
+	} else {
+		/* We're running in keypad_test_mode now, so don't daemonize */
+		driver->daemonize = 0;
+		fprintf(stdout, "MtxOrb: Press a key of your device.\n");
+	}
 
 	driver->clear = MtxOrb_clear;
 	driver->string = MtxOrb_string;
@@ -1066,26 +1125,29 @@ MtxOrb_getkey ()
 {
 	char in = 0;
 
-	/*Reno's TODO: Put this into the configfile!*/
-
 	read (fd, &in, 1);
-	switch (in) {
-		case KEY_LEFT:
-			in = INPUT_BACK_KEY;
-			break;
-		case KEY_RIGHT:
-			in = INPUT_FORWARD_KEY;
-			break;
-		case KEY_DOWN:
-			in = INPUT_MAIN_MENU_KEY;
-			break;
-		case KEY_F1:
+	if (!keypad_test_mode) {
+		if (in==pause_key) {
 			in = INPUT_PAUSE_KEY;
-			break;
+		} else if (in==back_key) {
+			in = INPUT_BACK_KEY;
+		} else if (in==forward_key){
+			in = INPUT_FORWARD_KEY;
+		} else if (in==main_menu_key) {
+			in = INPUT_MAIN_MENU_KEY;
+		}
 		/*TODO: add more translations here (if neccessary)*/
-		default:
+	} else {
+		/* We're running in keypad_test_mode.
+		 * So only output the character that has been received.
+		 * The output goes directly to stdout. Otherwise it might
+		 * not be visible because of the report level
+		 */
+		if (in!=0) {
+			fprintf (stdout, "MtxOrb: Received character %c\n", in);
 			in = 0;
-			break;
+			fprintf (stdout, "MtxOrb: Press another key of your device.\n");
+		}
 	}
 
 	return in;
