@@ -227,7 +227,7 @@ set_background_color (char * buf) {
 #define TOP_LEFT_X 7
 #define TOP_LEFT_Y 7
 
-static int current_color_pair, current_border_pair, curses_backlight_state = 0;
+static int current_color_pair, current_border_pair, curses_backlight_state = 0, useoldvbar=0;
 
 int
 curses_drv_init (struct lcd_logical_driver *driver, char *args)
@@ -294,6 +294,11 @@ curses_drv_init (struct lcd_logical_driver *driver, char *args)
 	} else {
 		report (RPT_WARNING, "CURSES: toplefty must between 0 and 255. Using default value %d.\n",CURSESDRV_DEF_TOP_LEFT_Y);
 	}
+
+	 /*Use the old vbar map? (The new one doesn't seem to work with all curses implementaions)*/
+       if(config_get_bool( DriverName , "useoldvbarmap" , 0 , 0)) {
+               useoldvbar = 1;
+       }
 
 	//debug: sleep(1);
 
@@ -556,8 +561,15 @@ curses_drv_num (int x, int num)
 void
 curses_drv_vbar (int x, int len)
 {
-	int y;
+	int y,i;
 	char map[] = { ACS_S9, ACS_S9, ACS_S7, ACS_S7, ACS_S3, ACS_S3, ACS_S1, ACS_S1 };
+        char oldmap[] = {'_','.',',',',','o','o','O','8'};
+
+        if (useoldvbar) {
+                for (i=0; i<8; i++){
+                        map[i] = oldmap[i];
+                }
+        }
 
 	ValidX(x);
 
