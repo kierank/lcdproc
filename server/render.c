@@ -82,13 +82,19 @@ draw_screen (screen * s, int timer)
 	 */
 
 	/* If the screen's backlight_state isn't set (default) then we
-	 * inherit the backlight state from the parent client. This allows
-	 * the client to override it's childrens settings.
+	 * inherit the backlight state from the parent client.
 	 */
 	if (s->backlight_state == BACKLIGHT_NOTSET) {
 		if (s->parent) tmp_state = s->parent->backlight_state;
 	} else {
-		tmp_state = s->backlight_state;
+		/* If the client wants to override settings of its screens
+		 * we inherit the clients backlight state anyway
+		 */
+		if ((s->parent)&&(s->parent->backlight_state!=BACKLIGHT_OPEN)) {
+			tmp_state = s->parent->backlight_state;
+		} else {
+			tmp_state = s->backlight_state;
+		}
 	}
 
 	/* Set up backlight to the correct state...

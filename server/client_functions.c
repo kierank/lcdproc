@@ -729,33 +729,28 @@ screen_set_func (client * c, int argc, char **argv)
 			if (argc > i + 1) {
 				i++;
 				debug (RPT_DEBUG, "screen_set: backlight=\"%s\"", argv[i]);
-				/* set the backlight status based on what the client has set*/
-				switch(c->backlight_state) {
-					case BACKLIGHT_OPEN:
-						if (strcmp ("on", argv[i]) == 0)
-							s->backlight_state = BACKLIGHT_ON;
+				/* set the backlight status of the screen
+				 * The rest is done in render.c.
+				 */
+				if (strcmp ("on", argv[i]) == 0)
+					s->backlight_state = BACKLIGHT_ON;
 
-						if (strcmp ("off", argv[i]) == 0)
-							s->backlight_state = BACKLIGHT_OFF;
+				if (strcmp ("off", argv[i]) == 0)
+					s->backlight_state = BACKLIGHT_OFF;
 
-						if (strcmp ("toggle", argv[i]) == 0) {
-							if (s->backlight_state == BACKLIGHT_ON)
-								s->backlight_state = BACKLIGHT_OFF;
-							else if (s-backlight_state == BACKLIGHT_OFF)
-								s->backlight_state = BACKLIGHT_ON;
-						}
+				if (strcmp ("toggle", argv[i]) == 0) {
+					if (s->backlight_state == BACKLIGHT_ON)
+						s->backlight_state = BACKLIGHT_OFF;
+					else if (s-backlight_state == BACKLIGHT_OFF)
+						s->backlight_state = BACKLIGHT_ON;
+					}
 
-						if (strcmp ("blink", argv[i]) == 0)
-							s->backlight_state  |= BACKLIGHT_BLINK;
+				if (strcmp ("blink", argv[i]) == 0)
+					s->backlight_state  |= BACKLIGHT_BLINK;
 
-						if (strcmp ("flash", argv[i]) == 0)
-							s->backlight_state |= BACKLIGHT_FLASH;
-					break;
-					default:
-						/*If the backlight is not OPEN then inherit its state*/
-						s->backlight_state = c->backlight_state;
-					break;
-				}
+				if (strcmp ("flash", argv[i]) == 0)
+					s->backlight_state |= BACKLIGHT_FLASH;
+
 				sock_send_string(c->sock, "success\n");
 			} else {
 				sock_send_string (c->sock, "huh? -backlight requires a parameter\n");
