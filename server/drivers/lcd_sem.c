@@ -18,7 +18,7 @@
  * GNU's GPL. In particular, this program is free software and comes WITHOUT
  * ANY WARRANTY.
  * 
- * $Id: lcd_sem.c,v 1.5 2001/12/25 19:28:54 gfk Exp $
+ * $Id: lcd_sem.c,v 1.5.2.1 2002/04/29 12:12:53 reenoo Exp $
  */
 
 #include <config.h>
@@ -56,8 +56,6 @@ static key_t getkey (register char *p);
 /* global variables */
 static struct sembuf semaphore_wait = { SEM_WAIT };
 static struct sembuf semaphore_signal = { SEM_SIGNAL };
-
-static char rcsId[] = "$Id: lcd_sem.c,v 1.5 2001/12/25 19:28:54 gfk Exp $";
 
 /*
  * getkey  returns the key for the semaphore
