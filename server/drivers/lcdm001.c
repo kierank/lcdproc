@@ -21,9 +21,13 @@
    See the file MtxOrb.c for copyright details */
 /* The heartbeat workaround has been taken from the curses driver
    See the file curses_drv.c for copyright details */
+/* The hbar and vbar workarounds are based on the curses driver
+   See the file curses_drv.c for copyright details */
 /* The function calls needed for reporting and getting settings from the
    configfile have been written taking the calls in
    sed1330.c ((C) by Joris Robijn) as examples*/
+/* The backingstore implementation is based on the code in CFontz.c
+   (C) 2002 by Mike Patnode */
 /* (Hopefully I have NOT forgotten any file I have stolen code from.
    If so send me an e-mail or add your copyright here!) */
 
@@ -85,6 +89,8 @@ int fd;
 static int clear = 1;
 static char icon_char = LCDM001_PAD;
 static char pause_key = LCDM001_DOWN_KEY, back_key = LCDM001_LEFT_KEY, forward_key = LCDM001_RIGHT_KEY, main_menu_key = LCDM001_UP_KEY;
+
+static char* oldframebuf = NULL;
 
 static char num_icon [10][4][3] = 	{{{' ','_',' '}, /*0*/
 					  {'|',' ','|'},
@@ -202,8 +208,9 @@ lcdm001_init (struct lcd_logical_driver *driver, char *args)
 	if (!driver->framebuf) {
 		driver->framebuf = malloc (driver->wid * driver->hgt);
 	}
+	oldframebuf = calloc (driver->wid * driver->hgt, 1);
 
-	if (!driver->framebuf) {
+	if (!(driver->framebuf && oldframebuf)) {
 		report(RPT_ERR, "Error: unable to create LCDM001 framebuffer.");
 		return -1;
 	}
@@ -329,6 +336,12 @@ lcdm001_close ()
 		free (lcdm001->framebuf);
 
 	lcdm001->framebuf = NULL;
+
+	if (oldframebuf != NULL)
+		free (oldframebuf);
+
+	oldframebuf = NULL;
+
 	/*switch off all LEDs*/
 	snprintf (out, sizeof(out), "%cL%c%c", 126, 0, 0);
 	write (fd, out, 4);
@@ -373,7 +386,7 @@ lcdm001_flush_box (int lft, int top, int rgt, int bot)
 	char out[LCD_MAX_WIDTH];
 
 	for (y = top; y <= bot; y++) {
-		snprintf (out, sizeof(out), "%cP%c%c", 126, lft, y);
+		snprintf (out, sizeof(out), "%cP%1d%2d", 126, lft, y);
 		write (fd, out, 4);
 		write (fd, lcdm001->framebuf + (y * lcdm001->wid) + lft, rgt - lft + 1);
 	}
@@ -466,22 +479,26 @@ lcdm001_output (int on)
 static void
 lcdm001_vbar(int x, int len)
 {
-   int y = 4;
+   int y;
+   char map[] = {'_','.',',',',','o','o','O','8'};
+
+   y=lcdm001->hgt;
 
    debug (RPT_DEBUG , "LCDM001: vertical bar at %d set to %d", x, len);
 
-   while (len >= 8)
+   while (len >= lcdm001->cellhgt)
      {
        lcdm001_chr(x, y, 0xFF);
-       len -= 8;
+       len -= lcdm001->cellhgt;
        y--;
      }
 
    if(!len)
      return;
-
-  /*TODO: Distinguish between len>=4 and len<4*/
-
+   else
+     {
+       lcdm001_chr(x, y, map[len-1]);
+     }
 }
 
 /*****************************************************************
@@ -500,9 +517,14 @@ lcdm001_hbar(int x, int y, int len)
 
   while((x <= lcdm001->wid) && (len > 0))
   {
+    if(len < (int) lcdm001->cellwid / 2)
+      {
+	lcdm001_chr(x, y, '-');
+	break;
+      }
     if(len < lcdm001->cellwid)
       {
-	/*lcdm001_chr(x, y, 0x98 + len);*/
+	lcdm001_chr(x, y, '=');
 	break;
       }
 
@@ -565,10 +587,33 @@ lcdm001_icon (int which, char dest)
 void
 lcdm001_draw_frame (char *dat)
 {
+	char out[LCD_MAX_WIDTH];
+	char *row, *oldrow;
+	int i, written=-2;
 
-        /*TODO: Check whether this is still correct*/
+	if (!dat)
+		return;
 
-	write(fd,lcdm001->framebuf,lcdm001->wid * lcdm001->hgt);
+	for (i = 0; i < lcdm001->hgt; i++) {
+
+		row = dat + (lcdm001->wid * i);
+		oldrow = oldframebuf + (lcdm001->wid * i);
+
+		/* Backing-store implementation.  If it's already
+		 * on the screen, don't put it there again
+		 */
+		if (memcmp(oldrow, row, lcdm001->wid) == 0)
+		    continue;
+
+        /* else, write out the entire row */
+		memcpy(oldrow, row, lcdm001->wid);
+		if ((!(i-1==written)) || i==0) {
+			snprintf (out, sizeof(out), "%cP%1d00", 126, i);
+			write (fd, out, 5);
+		}
+		write (fd, row, lcdm001->wid);
+		written=i;
+	}
 }
 
 /**********************************************************************
