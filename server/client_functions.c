@@ -630,6 +630,9 @@ screen_set_func (client * c, int argc, char **argv)
 				number = atoi (argv[i]);
 				if (number > 0)
 					s->priority = number;
+
+				/* resort according to priority */
+				screenlist_next ();
 				sock_send_string(c->sock, "success\n");
 			} else {
 				sock_send_string (c->sock, "huh? -priority requires a parameter\n");
