@@ -273,6 +273,9 @@ clear_settings ()
 	backlight = UNSET_INT;
 	backlight_state = UNSET_INT;
 
+	backlight_brightness = UNSET_INT;
+	backlight_off_brightness = UNSET_INT;
+
 	default_duration = UNSET_INT;
 	reportToSyslog = UNSET_INT;
 	reportLevel = UNSET_INT;
@@ -484,6 +487,26 @@ process_configfile ( char *configfile )
 		}
 	}
 
+	if( backlight_brightness == UNSET_INT ) {
+		i = config_get_int( "server", "backlightbrightness", 0, UNSET_INT );
+		if( (0 <= i) && (i <= 255) ) {
+			backlight_brightness = i;
+		}
+		else {
+			report( RPT_ERR, "BacklightBrightness should be an integer value between 0 and 255" );
+		}
+	}
+
+	if( backlight_off_brightness == UNSET_INT ) {
+		i = config_get_int( "server", "backlightoffbrightness", 0, UNSET_INT );
+		if( (0 <= i) && (i <= 255) ) {
+			backlight_off_brightness = i;
+		}
+		else {
+			report( RPT_ERR, "BacklightOffBrightness should be an integer value between 0 and 255" );
+		}
+	}
+
 	if( reportToSyslog == UNSET_INT ) {
 		/* Is the value set in the config file anyway ?*/
 		if( strcmp( config_get_string( "server", "reportToSyslog", 0, "" ), "" ) != 0 ) {
@@ -567,6 +590,12 @@ set_default_settings()
 		backlight = BACKLIGHT_OPEN;
 	if (backlight_state == UNSET_INT)
 		backlight_state = BACKLIGHT_OFF;
+
+	if (backlight_brightness == UNSET_INT)
+		backlight_brightness = DEF_BACKLIGHT_BRIGHTNESS;
+	if (backlight_off_brightness == UNSET_INT)
+		backlight_off_brightness = DEF_BACKLIGHT_BRIGHTNESS;
+
 
 	if (reportToSyslog == UNSET_INT )
 		reportToSyslog = DEFAULT_REPORTTOSYSLOG;
