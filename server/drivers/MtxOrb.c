@@ -1149,9 +1149,9 @@ MtxOrb_getkey ()
 			} else if (in==main_menu_key) {
 				in = INPUT_MAIN_MENU_KEY;
 			}
-			/*TODO: add more translations here (if neccessary)*/
+			/*TODO: add more translations here (anything flexible that can be done from LCDd.conf ...)*/
 			  else {
-			  	in = 0;
+			  	/*in = 0;*/ /*Enable this if your display sends garbage*/
 			}
 			report(RPT_DEBUG, "MtxOrb: getkey(): returning %c", in);
 		} else {
