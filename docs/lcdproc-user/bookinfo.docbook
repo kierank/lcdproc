@@ -11,6 +11,18 @@
 <affiliation><address><email>reenoo@gmx.de</email></address></affiliation>
 </author>
 
+<author>
+<firstname>Guillaume</firstname>
+<surname>Filion</surname>
+<affiliation><address><email>gfk@logidac.com</email></address></affiliation>
+</author>
+
+<author>
+<firstname>William W.</firstname>
+<surname>Ferrell</surname>
+<affiliation><address><email>wwf@splatwerks.org</email></address></affiliation>
+</author>
+
 </authorgroup>
 
 <date>2002-03-01</date>
@@ -27,6 +39,14 @@ will change for 0.5.
 <copyright>
 <year>2002</year>
 <holder>Rene Wagner</holder>
+</copyright>
+<copyright>
+<year>2002</year>
+<holder>Guillaume Filion</holder>
+</copyright>
+<copyright>
+<year>1999</year>
+<holder>William W. Ferrell</holder>
 </copyright>
 
 <legalnotice>

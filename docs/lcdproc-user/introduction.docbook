@@ -25,14 +25,18 @@ docbook files in the CVS).
 
 <para>
 This document was written for LCDproc 0.4.3. At the time of writing there had already
-been the "LCDproc User's Guide" written by William W. Ferrel in 1998. William's stuff
-is copyright &copy; 1998, William W. Ferrel. His version covered
+been the "LCDproc User's Guide" written by William W. Ferrel in 1999. His version covered
 an early version of LCDproc and therefore concentrated on Matrix Orbital displays.
 </para>
 
 <para>
 William's document was "recycled" for the description of the Matrix Orbital display driver
 and for other parts of this document.
+</para>
+
+<para>
+In several other places e-mails and other documents have been included in this
+document. The authors of those are listed below every such document.
 </para>
 
 </sect1>
