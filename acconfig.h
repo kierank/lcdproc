@@ -1,5 +1,5 @@
 /* acconfig.h
-   $Id: acconfig.h,v 1.2 1999/12/16 09:21:20 ban Exp $
+   $Id: acconfig.h,v 1.3 2000/01/05 00:03:25 toykeeper Exp $
    This file is in the public domain.
 
    Descriptive text for the C preprocessor macros that
@@ -39,6 +39,9 @@
 
 /* Define the package name */
 #undef PACKAGE
+
+/* Define the protocol version */
+#undef PROTOCOL_VERSION
 
 #undef SLI_DRV
 
