@@ -1124,6 +1124,23 @@ It will show lines filled with blocks. The position of these lines will depend o
 
 <qandaentry>
 <question><para>
+What should a properly connected (but not initialised) HD44780 LCD show? 
+</para></question>
+<answer><para>
+The fact of being properly connected won't affect the content of the display. So it should be lines filled with blocks like in the precending question.
+</para></answer>
+</qandaentry>
+
+<qandaentry>
+<question><para>
+What should a properly initialised HD44780 LCD show? 
+</para></question>
+<answer><para>
+Once initialised, the HD44780 will go blank, then show what it receives from LCDproc. Generaly it will be something like "Clients: 0 Screens: 0".</para></answer>
+</qandaentry>
+
+<qandaentry>
+<question><para>
 What should be the BIOS LPT port type?
 </para></question>
 <answer><para>
