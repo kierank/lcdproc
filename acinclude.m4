@@ -153,19 +153,34 @@ dnl				else
 			)
 			;;
 		sed1330)
-			DRIVERS="$DRIVERS sed1330.o"
-			AC_DEFINE(SED1330_DRV)
-			actdrivers=["$actdrivers sed1330"]
+			if test "$ac_cv_port_have_lpt" = yes
+			then
+				DRIVERS="$DRIVERS sed1330.o"
+				AC_DEFINE(SED1330_DRV)
+				actdrivers=["$actdrivers sed1330"]
+			else
+				AC_MSG_WARN([The sed1330 driver needs a parallel port.])
+			fi
 			;;
 		sed1520)
-			DRIVERS="$DRIVERS sed1520.o"
-			AC_DEFINE(SED1520_DRV)
-			actdrivers=["$actdrivers sed1520"]
+			if test "$ac_cv_port_have_lpt" = yes
+			then
+				DRIVERS="$DRIVERS sed1520.o"
+				AC_DEFINE(SED1520_DRV)
+				actdrivers=["$actdrivers sed1520"]
+			else
+				AC_MSG_WARN([The sed1520 driver needs a parallel port.])
+			fi
 			;;
 		stv5730)
-			DRIVERS="$DRIVERS stv5730.o"
-			AC_DEFINE(STV5730_DRV)
-			actdrivers=["$actdrivers stv5730"]
+			if test "$ac_cv_port_have_lpt" = yes
+			then
+				DRIVERS="$DRIVERS stv5730.o"
+				AC_DEFINE(STV5730_DRV)
+				actdrivers=["$actdrivers stv5730"]
+			else
+				AC_MSG_WARN([The stv5730 driver needs a parallel port.])
+			fi
 			;;
 		svgalib)
 			AC_CHECK_LIB(vga, main, 
@@ -178,9 +193,14 @@ dnl				else
 				AC_MSG_WARN([The svgalib driver needs the vga library]))
 			;;
 		t6963)
-			DRIVERS="$DRIVERS t6963.o"
-			AC_DEFINE(T6963_DRV)
-			actdrivers=["$actdrivers t6963"]
+			if test "$ac_cv_port_have_lpt" = yes
+			then
+				DRIVERS="$DRIVERS t6963.o"
+				AC_DEFINE(T6963_DRV)
+				actdrivers=["$actdrivers t6963"]
+			else
+				AC_MSG_WARN([The t6963 driver needs a parallel port.])
+			fi
 			;;
 	*) 	
 			AC_MSG_ERROR([Unknown driver $driver])

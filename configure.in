@@ -81,7 +81,7 @@ AC_CHECK_LIB(kvm, kvm_open,[
 ])
 
 dnl NetBSD, OpenBSD and FreeBSD
-AC_CHECK_HEADERS(sched.h sys/sched.h sys/types.h machine/pio.h machine/sysarch.h sys/cpuvar.h)
+AC_CHECK_HEADERS(sched.h sys/sched.h machine/cpufunc.h sys/types.h machine/pio.h machine/sysarch.h sys/cpuvar.h)
 ETR_SYSV_IPC
 ETR_UNION_SEMUN
 
@@ -96,10 +96,25 @@ AC_CHECK_LIB(i386, i386_get_ioperm,
         [])]
 )
 
+AC_CHECK_FUNCS(ioperm)
+AC_CHECK_HEADERS(sys/io.h)
+
+dnl Check if we support this parallel (LPT) port
+dnl IMPORTANT: we must do all the checks used in port.h before doing this test!
+AC_CACHE_CHECK([for a parallel port], ac_cv_port_have_lpt,
+[AC_TRY_COMPILE([#include "server/drivers/port.h"], [char val = port_in(0x350)], ac_cv_port_have_lpt=yes, ac_cv_port_have_lpt=no)])
+
+if test "$ac_cv_port_have_lpt" = yes
+then
+	AC_DEFINE([HAVE_LPT_PORT],[1],[Define if you have a parallel port and LCDproc knows how to talk to it.])
+else
+	AC_MSG_WARN([Can't talk to the parallel port, disabling drivers that use it.])
+fi
+
 dnl Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_STDC
-AC_CHECK_HEADERS(fcntl.h sys/ioctl.h sys/time.h unistd.h sys/io.h errno.h)
+AC_CHECK_HEADERS(fcntl.h sys/ioctl.h sys/time.h unistd.h errno.h)
 AC_CHECK_HEADERS(limits.h kvm.h sys/param.h sys/sysctl.h sys/dkstat.h)
 
 dnl Check for particular preprocessor macros
@@ -115,7 +130,7 @@ AC_TYPE_UID_T
 dnl Checks for library functions.
 AC_PROG_GCC_TRADITIONAL
 AC_TYPE_SIGNAL
-AC_CHECK_FUNCS(select socket strdup strerror strtol uname cfmakeraw ioperm)
+AC_CHECK_FUNCS(select socket strdup strerror strtol uname cfmakeraw)
 
 dnl Check for various defines and features
 
