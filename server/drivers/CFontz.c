@@ -658,9 +658,14 @@ CFontz_num (int x, int num)
 /* Make this space dirty as far as frame buffer knows.*/
 	for (y = 0; y < 4; y++)
 		for (dx = 0; dx < 3; dx++)
-			/* writing to backingstore should prevent the display from flickering*/
+		{
+			/* writing to framebuf erase what ever is below the bignum. */
+			CFontz->framebuf[(y * CFontz->wid) + x + dx]= DIRTY_CHAR;
+			/* writing to backingstore too prevent the display from flickering*/
 			if (backingstore)
 				backingstore[(y * CFontz->wid) + x + dx]= DIRTY_CHAR;
+
+		}
 
 }
 
