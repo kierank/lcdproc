@@ -38,18 +38,18 @@ if [ ${NETWORKING} = "no" ]; then
         exit 0
 fi
 
-[ -f /usr/sbin/LCDd ] || exit 0
-
 RETVAL=0
 
 prefix=@prefix@
 exec_prefix=@exec_prefix@
 bindir=@bindir@
 sbindir=@sbindir@
-etc=@sysconfdir@
+etc=/etc
 
 LCDd=${sbindir}/LCDd
 configfile=${etc}/LCDd.conf
+
+[ -f ${LCDd} ] || exit 0
 
 start() {
 	echo -n "Starting up LCDd: "
@@ -101,7 +101,7 @@ case "$1" in
 	condrestart
 	;;
   *)
-	echo "Usage: LCDd {start|stop|status|restart|condrestart}"
+	echo "Usage: $0 {start|stop|status|restart|condrestart}"
 	exit 1
 esac
 

@@ -38,8 +38,6 @@ if [ ${NETWORKING} = "no" ]; then
         exit 0
 fi
 
-[ -f /usr/sbin/lcdproc ] || exit 0
-
 RETVAL=0
 
 prefix=@prefix@
@@ -49,6 +47,9 @@ sbindir=@sbindir@
 etc=@sysconfdir@
 
 lcdproc=${bindir}/lcdproc
+
+[ -f ${lcdproc} ] || exit 0
+
 
 start() {
 	echo -n "Starting up lcdproc: "
@@ -100,7 +101,7 @@ case "$1" in
 	condrestart
 	;;
   *)
-	echo "Usage: lcdproc {start|stop|status|restart|condrestart}"
+	echo "Usage: $0 {start|stop|status|restart|condrestart}"
 	exit 1
 esac
 
