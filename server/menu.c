@@ -111,9 +111,12 @@ do_menu (Menu menu)
 		 * FIXME: handles things according to keybindings...
 		 */
 
-		for (key = lcd_ptr->getkey (); key == 0; key = lcd_ptr->getkey ()) {
+		key = lcd_ptr->getkey (); /* A for loop doesn't work properly */
+		while ( key == 0) {
 			/* sleep for 1/8th second...*/
-			framedelay ();
+			framedelay();
+			/* read from the driver */
+			key = lcd_ptr->getkey ();
 			/* do the heartbeat...*/
 			lcd_ptr->heartbeat (heartbeat);
 			/* Check for client input...*/
