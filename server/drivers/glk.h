@@ -28,8 +28,8 @@ extern lcd_logical_driver *glk;
 
 int glk_init(struct lcd_logical_driver *driver, char *args);
 
-#define DEFAULT_DEVICE "/dev/lcd"
-#define DEFAULT_CONTRAST 140
-#define DEFAULT_SPEED B19200
+#define GLK_DEF_DEVICE "/dev/lcd"
+#define GLK_DEF_CONTRAST 140
+#define GLK_DEF_SPEED B19200
 
 #endif

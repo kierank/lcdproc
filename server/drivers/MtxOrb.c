@@ -109,13 +109,13 @@ static int custom = 0;
 static enum {MTXORB_LCD, MTXORB_LKD, MTXORB_VFD, MTXORB_VKD} MtxOrb_type;
 static int fd;
 static int clear = 1;
-static int backlightenabled = DEFAULT_BACKLIGHT;
+static int backlightenabled = MTXORB_DEF_BACKLIGHT;
 
 static int backlight_state = -1;
 static int output_state = -1;
 
-static char pause_key = MTXORB_DEFAULT_PAUSE_KEY, back_key = MTXORB_DEFAULT_BACK_KEY;
-static char forward_key = MTXORB_DEFAULT_FORWARD_KEY, main_menu_key = MTXORB_DEFAULT_MAIN_MENU_KEY;
+static char pause_key = MTXORB_DEF_PAUSE_KEY, back_key = MTXORB_DEF_BACK_KEY;
+static char forward_key = MTXORB_DEF_FORWARD_KEY, main_menu_key = MTXORB_DEF_MAIN_MENU_KEY;
 static int keypad_test_mode = 0;
 
 static int def[9] = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
@@ -199,10 +199,10 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 {
 	struct termios portset;
 
-	int contrast = DEFAULT_CONTRAST;
-	char device[256] = DEFAULT_DEVICE;
-	int speed = DEFAULT_SPEED;
-	char size[256] = DEFAULT_SIZE;
+	int contrast = MTXORB_DEF_CONTRAST;
+	char device[256] = MTXORB_DEF_DEVICE;
+	int speed = MTXORB_DEF_SPEED;
+	char size[256] = MTXORB_DEF_SIZE;
 	char buf[256] = "";
 	int tmp, w, h;
 
@@ -219,31 +219,31 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 	/* READ CONFIG FILE */
 
 	/* Get serial device to use */
-	strncpy(device, config_get_string ( DriverName , "device" , 0 , DEFAULT_DEVICE),sizeof(device));
+	strncpy(device, config_get_string ( DriverName , "device" , 0 , MTXORB_DEF_DEVICE),sizeof(device));
 	device[sizeof(device)-1]=0;
 	report (RPT_INFO,"MtxOrb: Using device: %s", device);
 
 	/* Get display size */
-	strncpy(size, config_get_string ( DriverName , "size" , 0 , DEFAULT_SIZE),sizeof(size));
+	strncpy(size, config_get_string ( DriverName , "size" , 0 , MTXORB_DEF_SIZE),sizeof(size));
 	size[sizeof(size)-1]=0;
 	if( sscanf(size , "%dx%d", &w, &h ) != 2
 	|| (w <= 0) || (w > LCD_MAX_WIDTH)
 	|| (h <= 0) || (h > LCD_MAX_HEIGHT)) {
-		report (RPT_WARNING, "MtxOrb: Cannot read size: %s. Using default value %s.", size, DEFAULT_SIZE);
-		sscanf( DEFAULT_SIZE , "%dx%d", &w, &h );
+		report (RPT_WARNING, "MtxOrb: Cannot read size: %s. Using default value %s.", size, MTXORB_DEF_SIZE);
+		sscanf( MTXORB_DEF_SIZE , "%dx%d", &w, &h );
 	}
 	driver->wid = w;
 	driver->hgt = h;
 
 	/* Get contrast */
-	if (0<=config_get_int ( DriverName , "Contrast" , 0 , DEFAULT_CONTRAST) && config_get_int ( DriverName , "Contrast" , 0 , DEFAULT_CONTRAST) <= 255) {
-		contrast = config_get_int ( DriverName , "Contrast" , 0 , DEFAULT_CONTRAST);
+	if (0<=config_get_int ( DriverName , "Contrast" , 0 , MTXORB_DEF_CONTRAST) && config_get_int ( DriverName , "Contrast" , 0 , MTXORB_DEF_CONTRAST) <= 255) {
+		contrast = config_get_int ( DriverName , "Contrast" , 0 , MTXORB_DEF_CONTRAST);
 	} else {
 		report (RPT_WARNING, "MtxOrb: Contrast must be between 0 and 255. Using default value.");
 	}
 
 	/* Get speed */
-	tmp = config_get_int ( DriverName , "Speed" , 0 , DEFAULT_SPEED);
+	tmp = config_get_int ( DriverName , "Speed" , 0 , MTXORB_DEF_SPEED);
 
 	switch (tmp) {
 		case 1200:
@@ -259,7 +259,7 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 			speed = B19200;
 			break;
 		default:
-			speed = DEFAULT_SPEED;
+			speed = MTXORB_DEF_SPEED;
 			switch (speed) {
 				case B1200:
 					strncpy(buf,"1200", sizeof(buf));
@@ -280,12 +280,12 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 
 
 	/* Get backlight setting*/
-	if(config_get_bool( DriverName , "enablebacklight" , 0 , DEFAULT_BACKLIGHT)) {
+	if(config_get_bool( DriverName , "enablebacklight" , 0 , MTXORB_DEF_BACKLIGHT)) {
 		backlightenabled = 1;
 	}
 
 	/* Get display type */
-	strncpy(buf, config_get_string ( DriverName , "type" , 0 , DEFAULT_TYPE),sizeof(size));
+	strncpy(buf, config_get_string ( DriverName , "type" , 0 , MTXORB_DEF_TYPE),sizeof(size));
 	buf[sizeof(buf)-1]=0;
 
 	if (strncasecmp(buf, "lcd", 3) == 0) {
@@ -314,19 +314,19 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 		 * So there's no need to get them from the configfile in keypad test mode.
 		 */
 		/* pause_key */
-		pause_key = MtxOrb_parse_keypad_setting (DriverName, "pause_key", MTXORB_DEFAULT_PAUSE_KEY);
+		pause_key = MtxOrb_parse_keypad_setting (DriverName, "pause_key", MTXORB_DEF_PAUSE_KEY);
 		report (RPT_DEBUG, "MtxOrb: Using \"%c\" as pause_key.", pause_key);
 
 		/* back_key */
-		back_key = MtxOrb_parse_keypad_setting (DriverName, "back_key", MTXORB_DEFAULT_BACK_KEY);
+		back_key = MtxOrb_parse_keypad_setting (DriverName, "back_key", MTXORB_DEF_BACK_KEY);
 		report (RPT_DEBUG, "MtxOrb: Using \"%c\" as back_key", back_key);
 
 		/* forward_key */
-		forward_key = MtxOrb_parse_keypad_setting (DriverName, "forward_key", MTXORB_DEFAULT_FORWARD_KEY);
+		forward_key = MtxOrb_parse_keypad_setting (DriverName, "forward_key", MTXORB_DEF_FORWARD_KEY);
 		report (RPT_DEBUG, "MtxOrb: Using \"%c\" as forward_key", forward_key);
 
 		/* main_menu_key */
-		main_menu_key = MtxOrb_parse_keypad_setting (DriverName, "main_menu_key", MTXORB_DEFAULT_MAIN_MENU_KEY);
+		main_menu_key = MtxOrb_parse_keypad_setting (DriverName, "main_menu_key", MTXORB_DEF_MAIN_MENU_KEY);
 		report (RPT_DEBUG, "MtxOrb: Using \"%c\" as main_menu_key", main_menu_key);
 	}
 
@@ -388,9 +388,9 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 	 * Configure display
 	 */
 
-	MtxOrb_linewrap (DEFAULT_LINEWRAP);
-	MtxOrb_autoscroll (DEFAULT_AUTOSCROLL);
-	MtxOrb_cursorblink (DEFAULT_CURSORBLINK);
+	MtxOrb_linewrap (MTXORB_DEF_LINEWRAP);
+	MtxOrb_autoscroll (MTXORB_DEF_AUTOSCROLL);
+	MtxOrb_cursorblink (MTXORB_DEF_CURSORBLINK);
 	MtxOrb_contrast (contrast);
 
 	/*

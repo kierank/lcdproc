@@ -83,8 +83,8 @@ static void lcdm001_heartbeat (int type);
 lcd_logical_driver *lcdm001;
 int fd;
 static int clear = 1;
-static char icon_char = '@';
-static char pause_key = DOWN_KEY, back_key = LEFT_KEY, forward_key = RIGHT_KEY, main_menu_key = UP_KEY;
+static char icon_char = LCDM001_PAD;
+static char pause_key = LCDM001_DOWN_KEY, back_key = LCDM001_LEFT_KEY, forward_key = LCDM001_RIGHT_KEY, main_menu_key = LCDM001_UP_KEY;
 
 static char num_icon [10][4][3] = 	{{{' ','_',' '}, /*0*/
 					  {'|',' ','|'},
@@ -140,23 +140,23 @@ static char lcdm001_parse_keypad_setting (char * sectionname, char * keyname, ch
 	char return_val = 0;
 
 	if (strcmp( config_get_string ( sectionname, keyname, 0, default_value), "LeftKey")==0) {
-		return_val=LEFT_KEY;
+		return_val=LCDM001_LEFT_KEY;
 	} else if (strcmp( config_get_string ( sectionname, keyname, 0, default_value), "RightKey")==0) {
-		return_val=RIGHT_KEY;
+		return_val=LCDM001_RIGHT_KEY;
 	} else if (strcmp( config_get_string ( sectionname, keyname, 0, default_value), "UpKey")==0) {
-		return_val=UP_KEY;
+		return_val=LCDM001_UP_KEY;
 	} else if (strcmp( config_get_string ( sectionname, keyname, 0, default_value), "DownKey")==0) {
-		return_val=DOWN_KEY;
+		return_val=LCDM001_DOWN_KEY;
 	} else {
 		report (RPT_WARNING, "LCDM001: Invalid  config file setting for %s. Using default value %s", keyname, default_value);
 		if (strcmp (default_value, "LeftKey")==0) {
-			return_val=LEFT_KEY;
+			return_val=LCDM001_LEFT_KEY;
 		} else if (strcmp (default_value, "RightKey")==0) {
-			return_val=RIGHT_KEY;
+			return_val=LCDM001_RIGHT_KEY;
 		} else if (strcmp (default_value, "UpKey")==0) {
-			return_val=UP_KEY;
+			return_val=LCDM001_UP_KEY;
 		} else if (strcmp (default_value, "DownKey")==0) {
-			return_val=DOWN_KEY;
+			return_val=LCDM001_DOWN_KEY;
 		}
 	}
 	return return_val;
@@ -273,7 +273,7 @@ lcdm001_init (struct lcd_logical_driver *driver, char *args)
 	/* Reset and clear the LCDM001 */
 	write (fd, "~C", 2);
 	/* Set cursorblink to default */
-	lcdm001_cursorblink (DEFAULT_CURSORBLINK);
+	lcdm001_cursorblink (LCDM001_DEF_CURSORBLINK);
 	/* Turn all LEDs off */
 	snprintf (out, sizeof(out), "%cL%c%c", 126, 0, 0);
 	write (fd, out, 4);
@@ -538,21 +538,21 @@ lcdm001_icon (int which, char dest)
 {
 
 	/* Heartbeat workaround:
-	 * As custom chars are not supported OPEN_HEART
-   	 * and FILLED_HEART are displayed instead.
+	 * As custom chars are not supported LCDM001_OPEN_HEART
+   	 * and LCDM001_FILLED_HEART are displayed instead.
          * You can change them in lcdm001.h
 	 */
 
 	if (dest == 0)
 		switch (which) {
 			case 0:
-				icon_char = OPEN_HEART;
+				icon_char = LCDM001_OPEN_HEART;
 				break;
 			case 1:
-				icon_char = FILLED_HEART;
+				icon_char = LCDM001_FILLED_HEART;
 				break;
 			default:
-				icon_char = PAD;
+				icon_char = LCDM001_PAD;
 				break;
 		}
 }

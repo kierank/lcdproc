@@ -87,9 +87,9 @@ int  gpo_count = 0 ;
 // point all the function pointers.
 int glk_init(struct lcd_logical_driver *driver, char *args) 
 {
-	char device[256] = DEFAULT_DEVICE ;
-	int  contrast = DEFAULT_CONTRAST ;
-	speed_t  speed = DEFAULT_SPEED ;
+	char device[256] = GLK_DEF_DEVICE ;
+	int  contrast = GLK_DEF_CONTRAST ;
+	speed_t  speed = GLK_DEF_SPEED ;
 	int i, tmp ;
 	char buf[256] = "";
 
@@ -107,19 +107,19 @@ int glk_init(struct lcd_logical_driver *driver, char *args)
 	/* READ THE CONFIG FILE */
 
 	/* Get serial device to use */
-	strncpy(device, config_get_string ( DriverName , "Device" , 0 , DEFAULT_DEVICE),sizeof(device));
+	strncpy(device, config_get_string ( DriverName , "Device" , 0 , GLK_DEF_DEVICE),sizeof(device));
 	device[sizeof(device)-1]=0;
 	report (RPT_INFO,"glk: Using device: %s", device);
 
 	/* Get contrast */
-	if (0<=config_get_int ( DriverName , "contrast" , 0 , DEFAULT_CONTRAST) && config_get_int ( DriverName , "contrast" , 0 , DEFAULT_CONTRAST) <= 255) {
-		contrast = config_get_int ( DriverName , "contrast" , 0 , DEFAULT_CONTRAST);
+	if (0<=config_get_int ( DriverName , "contrast" , 0 , GLK_DEF_CONTRAST) && config_get_int ( DriverName , "contrast" , 0 , GLK_DEF_CONTRAST) <= 255) {
+		contrast = config_get_int ( DriverName , "contrast" , 0 , GLK_DEF_CONTRAST);
 	} else {
 		report (RPT_WARNING, "glk: Contrast must be between 0 and 255. Using default value.\n");
 	}
 
 	/* Get serial speed*/
-	tmp = config_get_int ( DriverName , "speed" , 0 , DEFAULT_SPEED);
+	tmp = config_get_int ( DriverName , "speed" , 0 , GLK_DEF_SPEED);
 
 	switch (tmp) {
 		case 9600:
@@ -132,7 +132,7 @@ int glk_init(struct lcd_logical_driver *driver, char *args)
 			speed = B38400;
 			break;
 		default:
-			speed = DEFAULT_SPEED;
+			speed = GLK_DEF_SPEED;
 			switch (speed) {
 				case B9600:
 					strncpy(buf,"9600", sizeof(buf));

@@ -35,19 +35,19 @@
 
 int lcdm001_init (struct lcd_logical_driver *driver, char *args);
 
-#define DEFAULT_DEVICE		"/dev/lcd"
-#define DEFAULT_CURSORBLINK	0
+#define LCDM001_DEF_DEVICE		"/dev/lcd"
+#define LCDM001_DEF_CURSORBLINK		0
 
 /*Heartbeat workaround
   set chars to be displayed instead of "normal" icons*/
 
-#define OPEN_HEART ' '     /* This combination is at least visible */
-#define FILLED_HEART '*'
-#define PAD 255
+#define LCDM001_OPEN_HEART ' '     /* This combination is at least visible */
+#define LCDM001_FILLED_HEART '*'
+#define LCDM001_PAD 255
 
-#define LEFT_KEY '1'
-#define RIGHT_KEY '2'
-#define UP_KEY '3'
-#define DOWN_KEY '4'
+#define LCDM001_LEFT_KEY '1'
+#define LCDM001_RIGHT_KEY '2'
+#define LCDM001_UP_KEY '3'
+#define LCDM001_DOWN_KEY '4'
 
 #endif

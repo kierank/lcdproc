@@ -36,32 +36,32 @@ int MtxOrb_init (lcd_logical_driver * driver, char *device);
 /* The following values should be set in the configfile
  * but we need defaults ;)
  */
-#define DEFAULT_BACKLIGHT	1
-#define DEFAULT_CONTRAST	120
-#define DEFAULT_DEVICE		"/dev/lcd"
-#define DEFAULT_SPEED		B19200
-#define DEFAULT_SIZE		"20x4"
-#define DEFAULT_TYPE		"lcd"
+#define MTXORB_DEF_BACKLIGHT	1
+#define MTXORB_DEF_CONTRAST	120
+#define MTXORB_DEF_DEVICE	"/dev/lcd"
+#define MTXORB_DEF_SPEED	B19200
+#define MTXORB_DEF_SIZE		"20x4"
+#define MTXORB_DEF_TYPE		"lcd"
 /* End of configfile defaults */
 
-#define DEFAULT_LINEWRAP	1
-#define DEFAULT_AUTOSCROLL	1
-#define DEFAULT_CURSORBLINK	0
+#define MTXORB_DEF_LINEWRAP	1
+#define MTXORB_DEF_AUTOSCROLL	1
+#define MTXORB_DEF_CURSORBLINK	0
 
 /* These are the keys for a (possibly) broken LK202-25...*/
 /* NOTE: You should configure these settings in the configfile
  *       These defines are just used to get *some* defaults
  */
-#define KEY_UP    'I'
-#define KEY_DOWN  'F'
-#define KEY_LEFT  'K'
-#define KEY_RIGHT 'A'
-#define KEY_F1    'N'
+#define MTXORB_KEY_UP    'I'
+#define MTXORB_KEY_DOWN  'F'
+#define MTXORB_KEY_LEFT  'K'
+#define MTXORB_KEY_RIGHT 'A'
+#define MTXORB_KEY_F1    'N'
 
-#define MTXORB_DEFAULT_PAUSE_KEY	KEY_F1
-#define MTXORB_DEFAULT_BACK_KEY		KEY_LEFT
-#define MTXORB_DEFAULT_FORWARD_KEY	KEY_RIGHT
-#define MTXORB_DEFAULT_MAIN_MENU_KEY	KEY_DOWN
+#define MTXORB_DEF_PAUSE_KEY		MTXORB_KEY_F1
+#define MTXORB_DEF_BACK_KEY		MTXORB_KEY_LEFT
+#define MTXORB_DEF_FORWARD_KEY		MTXORB_KEY_RIGHT
+#define MTXORB_DEF_MAIN_MENU_KEY	MTXORB_KEY_DOWN
 
 
 #endif

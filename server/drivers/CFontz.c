@@ -53,8 +53,8 @@ typedef enum {
 } custom_type;
 
 static int fd;
-static int brightness = DEFAULT_BRIGHTNESS;
-static int offbrightness = DEFAULT_OFFBRIGHTNESS;
+static int brightness = CFONTZ_DEF_BRIGHTNESS;
+static int offbrightness = CFONTZ_DEF_OFFBRIGHTNESS;
 static int newfirmware = 0;
 static char* backingstore = NULL;
 static char* blankrow = NULL;
@@ -79,10 +79,10 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 	int tmp, w, h;
 	int reboot = 0;
 
-	int contrast = DEFAULT_CONTRAST;
-	char device[200] = DEFAULT_DEVICE;
-	int speed = DEFAULT_SPEED;
-	char size[200] = DEFAULT_SIZE;
+	int contrast = CFONTZ_DEF_CONTRAST;
+	char device[200] = CFONTZ_DEF_DEVICE;
+	int speed = CFONTZ_DEF_SPEED;
+	char size[200] = CFONTZ_DEF_SIZE;
 
 	char buf[256] = "";
 
@@ -97,45 +97,45 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 	/*Read config file*/
 
 	/*Which serial device should be used*/
-	strncpy(device, config_get_string ( DriverName , "Device" , 0 , DEFAULT_DEVICE),sizeof(device));
+	strncpy(device, config_get_string ( DriverName , "Device" , 0 , CFONTZ_DEF_DEVICE),sizeof(device));
 	device[sizeof(device)-1]=0;
 	report (RPT_INFO,"CFontz: Using device: %s", device);
 
 	/*Which size*/
-	strncpy(size, config_get_string ( DriverName , "Size" , 0 , DEFAULT_SIZE),sizeof(size));
+	strncpy(size, config_get_string ( DriverName , "Size" , 0 , CFONTZ_DEF_SIZE),sizeof(size));
 	size[sizeof(size)-1]=0;
 	if( sscanf(size , "%dx%d", &w, &h ) != 2
 	|| (w <= 0) || (w > LCD_MAX_WIDTH)
 	|| (h <= 0) || (h > LCD_MAX_HEIGHT)) {
 		report (RPT_WARNING, "CFontz: Cannot read size: %s. Using default value.\n", size);
-		sscanf( DEFAULT_SIZE , "%dx%d", &w, &h );
+		sscanf( CFONTZ_DEF_SIZE , "%dx%d", &w, &h );
 	}
 	driver->wid = w;
 	driver->hgt = h;
 
 	/*Which contrast*/
-	if (0<=config_get_int ( DriverName , "Contrast" , 0 , DEFAULT_CONTRAST) && config_get_int ( DriverName , "Contrast" , 0 , DEFAULT_CONTRAST) <= 255) {
-		contrast = config_get_int ( DriverName , "Contrast" , 0 , DEFAULT_CONTRAST);
+	if (0<=config_get_int ( DriverName , "Contrast" , 0 , CFONTZ_DEF_CONTRAST) && config_get_int ( DriverName , "Contrast" , 0 , CFONTZ_DEF_CONTRAST) <= 255) {
+		contrast = config_get_int ( DriverName , "Contrast" , 0 , CFONTZ_DEF_CONTRAST);
 	} else {
 		report (RPT_WARNING, "CFontz: Contrast must be between 0 and 255. Using default value.\n");
 	}
 
 	/*Which backlight brightness*/
-	if (0<=config_get_int ( DriverName , "Brightness" , 0 , DEFAULT_BRIGHTNESS) && config_get_int ( DriverName , "Brightness" , 0 , DEFAULT_BRIGHTNESS) <= 255) {
-		brightness = config_get_int ( DriverName , "Brightness" , 0 , DEFAULT_BRIGHTNESS);
+	if (0<=config_get_int ( DriverName , "Brightness" , 0 , CFONTZ_DEF_BRIGHTNESS) && config_get_int ( DriverName , "Brightness" , 0 , CFONTZ_DEF_BRIGHTNESS) <= 255) {
+		brightness = config_get_int ( DriverName , "Brightness" , 0 , CFONTZ_DEF_BRIGHTNESS);
 	} else {
 		report (RPT_WARNING, "CFontz: Brightness must be between 0 and 255. Using default value.\n");
 	}
 
 	/*Which backlight-off "brightness"*/
-	if (0<=config_get_int ( DriverName , "OffBrightness" , 0 , DEFAULT_OFFBRIGHTNESS) && config_get_int ( DriverName , "OffBrightness" , 0 , DEFAULT_OFFBRIGHTNESS) <= 255) {
-		offbrightness = config_get_int ( DriverName , "OffBrightness" , 0 , DEFAULT_OFFBRIGHTNESS);
+	if (0<=config_get_int ( DriverName , "OffBrightness" , 0 , CFONTZ_DEF_OFFBRIGHTNESS) && config_get_int ( DriverName , "OffBrightness" , 0 , CFONTZ_DEF_OFFBRIGHTNESS) <= 255) {
+		offbrightness = config_get_int ( DriverName , "OffBrightness" , 0 , CFONTZ_DEF_OFFBRIGHTNESS);
 	} else {
 		report (RPT_WARNING, "CFontz: OffBrightness must be between 0 and 255. Using default value.\n");
 	}
 
 	/*Which speed*/
-	tmp = config_get_int ( DriverName , "Speed" , 0 , DEFAULT_SPEED);
+	tmp = config_get_int ( DriverName , "Speed" , 0 , CFONTZ_DEF_SPEED);
 
 	switch (tmp) {
 		case 1200:
@@ -154,7 +154,7 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 			speed = B19200;
 			break;
 		default:
-			speed = DEFAULT_SPEED;
+			speed = CFONTZ_DEF_SPEED;
 			switch (speed) {
 				case B1200:
 					strncpy(buf,"1200", sizeof(buf));
@@ -274,8 +274,8 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 
 	CFontz_contrast (contrast);
 
-	driver->cellwid = DEFAULT_CELL_WIDTH;
-	driver->cellhgt = DEFAULT_CELL_HEIGHT;
+	driver->cellwid = CFONTZ_DEF_CELL_WIDTH;
+	driver->cellhgt = CFONTZ_DEF_CELL_HEIGHT;
 
 	driver->heartbeat = CFontz_heartbeat;
 
