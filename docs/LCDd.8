@@ -15,9 +15,10 @@ LCDd - LCDproc server daemon
 LCDd is the server portion of LCDproc which listens to a certain port (normally 13666) and displays information on an LCD display.  It works with several types
 and sizes of displays.
 .PP
-LCDd will attempt to open /dev/lcd by default and will error if this
-device is not available.  In most cases, it should be sufficient to
-link /dev/lcd to the appropriate serial or parallel device.
+As of version 0.4.3 of LCDproc most settings are configured through the LCDd configuration
+file, which is normally /etc/LCDd.conf. Before running LCDd you should carefully read through
+that file and modify everything neccessary according to your needs. Otherwise you might encounter
+LCDd not running properly on your system.
 .PP
 To make full use of LCDd, a client such as lcdproc(1) is required.
 .SH OPTIONS
@@ -301,9 +302,17 @@ check the order of the options and the quoting involved.  Some combinations
 of options will be misread and thus fail.
 .PP
 Try using the -d option last.
+.SH FILES
+.na
+.nf
+\fB/etc/LCDd.conf\fR, LCDd default configuration file
+.Sh SEE ALSO
+.Xr lcdproc 1
 .SH AUTHOR
-LCDd was written by William Ferrell (choadster@earthlink.net) and Scott Scriv
+LCDd was originally written by William Ferrell (choadster@earthlink.net) and Scott Scriv
 en (scriven@cs.colostate.edu).
+
+Since that time various people have contributed to LCDproc.
 
 The newest version of LCDd should be available from here as part of the lcdproc package:
 
