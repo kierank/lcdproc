@@ -13,13 +13,13 @@ Coming soon: (already implemented in 0.5 = CVS main branch)
 v0.4.4
  + Added option in curses to use our own ascii map
  * Fixed the bignum/backstore and flickering in CFontz
- + Added CFontz633 backported from CVS 0.5 (temporarily removed
-   from the distribution)
+ + Added CFontz633 driver backported from CVS 0.5 (temporarily
+   removed from the distribution)
  * Finished the LCDM001 driver
  * Fixed a memory leak in do_mainloop
- * MtxOrb fix problem when used via USB 2 serial adapter
+ * Fixed MtxOrb driver problems when using a USB 2 serial adaptor
  + Added CwLnx driver (www.cwlinux.com)
- * Fixed a division by zero condition in render.c
+ * Fixed a division by zero condition and other bugs in render.c
  + Added SGX120 driver by Harald Milz (http://www.seetron.com/)
  * Fixed the Wirz-sli driver
  * Fixed the FreeBSD parallel port support
