@@ -1,6 +1,6 @@
 -- INTRODUCTION --------------------------------------------------------------
 
-LCDproc is a client server suite including drivers for all kinds of nifty LCD
+LCDproc is a client/server suite including drivers for all kinds of nifty LCD
 devices. The server works with different display sizes and supports several
 serial devices: Matrix Orbital, Crystal Fontz, Bayrad, LB216, LCDM001
 (kernelconcepts.de), Wirz-SLI and PIC-an-LCD; and some devices connected to
