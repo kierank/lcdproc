@@ -346,10 +346,9 @@ lcdm001_clear ()
         if (lcdm001->framebuf != NULL)
                 memset (lcdm001->framebuf, ' ', (lcdm001->wid * lcdm001->hgt));
 
-	write (fd, "~C", 2); /* instant clear...*/
         clear = 1;
 
-	debug (RPT_DEBUG, "LCDM001: cleared screen");
+	debug (RPT_DEBUG, "LCDM001: screen will be cleared during next flush()");
 }
 
 /***********************************************************
