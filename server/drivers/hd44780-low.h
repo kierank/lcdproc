@@ -10,6 +10,7 @@ enum ifWidth { IF_4bit, IF_8bit };
 void common_init ();
 
 void HD44780_uPause (int usecs);
+void HD44780_uPause_dummy (int usecs);
 
 // Structures holding pointers to HD44780 specific functions
 typedef struct hwDependentFns {

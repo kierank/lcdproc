@@ -236,9 +236,12 @@ HD44780_init (lcd_logical_driver * driver, char *args)
 		}
 	}
 
-  	if (timing_init() == -1)
-  		return -1;
-
+	// no timing functions needed for picanlcd and usblcd
+	if ((connectionMapping[connectiontype_index].type != HD_picanlcd) && (connectionMapping[connectiontype_index].type != HD_usblcd)) {
+  		if (timing_init() == -1)
+  			return -1;
+	}
+	
 	// Make sure the frame buffer is there...
 	if (!HD44780->framebuf)
 		HD44780->framebuf = (unsigned char *) malloc (HD44780->wid * HD44780->hgt);
@@ -291,7 +294,13 @@ HD44780_init (lcd_logical_driver * driver, char *args)
 		report (RPT_ERR, "HD44780_init: Error mallocing");
 		return -1;
 	}
-	hd44780_functions->uPause = HD44780_uPause;
+
+	if ((connectionMapping[connectiontype_index].type == HD_picanlcd) || (connectionMapping[connectiontype_index].type == HD_usblcd)) {
+		hd44780_functions->uPause = HD44780_uPause_dummy;
+	} else {
+		hd44780_functions->uPause = HD44780_uPause;
+	}
+
 	hd44780_functions->scankeypad = HD44780_scankeypad;
 	
 	
@@ -333,6 +342,14 @@ void
 HD44780_uPause (int usecs)
 {
 	timing_uPause( usecs * delayMult );
+}
+
+/////////////////////////////////////////////////////////////////
+// Do Nothing 
+//
+void
+HD44780_uPause_dummy (int usecs)
+{
 }
 
 /////////////////////////////////////////////////////////////////
