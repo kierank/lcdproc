@@ -14,8 +14,10 @@
  *
  */
 
-#include <malloc.h>
 #include <stdlib.h>
+#if defined(HAVE_MALLOC_H)
+#include <malloc.h>
+#endif
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
