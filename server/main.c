@@ -307,7 +307,7 @@ clear_settings ()
 int
 process_command_line (int argc, char **argv)
 {
-	char  c;
+	int  c;
 
 	/*report( RPT_INFO, "process_command_line()" );*/
 
