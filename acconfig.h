@@ -1,5 +1,5 @@
 /* acconfig.h
-   $Id: acconfig.h,v 1.5 2000/03/30 20:20:41 willfe Exp $
+   $Id: acconfig.h,v 1.6 2000/03/30 20:43:33 willfe Exp $
    This file is in the public domain.
 
    Descriptive text for the C preprocessor macros that
@@ -14,7 +14,6 @@
 
    Leave the following blank line there!!  Autoheader needs it.  */
 
-
 #undef LIRCIN_DRV
 
 #undef CFONTZ_DRV
@@ -74,7 +73,6 @@
 /* Define the package version */
 #undef VERSION
 
-
 /* Leave that blank line there!!  Autoheader needs it.
    If you're adding to this file, keep in mind:
    The entries are in sort -df order: alphabetical, case insensitive,
