@@ -12,6 +12,7 @@
 
   <!ENTITY hd44780 SYSTEM "drivers/hd44780.docbook">
   <!ENTITY mtxorb SYSTEM "drivers/mtxorb.docbook">
+  <!ENTITY lircin SYSTEM "drivers/lircin.docbook">
 ]>
 
 <book id="lcdproc-user" lang="en">

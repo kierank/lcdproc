@@ -1,1 +1,1 @@
-EXTRA_DIST = hd44780.docbook mtxorb.docbook
+EXTRA_DIST = hd44780.docbook lircin.docbook mtxorb.docbook
