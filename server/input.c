@@ -6,7 +6,7 @@
  * COPYING file distributed with this package.
  *
  * Copyright 	(c) 1999, William Ferrell, Scott Scriven
- *		(c) 2001, Rene Wagner
+ *		(c) 2001, 2002, Rene Wagner
  *
  *
  * Handles keypad (and other?) input from the user.
@@ -99,7 +99,7 @@ handle_input ()
 	/* Give current screen a shot at the key first*/
 	s = CurrentScreen ();
 
-	if (KeyWanted(s->keys, key)) {
+	if ( s && (KeyWanted(s->keys, key)) ) {
 		/* This screen wants this key.  Tell it we got one*/
 		snprintf(str, sizeof(str), "key %c\n", key);
 		sock_send_string(s->parent->sock, str);
