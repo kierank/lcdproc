@@ -1024,6 +1024,63 @@ can be done by specifying "--enable-drivers=all" or by
 
 </sect2>
 
+<sect2 id="hd44780-configuration">
+<title>Configuration</title>
+
+<para>
+Since LCDproc 0.4.3 the HD44780 driver can be cnfigured from the configfile.
+</para>
+
+<para>
+The [HD44780] section is more or less self-explanatory. Yet, a list of the
+possible connection types has proved useful. The following table should make
+it clear, how the ConnectionType is to be set.
+</para>
+
+<table>
+<title>HD44780: Connection Types</title>
+<tgroup cols="2">
+<thead>
+<row>
+<entry>Wiring / Display Type</entry>
+<entry>ConnectionType=</entry>
+</row>
+</thead>
+<tbody>
+<row>
+<entry>HD44780 4bit Wiring</entry>
+<entry>4bit</entry>
+</row>
+<row>
+<entry>HD44780 8bit Wiring ("lcdtime")</entry>
+<entry>8bit</entry>
+</row>
+<row>
+<entry>HD44780 Serial LPT Wiring</entry>
+<entry>serialLpt</entry>
+</row>
+<row>
+<entry>HD44780 8bit Wiring "winamp" Style</entry>
+<entry>winamp</entry>
+</row>
+<row>
+<entry>PIC-an-LCD serial device "picanlcd"</entry>
+<entry>picanlcd</entry>
+</row>
+</tbody>
+</tgroup>
+</table>
+
+<tip>
+<para>
+The above table might be outdated, when you read this.
+If you suspect this is the case, you might want to have a look at server/drivers/hd44780-drivers.h
+which contains the actual translation code.
+</para>
+</tip>
+
+</sect2>
+
 <sect2 id="hd44780-running">
 <title>Running</title>
 
@@ -1069,6 +1126,10 @@ Updated October 2001, Joris Robijn <email>joris@robijn.net</email>
 
 <para>
 Converted to docbook March 2002, Rene Wagner <email>reenoo@gmx.de</email>
+</para>
+
+<para>
+Updated April 2002, Rene Wagner <email>reenoo@gmx.de</email>
 </para>
 
 </sect2>
