@@ -330,7 +330,7 @@ lcdm001_close ()
 
 	lcdm001->framebuf = NULL;
 	/*switch off all LEDs*/
-	snprintf (out, sizeof(out), "\%cL%c%c", 126, 0, 0);
+	snprintf (out, sizeof(out), "%cL%c%c", 126, 0, 0);
 	write (fd, out, 4);
 	close (fd);
 
@@ -421,7 +421,7 @@ lcdm001_string (int x, int y, char string[])
 
 	x--; y--; /* Convert 1-based coords to 0-based...*/
 	offset = (y * lcdm001->wid) + x;
-	siz = (lcdm001->wid * lcdm001->hgt) - offset - 1;
+	siz = (lcdm001->wid * lcdm001->hgt) - offset;
 	siz = siz > strlen(string) ? strlen(string) : siz;
 
 	memcpy(lcdm001->framebuf + offset, string, siz);
@@ -568,7 +568,7 @@ lcdm001_draw_frame (char *dat)
 
         /*TODO: Check whether this is still correct*/
 
-	write(fd,lcdm001->framebuf,80);
+	write(fd,lcdm001->framebuf,lcdm001->wid * lcdm001->hgt);
 }
 
 /**********************************************************************
