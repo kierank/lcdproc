@@ -33,6 +33,7 @@
 
 #include "drivers/lcd.h"
 #include "menu.h"
+#include "input.h"
 
 /* FIXME: Implement this where it is supposed to be...*/
 void
@@ -116,10 +117,10 @@ do_menu (Menu menu)
 
 		/* Handle the key according to the keybindings...*/
 		switch (key) {
-		case 'D':
+		case INPUT_MAIN_MENU_KEY:
 			done = 1;
 			break;
-		case 'B':
+		case INPUT_BACK_KEY:
 			if (info.selected > 0)
 				info.selected--;
 			while (menu[info.selected].type == TYPE_TITL) {
@@ -129,11 +130,11 @@ do_menu (Menu menu)
 					break;
 			}
 			break;
-		case 'C':
+		case INPUT_FORWARD_KEY:
 			if (menu[info.selected + 1].text)
 				info.selected++;
 			break;
-		case 'A':
+		case INPUT_PAUSE_KEY:
 			switch (menu[info.selected].type) {
 			case TYPE_MENU:
 				status = do_menu (menu[info.selected].data);
