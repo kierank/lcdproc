@@ -94,7 +94,7 @@ test_func_func (client * c, int argc, char **argv)
 
 	for (i = 0; i < argc; i++) {
 		snprintf (str, sizeof(str), "test_func_func:  %i -> %s\n", i, argv[i]);
-		report (RPT_INFO, str);
+		report (RPT_INFO, "%s", str);
 		sock_send_string (c->sock, str);
 	}
 	return 0;

@@ -158,7 +158,7 @@ parse_all_client_messages ()
 
 
 					argc++;
-				} while (*p);
+				} while (*p && i < MAX_ARGUMENTS - 1);
 
 				/*debug(RPT_DEBUG, "exiting string scan...");*/
 
