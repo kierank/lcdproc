@@ -50,7 +50,7 @@ Of course you can get 0.4.2 from CVS. BUT its current state is unknown.
 <term>LCDproc 0.4.3</term>
 <listitem>
 <para>
-LCDproc 0.4.3 will definitely be the next stable release of LCDproc. It no longer uses the old
+LCDproc 0.4.3 is the current stable release of LCDproc. It no longer uses the old
 command line configuration, but introduces the configuration file <filename>/etc/LCDd.conf</filename>.
 As well the driver API has slightly changed, which should not
 make older drivers incompatible, but might cause some trouble. As well the way
@@ -58,14 +58,34 @@ make older drivers incompatible, but might cause some trouble. As well the way
 </para>
 <note>
 <para>
-Even though LCDproc 0.4.3 is the most stable version we can offer, it is still under developement.
-There has been a "feature freeze" long time ago, but from time to time bugs are reported on
-the mailing list, which are of course fixed. We also work on porting drivers from 0.4.1 to
-0.4.3 on demand. We do not have all the hardware LCDd supports. So, we
-only work on drivers that can be tested by YOU.
+Even though LCDproc 0.4.3 is the most stable version we can offer, it is still not perfect.
 </para>
 </note>
 </listitem>
+
+<varlistentry>
+<term>LCDproc 0.4.3</term>
+<listitem>
+<para>
+LCDproc 0.4.4 will be the next stable release of LCDproc.
+</para>
+<note>
+<para>
+The 0.4.x branch will only be slightly updated. E.g. we plan better support
+of lcdproc (the client) for *BSD. Yet, the active development will move to
+0.5 now.
+</para>
+<para>
+As 0.5 will not be stable in the near future, we may also work on porting drivers
+from 0.4.1 to 0.4.4 on demand. We do not have all the hardware LCDd supports. So, we
+only work on drivers that can be tested by YOU.
+</para>
+<para>
+As well, the development and inclusion of new drivers is possible.
+</para>
+</note>
+</listitem>
+
 </varlistentry>
 
 <varlistentry>
