@@ -17,8 +17,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-//#include <asm/io.h>
-#include <sys/perm.h>
 
 #include "shared/str.h"
 #include "shared/debug.h"
