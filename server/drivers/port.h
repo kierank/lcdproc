@@ -43,8 +43,22 @@ static inline int port_access_full (unsigned short int port);
 
 // -------------------------------------------------------------
 // Use ioperm, inb and outb in <sys/io.h> (Linux)
-#if defined HAVE_IOPERM && HAVE_SYS_IO_H
-#include <sys/io.h>
+#if defined HAVE_IOPERM
+
+/* Glibc2 */
+# ifdef HAVE_SYS_IO_H 
+#  include <sys/io.h>
+# endif
+
+/* Glibc1 */
+# ifdef HAVE_SYS_PERM_H
+#  include <sys/perm.h>
+# endif
+
+/* Libc5 */
+# ifdef HAVE_UNISTD_H
+#  include <unistd.h>
+# endif
 
 // Read a byte from port
 static inline int port_in (unsigned short int port) {
