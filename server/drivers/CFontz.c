@@ -82,7 +82,7 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 
 	debug(RPT_INFO, "CFontz: init(%p,%s)", driver, args );
 
-	// TODO: replace DriverName with driver->name when that field exists.
+	/* TODO: replace DriverName with driver->name when that field exists. */
 	#define DriverName "CFontz"
 
 
@@ -109,7 +109,7 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 	if (0<=config_get_int ( DriverName , "Contrast" , 0 , DEFAULT_CONTRAST) && config_get_int ( DriverName , "Contrast" , 0 , DEFAULT_CONTRAST) <= 255) {
 		contrast = config_get_int ( DriverName , "Contrast" , 0 , DEFAULT_CONTRAST);
 	} else {
-		report (RPT_WARNING, "CFontz: Contrast must between 0 and 255. Using default value.\n");
+		report (RPT_WARNING, "CFontz: Contrast must be between 0 and 255. Using default value.\n");
 	}
 
 	/*Which backlight brightness*/
@@ -147,7 +147,21 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 		reboot = 1;
 	}
 
-	// Set up io port correctly, and open it...
+	/* End of config file parsing*/
+
+
+	/* Allocate framebuffer memory*/
+	/* You must use driver->framebuf here, but may use lcd.framebuf later.*/
+	if (!driver->framebuf) {
+		driver->framebuf = malloc (driver->wid * driver->hgt);
+	}
+
+	if (!driver->framebuf) {
+                report(RPT_ERR, "CFontz: Error: unable to create framebuffer.\n");
+		return -1;
+	}
+
+	/* Set up io port correctly, and open it...*/
 	debug( RPT_DEBUG, "CFontz: Opening serial device: %s", device);
 	fd = open (device, O_RDWR | O_NOCTTY | O_NDELAY);
 	if (fd == -1) {
@@ -180,13 +194,7 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 	// Do it...
 	tcsetattr (fd, TCSANOW, &portset);
 
-	// Make sure the frame buffer is there...
-	if (!CFontz->framebuf)
-		CFontz->framebuf = (unsigned char *)
-			malloc (CFontz->wid * CFontz->hgt);
-	memset (CFontz->framebuf, ' ', CFontz->wid * CFontz->hgt);
-
-	// Set display-specific stuff..
+	/* Set display-specific stuff..*/
 	if (reboot) {
 		CFontz_reboot ();
 		sleep (4);
@@ -196,11 +204,11 @@ CFontz_init (lcd_logical_driver * driver, char *args)
 	CFontz_hidecursor ();
 	CFontz_linewrap (1);
 	CFontz_autoscroll (0);
-	CFontz_backlight (backlight_brightness);
+	CFontz_backlight (0);
 
-	// Set the functions the driver supports...
+	/* Set the functions the driver supports...*/
 
-	driver->daemonize = 1; /* make the server daemonize after initialisation*/
+	driver->daemonize = 1; /* make the server daemonize after initialization*/
 
 	driver->clear = CFontz_clear;
 	driver->string = CFontz_string;
