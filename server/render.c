@@ -262,7 +262,7 @@ draw_frame (LinkedList * list,
 				screenlist_action = 0;
 		}
 
-		fy %= fhgt;
+		if (fhgt == 0) { fy = 0; } else { fy %= fhgt; }
 		if (fy > fhgt - hgt)
 			fy = fhgt - hgt;
 
