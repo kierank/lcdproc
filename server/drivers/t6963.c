@@ -189,7 +189,7 @@ t6963_close ()
 	DEBUG3 ("Shutting down!\n");
 	t6963_low_disable_mode (BLINK_ON);
 
-	ioperm(t6963_out_port, 3, 0);
+	//ioperm(t6963_out_port, 3, 0);
 	if (t6963->framebuf != NULL)
 		free (t6963->framebuf);
 	if (t6963_display_buffer1 != NULL) free (t6963_display_buffer1);
