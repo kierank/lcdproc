@@ -1,7 +1,4 @@
-/*
- *  driver
- *
-/*  This is the LCDproc driver for Matrix Orbital devices (http://www.matrix-orbital.com)
+/*  This is the LCDproc driver for Matrix Orbital devices (http://www.matrixorbital.com)
 
     For the Matrix Orbital LCD* LKD* VFD* and VKD* displays
 
