@@ -23,7 +23,7 @@ v0.4.3
    support custom characters
  + Added ability of configuring (rearranging) the keypad of MtxOrb
    displays
- + Added .lircrc location to the option of the lirc driver
+ + Added .lircrc location to the options of the lirc driver
  * Fixed backlight code (partly rewritten)
  * Fixed heartbeat code (completely rewritten analogous to
    the backlight code)
