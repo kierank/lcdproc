@@ -140,6 +140,9 @@ Mike Patnode:
 	- Crystal Fontz
 	- Various 0.4.3 changes
 
+Bernhard Tittelbach:
+	- Fix for the memory leak in do_mainloop()
+
 Further developers in the sourceforge lcdproc team:
 Mindaugas Idzelis       aim4min
 Andre Burton            andreb
