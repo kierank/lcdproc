@@ -1,3 +1,4 @@
+/* #define COUNT -1 */
 /*  This is the LCDproc driver for Cwlinux devices (http://www.cwlinux.com)
 
         Copyright (C) 1999, William Ferrell and Scott Scriven
@@ -58,7 +59,6 @@ typedef enum {
 
 static int fd;
 static char *backingstore = NULL;
-static char *blankrow = NULL;
 static char pause_key = CWLNX_DEF_PAUSE_KEY, back_key = CWLNX_DEF_BACK_KEY;
 static char forward_key = CWLNX_DEF_FORWARD_KEY, main_menu_key = CWLNX_DEF_MAIN_MENU_KEY;
 static int keypad_test_mode = 0;
@@ -70,9 +70,9 @@ static void CwLnx_reboot();
 static void CwLnx_heartbeat(int type);
 static char CwLnx_getkey();
 
-// TODO:  Get rid of this variable?
+/* TODO:  Get rid of this variable? */
 lcd_logical_driver *CwLnx;
-// TODO:  Get the frame buffers working right
+/* TODO:  Get the frame buffers working right */
 
 #define LCD_CMD			254
 #define LCD_CMD_END		253
@@ -94,7 +94,7 @@ lcd_logical_driver *CwLnx;
 
 #define DELAY			20
 #define UPDATE_DELAY		0	/* 1 sec */
-#define SETUP_DELAY		0	/* 2 sec */
+#define SETUP_DELAY		1	/* 2 sec */
 
 /* Parse one key from the configfile */
 static char CwLnx_parse_keypad_setting (char * sectionname, char * keyname, char default_value)
@@ -126,11 +126,12 @@ int Write_LCD(int fd, char *c, int size)
 {
     int rc;
     rc = write(fd, c, size);
-/******************************
+/* Debuging code to be cleaned when very stable */
+/* 
     if (size==1) {
-	    if (*c>=0)
+	    if (*c>=0) 
 		    printf("%3d ", *c);
-	    else
+          else
               {
 		    if (*c+256==254)
 
@@ -138,7 +139,7 @@ int Write_LCD(int fd, char *c, int size)
 		    else printf("%3d ", *c+256);
 	      }
     }
-*******************************/
+*/
 /*    usleep(DELAY); */
     return rc;
 }
@@ -181,6 +182,7 @@ void Clear_Screen(int fd)
     rc = Write_LCD(fd, &c, 1);
     c = LCD_CMD_END;
     rc = Write_LCD(fd, &c, 1);
+    usleep(UPDATE_DELAY);
 }
 
 void Enable_Wrap(int fd)
@@ -280,9 +282,9 @@ int Write_Line_LCD(int fd, char *buf)
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Opens com port and sets baud correctly...
-//
+/*****************************************************
+ * Opens com port and sets baud correctly...
+ */
 int CwLnx_init(lcd_logical_driver * driver, char *args)
 {
     int tmp, w, h;
@@ -394,8 +396,7 @@ int CwLnx_init(lcd_logical_driver * driver, char *args)
     if (!driver->framebuf) {
 	driver->framebuf = malloc(driver->wid * driver->hgt);
 	backingstore = calloc(driver->wid * driver->hgt, 1);
-	blankrow = malloc(driver->wid);
-	memset(blankrow, ' ', driver->wid);
+        memset(backingstore, ' ', driver->wid * driver->hgt);
     }
 
     if (!driver->framebuf) {
@@ -442,7 +443,6 @@ int CwLnx_init(lcd_logical_driver * driver, char *args)
     CwLnx_linewrap(1);
     CwLnx_autoscroll(0);
     CwLnx_backlight(1);
-//    Clear_Screen(fd);
 
     /* Set the functions the driver supports... */
 
@@ -475,16 +475,16 @@ int CwLnx_init(lcd_logical_driver * driver, char *args)
 
     report(RPT_DEBUG, "CwLnx_init: done\n");
 
-/*    CwLnx_icon( 0, 8);
-      CwLnx_icon( 1, 9); */
+    Clear_Screen(fd);
+    CwLnx_clear();
+    usleep(SETUP_DELAY);
 
-/*    Clear_Screen(fd);*/
     return fd;
 }
 
-/////////////////////////////////////////////////////////////////
-// Clean-up
-//
+/******************************************************
+ * Clean-up
+ */
 void CwLnx_close()
 {
     close(fd);
@@ -495,12 +495,8 @@ void CwLnx_close()
     if (backingstore)
 	free(backingstore);
 
-    if (blankrow)
-	free(blankrow);
-
     CwLnx->framebuf = NULL;
     backingstore = NULL;
-    blankrow = NULL;
 }
 
 void CwLnx_flush()
@@ -515,12 +511,20 @@ void Set_Insert(int fd, int row, int col)
 
     c = LCD_CMD;
     rc = Write_LCD(fd, &c, 1);
+    if (row==0 && col==0) 
+    	{
+    	c = LCD_INIT_INSERT;
+    	rc = Write_LCD(fd, &c, 1);
+    	}
+    else
+    	{
     c = LCD_SET_INSERT;
     rc = Write_LCD(fd, &c, 1);
     c = col;
     rc = Write_LCD(fd, &c, 1);
     c = row;
     rc = Write_LCD(fd, &c, 1);
+    	}
     c = LCD_CMD_END;
     rc = Write_LCD(fd, &c, 1);
 }
@@ -537,10 +541,10 @@ void CwLnx_flush_box(int lft, int top, int rgt, int bot)
     }
 }
 
-/////////////////////////////////////////////////////////////////
-// Prints a character on the lcd display, at position (x,y).  The
-// upper-left is (1,1), and the lower right should be (20,4).
-//
+/*******************************************************************
+ * Prints a character on the lcd display, at position (x,y).  The
+ * upper-left is (1,1), and the lower right should be (20,4).
+ */
 void CwLnx_chr(int x, int y, char c)
 {
     y--;
@@ -549,17 +553,17 @@ void CwLnx_chr(int x, int y, char c)
     CwLnx->framebuf[(y * CwLnx->wid) + x] = c;
 }
 
-/////////////////////////////////////////////////////////////////
-// Changes screen contrast (0-255; 140 seems good)
-//
+/*****************************************************
+ * Changes screen contrast (0-255; 140 seems good)
+ */
 int CwLnx_contrast(int contrast)
 {
     return -1;
 }
 
-/////////////////////////////////////////////////////////////////
-// Sets the backlight brightness
-//
+/*********************************************************
+ * Sets the backlight brightness
+ */
 void CwLnx_backlight(int on)
 {
     static int current = -1;
@@ -588,9 +592,9 @@ void CwLnx_backlight(int on)
     rc = Write_LCD(fd, &c, 1);
 }
 
-/////////////////////////////////////////////////////////////////
-// Toggle the built-in linewrapping feature
-//
+/*********************************************************
+ * Toggle the built-in linewrapping feature
+ */
 static void CwLnx_linewrap(int on)
 {
     char out[4];
@@ -601,33 +605,33 @@ static void CwLnx_linewrap(int on)
     Enable_Wrap(fd);
 }
 
-/////////////////////////////////////////////////////////////////
-// Toggle the built-in automatic scrolling feature
-//
+/****************************************************************
+ * Toggle the built-in automatic scrolling feature
+ */
 static void CwLnx_autoscroll(int on)
 {
     return;
 }
 
-/////////////////////////////////////////////////////////////////
-// Get rid of the blinking curson
-//
+/*******************************************************************
+ * Get rid of the blinking curson
+ */
 static void CwLnx_hidecursor()
 {
     return;
 }
 
-/////////////////////////////////////////////////////////////////
-// Reset the display bios
-//
+/********************************************************************
+ * Reset the display bios
+ */
 static void CwLnx_reboot()
 {
     return;
 }
 
-/////////////////////////////////////////////////////////////////
-// Sets up for vertical bars.  Call before CwLnx->vbar()
-//
+/*************************************************************
+ * Sets up for vertical bars.  Call before CwLnx->vbar()
+ */
 void CwLnx_init_vbar()
 {
     char a[] = {
@@ -699,9 +703,9 @@ void CwLnx_init_vbar()
     }
 }
 
-/////////////////////////////////////////////////////////////////
-// Inits horizontal bars...
-//
+/*********************************************************
+ * Inits horizontal bars...
+ */
 void CwLnx_init_hbar()
 {
     char a[] = {
@@ -765,9 +769,9 @@ void CwLnx_init_hbar()
 
 }
 
-/////////////////////////////////////////////////////////////////
-// Draws a vertical bar...
-//
+/*************************************************************
+ * Draws a vertical bar...
+ */
 void CwLnx_vbar(int x, int len)
 {
     char map[9] = { 32, 1, 2, 3, 4, 5, 6, 7, 255 };
@@ -784,9 +788,9 @@ void CwLnx_vbar(int x, int len)
 
 }
 
-/////////////////////////////////////////////////////////////////
-// Draws a horizontal bar to the right.
-//
+/*****************************************************************
+ * Draws a horizontal bar to the right.
+ */
 void CwLnx_hbar(int x, int y, int len)
 {
     char map[7] = { 32, 1, 2, 3, 4, 5, 255 };
@@ -804,21 +808,20 @@ void CwLnx_hbar(int x, int y, int len)
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Writes a big number.
-//
+/*******************************************************************
+ * Writes a big number.
+ */
 void CwLnx_num(int x, int num)
 {
     return;
 }
 
-/////////////////////////////////////////////////////////////////
-// Sets a custom character from 0-7...
-//
-// For input, values > 0 mean "on" and values <= 0 are "off".
-//
-// The input is just an array of characters...
-//
+/*********************************************************************
+ * Sets a custom character from 0-7...
+ * For input, values > 0 mean "on" and values <= 0 are "off".
+ *
+ * The input is just an array of characters...
+ */
 void CwLnx_set_char(int n, char *dat)
 {
     int row, col;
@@ -844,7 +847,8 @@ void CwLnx_set_char(int n, char *dat)
 	    letter <<= 1;
 	    letter |= (dat[(col * CwLnx->cellhgt) + row] > 0);
 	}
-	Write_LCD(fd, &letter, 1);
+	c=letter;
+	Write_LCD(fd, &c, 1);
     }
     c = LCD_CMD_END;
     rc = Write_LCD(fd, &c, 1);
@@ -854,7 +858,7 @@ void CwLnx_icon(int which, char dest)
 {
     char icons[3][6 * 8] = {
 	{
-	 1, 1, 1, 0, 0, 0, 1, 1,	// Empty Heart
+	 1, 1, 1, 0, 0, 0, 1, 1,	/* Empty Heart */
 	 1, 1, 0, 0, 0, 0, 0, 1,
 	 1, 0, 0, 0, 0, 0, 1, 1,
 	 1, 1, 0, 0, 0, 0, 0, 1,
@@ -863,7 +867,7 @@ void CwLnx_icon(int which, char dest)
 	 },
 
 	{
-	 1, 1, 1, 0, 0, 0, 1, 1,	// Filled Heart
+	 1, 1, 1, 0, 0, 0, 1, 1,	/* Filled Heart */
 	 1, 1, 0, 1, 1, 1, 0, 1,
 	 1, 0, 1, 1, 1, 0, 1, 1,
 	 1, 1, 0, 1, 1, 1, 0, 1,
@@ -872,7 +876,7 @@ void CwLnx_icon(int which, char dest)
 	 },
 
 	{
-	 1, 0, 0, 0, 0, 0, 0, 0,	// Ellipsis
+	 1, 0, 0, 0, 0, 0, 0, 0,	/* Ellipsis */
 	 0, 0, 0, 0, 0, 0, 0, 0,
 	 1, 0, 0, 0, 0, 0, 0, 0,
 	 0, 0, 0, 0, 0, 0, 0, 0,
@@ -887,61 +891,79 @@ void CwLnx_icon(int which, char dest)
     CwLnx_set_char(dest, &icons[which][0]);
 }
 
-/////////////////////////////////////////////////////////////
-// Blasts a single frame onscreen, to the lcd...
-//
-// Input is a character array, sized CwLnx->wid*CwLnx->hgt
-//
+/**********************************************************
+ * Blasts a single frame onscreen, to the lcd...
+ *
+ * Input is a character array, sized CwLnx->wid*CwLnx->hgt
+ */
 void CwLnx_draw_frame(char *dat)
 {
-    char *row, *b_row;
-    int i;
+    int i, j, mv, rc;
+    char *p, *q;
+/*  char c; */
+/*  static int count=0; */
 
     if (!dat)
 	return;
 
-    for (i = 0; i < CwLnx->hgt; i++) {
+    mv = 1;
+    p = dat;
+    q = backingstore;
 
-	row = dat + (CwLnx->wid * i);
-	b_row = backingstore + (CwLnx->wid * i);
+/*    printf("\n_draw_frame: %d\n", count);   */
 
-	/* Backing-store implementation.  If it's already
-	 * on the screen, don't put it there again
-	 */
-	if (memcmp(b_row, row, CwLnx->wid) == 0)
-	    continue;
-
-	/* else, write out the entire row */
-	memcpy(b_row, row, CwLnx->wid);
-	Set_Insert(fd, i, 0);
-	Write_Line_LCD(fd, b_row);
-    }
+    for (i = 0; i < CwLnx->hgt; i++) 
+            {
+	    for (j = 0; j < CwLnx->wid; j++) 
+	            {
+		    if ( (*p == *q) && !( (0<*p) && (*p<16) ) )
+		    	{
+				mv = 1;
+/*         count++; if (count==COUNT) exit(0);       */
+			}
+		    else
+		        {
+			    /* Draw characters that have changed, as well
+			     * as custom characters.  We know not if a custom
+			     * character has changed.
+			     */ 
+		        if (mv == 1) 
+			    {
+			    Set_Insert(fd, i, j);
+			    mv = 0;
+		   	    }
+                        rc = Write_LCD(fd, p, 1);
+		        }
+		    p++;
+		    q++; 
+	            }
+            }
+  strncpy(backingstore, dat, CwLnx->wid * CwLnx->hgt);
 
 }
 
-/////////////////////////////////////////////////////////////////
-// Clears the LCD screen
-//
+/*********************************************************
+ * Clears the LCD screen
+ */
 void CwLnx_clear()
 {
     memset(CwLnx->framebuf, ' ', CwLnx->wid * CwLnx->hgt);
-
 }
 
-/////////////////////////////////////////////////////////////////
-// Prints a string on the lcd display, at position (x,y).  The
-// upper-left is (1,1), and the lower right should be (20,4).
-//
+/*****************************************************************
+ * Prints a string on the lcd display, at position (x,y).  The
+ * upper-left is (1,1), and the lower right should be (20,4).
+ */
 void CwLnx_string(int x, int y, char string[])
 {
     int i;
 
-    x -= 1;			// Convert 1-based coords to 0-based...
+    x -= 1;			/* Convert 1-based coords to 0-based... */
     y -= 1;
 
     for (i = 0; string[i]; i++) {
 
-	// Check for buffer overflows...
+	/* Check for buffer overflows... */
 	if ((y * CwLnx->wid) + x + i > (CwLnx->wid * CwLnx->hgt))
 	    break;
 	CwLnx->framebuf[(y * CwLnx->wid) + x + i] = string[i];
@@ -978,30 +1000,34 @@ static char CwLnx_getkey()
 	return in;
 }
 
-/////////////////////////////////////////////////////////////
-// Does the heartbeat...
-//
+/**********************************************************
+ * Does the heartbeat...
+ */
 static void CwLnx_heartbeat(int type)
 {
     static int timer = 0;
     int whichIcon;
+    static int saved_whichIcon=123;
     static int saved_type = HEARTBEAT_ON;
 
     if (type)
 	saved_type = type;
 
     if (type == HEARTBEAT_ON) {
-	// Set this to pulsate like a real heart beat...
+	/* Set this to pulsate like a real heart beat... */
 	whichIcon = (!((timer + 4) & 5));
 
-	// This defines a custom character EVERY time...
-	// not efficient... is this necessary?
-	CwLnx_icon(whichIcon, 8); 
+	/* This defines a custom character EVERY time... */
+	/* not efficient... is this necessary? */
+	if (whichIcon != saved_whichIcon) {
+		CwLnx_icon(whichIcon, 8); 
+		saved_whichIcon = whichIcon;
+	}
 
-	// Put character on screen...
+	/* Put character on screen... */
 	CwLnx_chr(CwLnx->wid, 1, 8 );
 
-	// change display...
+	/* change display... */
 	CwLnx_flush();
     }
 
