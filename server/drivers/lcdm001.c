@@ -204,8 +204,7 @@ lcdm001_init (struct lcd_logical_driver *driver, char *args)
 	}
 
 	if (!driver->framebuf) {
-		lcdm001_close ();
-                report(RPT_ERR, "\nError: unable to create LCDM001 framebuffer.\n");
+		report(RPT_ERR, "\nError: unable to create LCDM001 framebuffer.\n");
 		return -1;
 	}
 /* Debugging...
@@ -273,7 +272,7 @@ lcdm001_init (struct lcd_logical_driver *driver, char *args)
 
 	/* Reset and clear the LCDM001 */
 	write (fd, "~C", 2);
-	/*Set cursorblink to default */
+	/* Set cursorblink to default */
 	lcdm001_cursorblink (DEFAULT_CURSORBLINK);
 	/* Turn all LEDs off */
 	snprintf (out, sizeof(out), "%cL%c%c", 126, 0, 0);
