@@ -6,6 +6,7 @@
  * COPYING file distributed with this package.
  *
  * Copyright (c) 1999, William Ferrell, Scott Scriven
+ *               2002, Rene Wagner
  *
  *
  * Inits/shuts down client system,
@@ -103,6 +104,8 @@ client_create (int sock)
 
 	c->sock = sock;
 	c->backlight_state = backlight; /*By default we get the server setting*/
+	if (c->backlight_state == BACKLIGHT_OPEN) /*server backlight mode is set to "open"*/
+	    c->backlight_state = backlight_state; /*so, get the current backlight state*/
 
 	/*Set up message list...*/
 	c->messages = LL_new ();

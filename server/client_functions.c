@@ -6,6 +6,7 @@
  * COPYING file distributed with this package.
  *
  * Copyright (c) 1999, William Ferrell, Scott Scriven
+ *               2002, Rene Wagner
  *
  *
  * This contains definitions for all the functions which clients can run.
@@ -1309,7 +1310,8 @@ backlight_func (client * c, int argc, char **argv)
 	debug (RPT_DEBUG, "backlight(%s)", argv[1]);
 
 
-	backlight = (backlight && 1);  /* only preserves ON/OFF bit*/
+	/*This should NEVER be done!*/
+	/*backlight = (backlight && 1);*/  /* only preserves ON/OFF bit*/
 
 	if (strcmp ("on", argv[1]) == 0) {
 		c->backlight_state = BACKLIGHT_ON;

@@ -6,6 +6,7 @@
  * COPYING file distributed with this package.
  *
  * Copyright (c) 1999, William Ferrell, Scott Scriven
+ *               2002, Rene Wagner
  *
  *
  * Implements the serverscreens
@@ -28,6 +29,7 @@
 #include "screen.h"
 #include "screenlist.h"
 #include "widget.h"
+#include "render.h"
 
 #include "serverscreens.h"
 
@@ -62,6 +64,7 @@ server_screen_init ()
 	server_screen->id = id;
 	server_screen->name = name;
 	server_screen->duration = 8; /* 1 second, instead of 4...*/
+	server_screen->backlight_state = backlight_state;
 
 	if (widget_add (server_screen, "title", "title", NULL, 1) != 0) {
 		report (RPT_ERR, "server_screen_init: internal error: could not add title widget");

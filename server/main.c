@@ -270,6 +270,7 @@ clear_settings ()
 	daemon_mode = UNSET_INT;
 	enable_server_screen = UNSET_INT;
 	backlight = UNSET_INT;
+	backlight_state = UNSET_INT;
 
 	default_duration = UNSET_INT;
 	reportToSyslog = UNSET_INT;
@@ -347,6 +348,10 @@ process_command_line (int argc, char **argv)
 				}
 				else if( strcmp( optarg, "open" ) == 0 ) {
 					backlight = BACKLIGHT_OPEN;
+					/* NOTE: The initial backlight (AKA backlight_state)
+					 *       can be set from the configfile only
+					 *       It defaults to BACKLIGHT_OFF
+					 */
 				}
 				else if( strcmp( optarg, "" ) != 0 ) {
 					report( RPT_ERR, "Backlight state should be on, off or open" );
@@ -448,7 +453,20 @@ process_configfile ( char *configfile )
 			backlight = BACKLIGHT_OPEN;
 		}
 		else if( strcmp( s, UNSET_STR ) != 0 ) {
-			report( RPT_ERR, "Backlight state should be on, off or open" );
+			report( RPT_ERR, "Backlight should be on, off or open" );
+		}
+	}
+
+	if( backlight == BACKLIGHT_OPEN && backlight_state == UNSET_INT ) {
+		s = config_get_string( "server", "initialbacklight", 0, UNSET_STR );
+		if( strcmp( s, "on" ) == 0 ) {
+			backlight_state = BACKLIGHT_ON;
+		}
+		else if( strcmp( s, "off" ) == 0 ) {
+			backlight_state = BACKLIGHT_OFF;
+		}
+		else if( strcmp( s, UNSET_STR ) != 0 ) {
+			report( RPT_ERR, "Initial backlight should be on or off" );
 		}
 	}
 
@@ -529,8 +547,11 @@ set_default_settings()
 
 	if (default_duration == UNSET_INT)
 		default_duration = DEFAULT_SCREEN_DURATION;
+
 	if (backlight == UNSET_INT)
 		backlight = BACKLIGHT_OPEN;
+	if (backlight_state == UNSET_INT)
+		backlight_state = BACKLIGHT_OFF;
 
 	if (reportToSyslog == UNSET_INT )
 		reportToSyslog = DEFAULT_REPORTTOSYSLOG;

@@ -6,6 +6,7 @@
  * COPYING file distributed with this package.
  *
  * Copyright (c) 1999, William Ferrell, Scott Scriven
+ *               2002, Rene Wagner
  *
  *
  * Draws screens on the LCD.
@@ -93,6 +94,14 @@ draw_screen (screen * s, int timer)
 	/* Set up backlight to the correct state...
 	 * NOTE: dirty stripping of other options...
 	 */
+
+	if ((backlight==BACKLIGHT_OPEN)||(strcmp(s->id,"ClientList")==0)){
+
+	/* Only in BACKLIGHT_OPEN mode clients are allowed to change the backlight
+	 * state. The serverscreen (id=ClientList) has to be allowed to do so anyway,
+	 * in order to enter the "loop".
+	 */
+
 	switch (tmp_state & 1) {
 		case BACKLIGHT_OFF:
 			lcd_ptr->backlight (BACKLIGHT_OFF);
@@ -123,6 +132,7 @@ draw_screen (screen * s, int timer)
 				/*lcd_ptr->backlight(backlight_brightness * ((timer&14) == 14));*/
 			}
 			break;
+	}
 	}
 
 	/* Output ports from LCD - outputs depend on the current screen*/
