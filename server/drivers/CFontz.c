@@ -656,9 +656,11 @@ CFontz_num (int x, int num)
 	write (fd, out, 4);
 
 /* Make this space dirty as far as frame buffer knows.*/
-	for (y = 1; y < 5; y++)
+	for (y = 0; y < 4; y++)
 		for (dx = 0; dx < 3; dx++)
-			CFontz_chr (x + dx, y, DIRTY_CHAR);
+			/* writing to backingstore should prevent the display from flickering*/
+			if (backingstore)
+				backingstore[(y * CFontz->wid) + x + dx]= DIRTY_CHAR;
 
 }
 
