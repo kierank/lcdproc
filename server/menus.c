@@ -38,7 +38,6 @@ int Close_func ();
 int OK_func ();
 int Time24_func (int input);
 int Heartbeat_func (int input);
-int Backlight_func (int input);
 int Server_screen_func (int input);
 int Contrast_func (int input);
 int Backlight_Brightness_func (int input);
@@ -205,62 +204,6 @@ Heartbeat_func (int input)
 	return ((heartbeat != HEART_OFF) | MENU_OK);
 }
 
-int
-Backlight_func (int input)
-{
-	int status = 128;
-
-	switch (backlight) {
-	case BACKLIGHT_OFF:
-		if (input == MENU_READ)
-			status = 0;
-		if (input == MENU_PLUS) {
-			backlight = BACKLIGHT_OPEN;
-			status = 128;
-		}
-		if (input == MENU_MINUS) {
-			status = 0;
-		}
-		break;
-	case BACKLIGHT_ON:
-		if (input == MENU_READ)
-			status = 255;
-		if (input == MENU_PLUS) {
-			status = 255;
-		}
-		if (input == MENU_MINUS) {
-			backlight = BACKLIGHT_OPEN;
-			status = 128;
-		}
-		break;
-	case BACKLIGHT_OPEN:
-		if (input == MENU_READ)
-			status = 128;
-		if (input == MENU_PLUS) {
-			backlight = BACKLIGHT_ON;
-			backlight_state = BACKLIGHT_ON;
-			status = 255;
-		}
-		if (input == MENU_MINUS) {
-			backlight = BACKLIGHT_OFF;
-			backlight_state = BACKLIGHT_OFF;
-			status = 0;
-		}
-		break;
-	}
-
-	/*
-	   if(input == MENU_READ) return (backlight != BACKLIGHT_OFF);
-	   if(input == MENU_CHECK)
-	   {
-	   if(backlight) backlight = BACKLIGHT_OFF;
-	   else backlight = BACKLIGHT_OPEN;
-	   }
-	 */
-	lcd_ptr->backlight (backlight_state & BACKLIGHT_ON);
-
-	return (status | MENU_OK);
-}
 
 int
 Server_screen_func (int input)
