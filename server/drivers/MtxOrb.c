@@ -32,17 +32,9 @@
 #include "drv_base.h"
 #include "input.h"
 
-// I don't want to break anything here so let's do it step by step
-//#define USE_REPORT
-#ifdef USE_REPORT
-//#define DEBUG
 #include "shared/report.h"
-//#undef DEBUG
-#else
-#include "shared/debug.h"
-#endif
-
 #include "shared/str.h"
+#include "configfile.h"
 
 #define IS_LCD_DISPLAY	(MtxOrb_type == MTXORB_LCD)
 #define IS_LKD_DISPLAY	(MtxOrb_type == MTXORB_LKD)
@@ -51,17 +43,13 @@
 
 #define NotEnoughArgs (i + 1 > argc)
 
-// NOTE: This does not appear to make use of the
-//       hbar and vbar functions present in the LKD202-25.
-//       Why I do not know.
-// RESP: Because software emulated hbar/vbar permit simultaneous use.
+/* NOTE: This does not appear to make use of the
+ *       hbar and vbar functions present in the LKD202-25.
+ *       Why I do not know.
+ * RESP: Because software emulated hbar/vbar permit simultaneous use.
+ */
 
-#ifdef USE_REPORT
-#else
-extern int debug_level;
-#endif
-
-// TODO: Remove this custom_type if not in use anymore.
+/* TODO: Remove this custom_type if not in use anymore.*/
 typedef enum {
 	bar = 2,
 	bign = 4,
@@ -104,6 +92,10 @@ static int custom = 0;
 static enum {MTXORB_LCD, MTXORB_LKD, MTXORB_VFD, MTXORB_VKD} MtxOrb_type;
 static int fd;
 static int clear = 1;
+static int backlightenabled = DEFAULT_BACKLIGHT;
+
+static int backlight_state = -1;
+static int output_state = -1;
 
 static int def[9] = { -1, -1, -1, -1, -1, -1, -1, -1, -1 };
 static int use[9] = { 1, 0, 0, 0, 0, 0, 0, 0, 0 };
@@ -114,8 +106,8 @@ static void MtxOrb_cursorblink (int on);
 static void MtxOrb_string (int x, int y, char *string);
 
 /* 
- * This does not belong to MtxOrb.h except if used externaly
- * Having them here reduce the number of warning.
+ * This does not belong to MtxOrb.h unless used externally
+ * Having these defines here reduces the number of warnings.
  */ 
 static void MtxOrb_clear ();
 static void MtxOrb_close ();
@@ -143,247 +135,163 @@ static void MtxOrb_set_known_char (int car, int type);
  * End of what was in MtxOrb.h
  */
 
-// Very private function that clear internal definition.
+/* Very private function that clear internal definition.*/
 static void
 MtxOrb_clear_custom ()
 {
 	int pos;
 
 	for (pos = 0; pos < 9; pos++) {
-		def[pos] = -1;		// Not in use.
-		use[pos] = 0;		// Not in use.
+		def[pos] = -1;		/* Not in use.*/
+		use[pos] = 0;		/* Not in use.*/
 		}
 }
 
-static int
-MtxOrb_set_type (char * str) {
-	char c;
-	c = str[0];
+/* TODO:  Get rid of this variable? Probably not...*/
+lcd_logical_driver *MtxOrb;	/* set by MtxOrb_init(); doesn't seem to be used anywhere*/
+/* TODO:  Get the frame buffers working right*/
 
-	if (c == 'l') {
-		if (strncasecmp(str, "lcd", 3) == 0) {
-			return MTXORB_LCD;
-		} else if (strncasecmp(str, "lkd", 3) == 0) {
-			return MTXORB_LKD;
-		} else {
-			fprintf (stderr, "MtxOrb_init: unknwon display type %s; must be one of lcd, lkd, vfd, or vkd\n", str);
-		}
-	} else if (c == 'v') {
-		if (strncasecmp (str, "vfd", 3) == 0) {
-			return MTXORB_VFD;
-		} else if (strncasecmp (str, "vkd", 3) == 0) {
-			return MTXORB_VKD;
-		} else {
-			fprintf (stderr, "MtxOrb_init: unknwon display type %s; must be one of lcd, lkd, vfd, or vkd\n", str);
-		}
-	} else {
-		fprintf (stderr, "MtxOrb_init: unknwon display type %s; must be one of lcd, lkd, vfd, or vkd\n", str);
-	}
-	return (-1);
-}
-
-static int
-MtxOrb_get_speed (char *arg) {
-	int speed;
-
-	switch (atoi(arg)) {
-		case 1200: speed = B1200; break;
-		case 2400: speed = B2400; break;
-		case 9600: speed = B9600; break;
-		case 19200: speed = B19200; break;
-		default:
-			speed = DEFAULT_SPEED;
-			fprintf (stderr, "MtxOrb_init: argument must be 1200, 2400, 9600 or 19200. Using default value");
-			switch (speed) {
-				case B1200: fprintf(stderr, " of 1200 baud.\n"); break;
-				case B2400: fprintf(stderr, " of 2400 baud.\n"); break;
-				case B9600: fprintf(stderr, " of 9600 baud.\n"); break;
-				case B19200: fprintf(stderr, " of 19200 baud.\n"); break;
-				default: fprintf(stderr, ".\n"); break;
-			}
-		}
-
-	return speed;
-	}
-
-static void
-MtxOrb_usage (void) {
-	printf ("LCDproc Matrix-Orbital LCD driver\n"
-		"\t-d\t\tSelect the output device to use [/dev/lcd]\n"
-		"\t-t\t\tSelect the LCD type (size) [20x4]\n"
-//		"\t-b\t--backlight\tSelect the backlight state [on]\n"
-		"\t-c\t\tSet the initial contrast [140]\n"
-		"\t-s\t\tSet the communication speed [19200]\n"
-		"\t-h\t\tShow this help information\n"
-		"\t-b\t\tdisplay type: lcd, lkd, vfd, vkd\n");
-}
-
-int
-MtxOrb_set_contrast (char * str) {
-	int contrast;
-
-	contrast = atoi (str);
-	if ((contrast < 0) || (contrast > 255)) {
-		fprintf(stderr, "MtxOrb_init: argument must between 0 and 255 (found %s). Using default contrast value of %d.\n", str, DEFAULT_CONTRAST);
-		contrast = DEFAULT_CONTRAST;
-	}
-	return contrast;
-}
-
-// TODO:  Get rid of this variable? Probably not...
-lcd_logical_driver *MtxOrb;	// set by MtxOrb_init(); doesn't seem to be used anywhere
-// TODO:  Get the frame buffers working right
-
-/////////////////////////////////////////////////////////////////
-// Opens com port and sets baud correctly...
-//
-// Called to initialize driver settings
-//
+/*********************************************************************
+ * init() should set up any device-specific stuff, and
+ * point all the function pointers.
+ */
 int
 MtxOrb_init (lcd_logical_driver * driver, char *args)
 {
-	char *argv[64];		// Notice: 64 arguments - overflows?
-	int argc;
 	struct termios portset;
-	int i;
-	//int tmp;
 
 	int contrast = DEFAULT_CONTRAST;
 	char device[256] = DEFAULT_DEVICE;
 	int speed = DEFAULT_SPEED;
-	//char c;
+	char size[256] = DEFAULT_SIZE;
+	char buf[256] = "";
+	int tmp, w, h;
 
 	MtxOrb_type = MTXORB_LKD;  // Assume it's an LCD w/keypad
 
 	MtxOrb = driver;
 
-	//debug("MtxOrb_init: Args(all): %s\n", args);
+	debug( RPT_INFO, "MtxOrb: init(%p,%s)", driver, args );
 
-	argc = get_args (argv, args, 64);
+	/* TODO: replace DriverName with driver->name when that field exists. */
+	#define DriverName "MtxOrb"
 
-	/*
-	   for(i=0; i<argc; i++)
-	   {
-	   printf("Arg(%i): %s\n", i, argv[i]);
-	   }
-	 */
 
-#ifdef USE_GETOPT
-	while ((c = getopt(argc, argv, "d:c:s:ht:")) > 0) {
-		switch(c) {
-			case 'd':
-				strncpy(device, optarg, sizeof(device));
-				break;
-			case 's':
-				speed = MtxOrb_get_speed(optarg);
-				break;
-			case 'c':
-				contrast = MtxOrb_set_contrast(optarg);
-				break;
-			case 'h':
-				MtxOrb_usage();
-				return -1;
-			case 't':
-				MtxOrb_set_type(optarg);
-			default:
-				MtxOrb_usage();
-				return -1;
-		}
+	/* READ CONFIG FILE */
+
+	/* Get serial device to use */
+	strncpy(device, config_get_string ( DriverName , "device" , 0 , DEFAULT_DEVICE),sizeof(device));
+	device[sizeof(device)-1]=0;
+	report (RPT_INFO,"MtxOrb: Using device: %s", device);
+
+	/* Get display size */
+	strncpy(size, config_get_string ( DriverName , "size" , 0 , DEFAULT_SIZE),sizeof(size));
+	size[sizeof(size)-1]=0;
+	if( sscanf(size , "%dx%d", &w, &h ) != 2
+	|| (w <= 0) || (w > LCD_MAX_WIDTH)
+	|| (h <= 0) || (h > LCD_MAX_HEIGHT)) {
+		report (RPT_WARNING, "MtxOrb: Cannot read size: %s. Using default value %s.\n", size, DEFAULT_SIZE);
+		sscanf( DEFAULT_SIZE , "%dx%d", &w, &h );
 	}
-#else
-	for (i = 0; i < argc; i++) {
-		char *p;
+	driver->wid = w;
+	driver->hgt = h;
 
-		p = argv[i];
-		//printf("Arg(%i): %s\n", i, argv[i]);
+	/* Get contrast */
+	if (0<=config_get_int ( DriverName , "Contrast" , 0 , DEFAULT_CONTRAST) && config_get_int ( DriverName , "Contrast" , 0 , DEFAULT_CONTRAST) <= 255) {
+		contrast = config_get_int ( DriverName , "Contrast" , 0 , DEFAULT_CONTRAST);
+	} else {
+		report (RPT_WARNING, "MtxOrb: Contrast must be between 0 and 255. Using default value.\n");
+	}
 
-		if (*p == '-') {
+	/* Get speed */
+	tmp = config_get_int ( DriverName , "Speed" , 0 , DEFAULT_SPEED);
 
-			p++;
-			switch (*p) {
-				case 'd':
-					if (i + 1 > argc) {
-						fprintf (stderr, "MtxOrb_init: %s requires an argument\n", argv[i]);
-						return -1;
-					}
-					strcpy (device, argv[++i]);
+	switch (tmp) {
+		case 1200:
+			speed = B1200;
+			break;
+		case 2400:
+			speed = B2400;
+			break;
+		case 9600:
+			speed = B9600;
+			break;
+		case 19200:
+			speed = B19200;
+			break;
+		default:
+			speed = DEFAULT_SPEED;
+			switch (speed) {
+				case B1200:
+					strncpy(buf,"1200", sizeof(buf));
 					break;
-				case 'c':
-					if (i + 1 > argc) {
-						fprintf (stderr, "MtxOrb_init: %s requires an argument\n", argv[i]);
-						return -1;
-					}
-					contrast = MtxOrb_set_contrast (argv[++i]);
+				case B2400:
+					strncpy(buf,"2400", sizeof(buf));
 					break;
-				case 's':
-					if (i + 1 > argc) {
-						fprintf (stderr, "MtxOrb_init: %s requires an argument\n", argv[i]);
-						return -1;
-					}
-					speed = MtxOrb_get_speed (argv[++i]);
+				case B9600:
+					strncpy(buf,"9600", sizeof(buf));
 					break;
-				case 'h':
-					MtxOrb_usage();
-					return -1;
+				case B19200:
+					strncpy(buf,"19200", sizeof(buf));
 					break;
-				case 't':
-					if (i + 1 > argc) {
-						fprintf (stderr, "MtxOrb_init: %s requires an argument\n", argv[i]);
-						return -1;
-					}
-					i++;
-					p = argv[i];
-
-					if (isdigit((unsigned int) *p) && isdigit((unsigned int) *(p+1))) {
-						int wid, hgt;
-
-						wid = ((*p - '0') * 10) + (*(p+1) - '0');
-						p += 2;
-
-						if (*p != 'x')
-							break;
-
-						p++;
-						if (!isdigit((unsigned int) *p))
-							break;
-
-						hgt = (*p - '0');
-
-						MtxOrb->wid = wid;
-						MtxOrb->hgt = hgt;
-						}
-					break;
-				case 'b':
-					if (i + 1 > argc) {
-						fprintf (stderr, "MtxOrb_init: %s requires an argument\n", argv[i]);
-						return -1;
-					}
-					i++;
-					MtxOrb_type = MtxOrb_set_type(argv[i]);
-					break;
-				default:
-					printf ("Invalid parameter: %s\n", argv[i]);
-					break;
+			report (RPT_WARNING , "MtxOrb: Speed must be 1200, 2400, 9600 or 19200. Using default value of %s baud!", buf);
+			strncpy(buf,"", sizeof(buf));
 			}
-		}
 	}
-#endif
 
-	// Set up io port correctly, and open it...
+
+	/* Get backlight setting*/
+	if(config_get_bool( DriverName , "enablebacklight" , 0 , DEFAULT_BACKLIGHT)) {
+		backlightenabled = 1;
+	}
+
+	/* Get display type */
+	strncpy(buf, config_get_string ( DriverName , "type" , 0 , DEFAULT_TYPE),sizeof(size));
+	buf[sizeof(buf)-1]=0;
+
+	if (strncasecmp(buf, "lcd", 3) == 0) {
+		MtxOrb_type = MTXORB_LCD;
+	} else if (strncasecmp(buf, "lkd", 3) == 0) {
+		MtxOrb_type = MTXORB_LKD;
+	} else if (strncasecmp (buf, "vfd", 3) == 0) {
+		MtxOrb_type = MTXORB_VFD;
+	} else if (strncasecmp (buf, "vkd", 3) == 0) {
+		MtxOrb_type = MTXORB_VKD;
+	} else {
+		report (RPT_ERR, "MtxOrb: unknwon display type %s; must be one of lcd, lkd, vfd, or vkd\n", buf);
+		return (-1);
+		}
+
+	/* End of config file parsing*/
+
+
+	/* Allocate framebuffer memory*/
+	/* You must use driver->framebuf here, but may use lcd.framebuf later.*/
+	if (!driver->framebuf) {
+		driver->framebuf = malloc (driver->wid * driver->hgt);
+	}
+
+	if (!driver->framebuf) {
+	        report(RPT_ERR, "MtxOrb: Error: unable to create framebuffer.\n");
+		return -1;
+	}
+
+	/* Set up io port correctly, and open it... */
 	fd = open (device, O_RDWR | O_NOCTTY | O_NDELAY);
 	if (fd == -1) {
 		switch (errno) {
-			case ENOENT: fprintf(stderr, "MtxOrb_init: %s device file missing!\n", device);
+			case ENOENT:
+				report (RPT_ERR, "MtxOrb: %s device file missing!\n", device);
 				break;
-			case EACCES: fprintf(stderr, "MtxOrb_init: %s device could not be opened...\n", device);
-				fprintf(stderr, "MtxOrb_init: perhaps you should run LCDd as root?\n");
+			case EACCES: report (RPT_ERR, "MtxOrb: %s device could not be opened...\n", device);
+				report (RPT_ERR, "MtxOrb: Make sure you have rw access to %s\n", device);
 				break;
-			default: fprintf (stderr, "MtxOrb_init: failed (%s)\n", strerror (errno));
+			default: report (RPT_ERR, "MtxOrb: opening %s failed (%s)\n", device, strerror (errno));
 				break;
 		}
   		return -1;
 	} else
-		syslog(LOG_INFO, "opened Matrix Orbital display on %s\n", device);
+		report (RPT_INFO, "MtxOrb: opened display on %s\n", device);
 
 	tcgetattr (fd, &portset);
 
@@ -408,12 +316,6 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 	// Do it...
 	tcsetattr (fd, TCSANOW, &portset);
 
-	// Make sure the frame buffer is there...
-	if (!MtxOrb->framebuf)
-		MtxOrb->framebuf = (unsigned char *)
-			malloc (MtxOrb->wid * MtxOrb->hgt);
-	memset (MtxOrb->framebuf, ' ', MtxOrb->wid * MtxOrb->hgt);
-
 	/*
 	 * Configure display
 	 */
@@ -426,6 +328,7 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 	/*
 	 * Configure the display functions
 	 */
+	driver->daemonize = 1; /* make the server daemonize after initialization*/
 
 	driver->clear = MtxOrb_clear;
 	driver->string = MtxOrb_string;
@@ -458,32 +361,28 @@ MtxOrb_init (lcd_logical_driver * driver, char *args)
 #define ValidX(x) if ((x) > MtxOrb->wid) { (x) = MtxOrb->wid; } else (x) = (x) < 1 ? 1 : (x);
 #define ValidY(y) if ((y) > MtxOrb->hgt) { (y) = MtxOrb->hgt; } else (y) = (y) < 1 ? 1 : (y);
 
-// TODO: Check this quick hack to detect clear of the screen.
-/////////////////////////////////////////////////////////////////
-// Clear: catch up when the screen get clear to be able to
-//  forget bar caracter not in use anymore and reuse the
-//  slot for another bar caracter.
-//
+/* TODO: Check this quick hack to detect clear of the screen. */
+
+/***************************************************************************
+ * Clear: catch up when the screen get clear to be able to
+ *  forget bar caracter not in use anymore and reuse the
+ *  slot for another bar caracter.
+ */
 static void
 MtxOrb_clear ()
 {
 	if (MtxOrb->framebuf != NULL)
 		memset (MtxOrb->framebuf, ' ', (MtxOrb->wid * MtxOrb->hgt));
 
-	//write(fd, "\x0FE" "X", 2);  // instant clear...
+	 write(fd, "\x0FE" "X", 2); /* instant clear... */ /*Why was this disabled?*/
 	clear = 1;
 
-#ifdef USE_REPORT
 	debug(RPT_DEBUG, "MtxOrb: cleared screen");
-#else
-	if (debug_level > 3)
-		syslog(LOG_DEBUG, "MtxOrb: cleared screen");
-#endif
 }
 
-/////////////////////////////////////////////////////////////////
-// Clean-up
-//
+/*****************************************************************************
+ * Clean-up
+ */
 static void
 MtxOrb_close ()
 {
@@ -494,12 +393,7 @@ MtxOrb_close ()
 
 	MtxOrb->framebuf = NULL;
 
-#ifdef USE_REPORT
 	debug(RPT_DEBUG, "MtxOrb: closed");
-#else
-	if (debug_level > 3)
-		syslog(LOG_DEBUG, "MtxOrb: closed");
-#endif
 }
 
 static void
@@ -510,19 +404,14 @@ MtxOrb_string (int x, int y, char *string)
 	ValidX(x);
 	ValidY(y);
 
-	x--; y--; // Convert 1-based coords to 0-based...
+	x--; y--; /* Convert 1-based coords to 0-based... */
 	offset = (y * MtxOrb->wid) + x;
 	siz = (MtxOrb->wid * MtxOrb->hgt) - offset - 1;
 	siz = siz > strlen(string) ? strlen(string) : siz;
 
 	memcpy(MtxOrb->framebuf + offset, string, siz);
 
-#ifdef USE_REPORT
 	debug(RPT_DEBUG, "MtxOrb: printed string at (%d,%d)", x, y);
-#else
-	if (debug_level > 4)
-		syslog(LOG_DEBUG, "MtxOrb: printed string at (%d,%d)", x, y);
-#endif
 }
 
 static void
@@ -530,12 +419,7 @@ MtxOrb_flush ()
 {
 	MtxOrb_draw_frame (MtxOrb->framebuf);
 
-#ifdef USE_REPORT
 	debug(RPT_DEBUG, "MtxOrb: frame buffer flushed");
-#else
-	if (debug_level > 4)
-		syslog(LOG_DEBUG, "MtxOrb: frame buffer flushed");
-#endif
 }
 
 static void
@@ -544,75 +428,57 @@ MtxOrb_flush_box (int lft, int top, int rgt, int bot)
 	int y;
 	char out[LCD_MAX_WIDTH];
 
+	debug(RPT_DEBUG, "MtxOrb: flush_box(%d,%d,%d,%d)", lft, top, rgt, bot);
+
 	for (y = top; y <= bot; y++) {
 		snprintf (out, sizeof(out), "\x0FEG%c%c", lft, y);
 		write (fd, out, 4);
 		write (fd, MtxOrb->framebuf + (y * MtxOrb->wid) + lft, rgt - lft + 1);
-
-#ifdef USE_REPORT
-	debug(RPT_DEBUG, "MtxOrb: frame buffer box flushed");
-#else
-	if (debug_level > 4)
-		syslog(LOG_DEBUG, "MtxOrb: frame buffer box flushed");
-#endif
 	}
-
+	debug(RPT_DEBUG, "MtxOrb: frame buffer box flushed");
 }
 
-/////////////////////////////////////////////////////////////////
-// Prints a character on the lcd display, at position (x,y).  The
-// upper-left is (1,1), and the lower right should be (20,4).
-//
+/*************************************************************************
+ * Prints a character on the lcd display, at position (x,y).  The
+ * upper-left is (1,1), and the lower right should be (20,4).
+ */
 static void
 MtxOrb_chr (int x, int y, char c)
 {
-#ifdef USE_REPORT
-#else
-	char buf[64]; // char out[10];
-#endif
 	int offset;
 
-	// Characters may or may NOT be alphabetic; it appears
-	// that characters 0..4 (or similar) are graphic fonts
+	/* Characters may or may NOT be alphabetic; it appears
+	 * that characters 0..4 (or similar) are graphic fonts
+	 */
 
 	ValidX(x);
 	ValidY(y);
 
-	// write immediately to screen... this code was taken
-	// from the LK202-25; should work for others, yes?
-	// snprintf(out, sizeof(out), "\x0FEG%c%c%c", x, y, c);
-	// write (fd, out, 4);
+	/* write immediately to screen... this code was taken
+	 * from the LK202-25; should work for others, yes?
+	 * snprintf(out, sizeof(out), "\x0FEG%c%c%c", x, y, c);
+	 * write (fd, out, 4);
+	 */
 
-	// write to frame buffer
-	y--; x--; // translate to 0-index
+	/* write to frame buffer */
+	y--; x--; /* translate to 0-index */
 	offset = (y * MtxOrb->wid) + x;
 	MtxOrb->framebuf[offset] = c;
 
-#ifdef USE_REPORT
-	debug(RPT_DEBUG, "writing character %02X to position (%d,%d)", c, x, y);
-	debug(RPT_DEBUG, "MtxOrb: printed a char at (%d,%d)", x, y);
-#else
-	if (debug_level > 2) {
-		snprintf(buf, sizeof(buf), "writing character %02X to position (%d,%d)", c, x, y);
-		syslog(LOG_DEBUG, buf);
-
-	if (debug_level > 4)
-		syslog(LOG_DEBUG, "MtxOrb: printed a char at (%d,%d)", x, y);
-	}
-#endif
+	debug(RPT_DEBUG, "MtxOrb: written character %02X to position (%d,%d)", c, x, y);
 }
 
-/////////////////////////////////////////////////////////////////
-// Changes screen contrast (0-255; 140 seems good)
-// note: works only for LCD displays
-// Is it better to use the brightness for VFD/VKD displays ?
-//
+/**************************************************************************
+ * Changes screen contrast (0-255; 140 seems good)
+ * note: works only for LCD displays
+ * Is it better to use the brightness for VFD/VKD displays ?
+ */
 static int
 MtxOrb_contrast (int contrast)
 {
 	char out[4];
 
-	// validate contrast value
+	/* validate contrast value */
 	if (contrast > 255)
 		contrast = 255;
 	if (contrast < 0)
@@ -622,97 +488,56 @@ MtxOrb_contrast (int contrast)
 		snprintf (out, sizeof(out), "\x0FEP%c", contrast);
 		write (fd, out, 3);
 
-#ifdef USE_REPORT
-	debug(RPT_DEBUG, "MtxOrb: contrast set to %d", contrast);
-#else
-		if (debug_level > 3)
-			syslog(LOG_DEBUG, "MtxOrb: contrast set to %d", contrast);
-#endif
+		debug(RPT_DEBUG, "MtxOrb: contrast set to %d", contrast);
 	} else {
-#ifdef USE_REPORT
-	debug(RPT_DEBUG, "MtxOrb: contrast not set to %d - not LCD or LKD display", contrast);
-#else
-		if (debug_level > 3)
-			syslog(LOG_DEBUG, "MtxOrb: contrast not set to %d - not LCD or LKD display", contrast);
-#endif
+		debug(RPT_DEBUG, "MtxOrb: contrast not set to %d - not LCD or LKD display", contrast);
 	}
 
 	return contrast;
 }
 
-/////////////////////////////////////////////////////////////////
-// Sets the backlight on or off -- can be done quickly for
-// an intermediate brightness...
-//
-// WARNING: off switches vfd/vkd displays off entirely
-//	    so maybe it is best to start LCDd with -b on
-//
-// WARNING: there seems to be a movement afoot to add more
-//          functions than just on/off to this..
-
-#define BACKLIGHT_OFF 0
-#define BACKLIGHT_ON 1
+/********************************************************************
+ * Sets the backlight on or off -- can be done quickly for
+ * an intermediate brightness...
+ *
+ * WARNING: off switches vfd/vkd displays off entirely
+ *	    so maybe it is best to start LCDd with -b on
+ *
+ * WARNING: there seems to be a movement afoot to add more
+ *          functions than just on/off to this..
+ */
 
 static void
 MtxOrb_backlight (int on)
 {
-	static int backlight_state = 1;
-
 	if (backlight_state == on)
 		return;
-
 	backlight_state = on;
 
-	switch (on) {
-		case BACKLIGHT_ON: 
-			write (fd, "\x0FE" "F", 2);
-#ifdef USE_REPORT
-	debug(RPT_DEBUG, "MtxOrb: backlight turned on");
-#else
-			if (debug_level > 3)
-				syslog(LOG_DEBUG, "MtxOrb: backlight turned on");
-#endif
-			break;
-		case BACKLIGHT_OFF: 
-			if (IS_VKD_DISPLAY || IS_VFD_DISPLAY) {
-#ifdef USE_REPORT
-	debug(RPT_DEBUG, "MtxOrb: backlight ignored - not LCD or LKD display");
-#else
-				if (debug_level > 3)
-					syslog(LOG_DEBUG, "MtxOrb: backlight ignored - not LCD or LKD display");
-#endif
-				; // turns display off entirely (whoops!)
-			} else {
-#ifdef USE_REPORT
-	debug(RPT_DEBUG, "MtxOrb: backlight turned off");
-#else
-				if (debug_level > 3)
-					syslog(LOG_DEBUG, "MtxOrb: backlight turned off");
-#endif
-				write (fd, "\x0FE" "B" "\x000", 3);
-			}
-			break;
-		default: // ignored...
-#ifdef USE_REPORT
-	debug(RPT_DEBUG, "MtxOrb: backlight - invalid setting");
-#else
-			if (debug_level > 3)
-				syslog(LOG_DEBUG, "MtxOrb: backlight - invalid setting");
-#endif
-			break;
+	if (on && backlightenabled) {
+		write (fd, "\x0FE" "F", 2);
+		debug(RPT_DEBUG, "MtxOrb: backlight turned on");
+	} else {
+		if (IS_VKD_DISPLAY || IS_VFD_DISPLAY) {
+			/* turns display off entirely (whoops!) */
+			debug(RPT_DEBUG, "MtxOrb: backlight ignored - not LCD or LKD display");
+		} else {
+			write (fd, "\x0FE" "B" "\x000", 3);
+			debug(RPT_DEBUG, "MtxOrb: backlight turned off");
 		}
+	}
 }
 
-/////////////////////////////////////////////////////////////////
-// Sets output port on or off
-// displays with keypad have 6 outputs but the one without kepad
-// have only one output
-// NOTE: length of command are different
+/*************************************************************************
+ * Sets output port on or off
+ * displays with keypad have 6 outputs but the one without keypad
+ * have only one output
+ * NOTE: length of command are different
+ */
 static void
 MtxOrb_output (int on)
 {
 	char out[5];
-	static int output_state = -1;
 
 	on = on & 077;	// strip to six bits
 
@@ -721,24 +546,20 @@ MtxOrb_output (int on)
 
 	output_state = on;
 
-#ifdef USE_REPORT
 	debug(RPT_DEBUG, "MtxOrb: output pins set: %04X", on);
-#else
-	if (debug_level > 3)
-		syslog(LOG_DEBUG, "MtxOrb: output pins set: %04X", on);
-#endif
 
 	if (IS_LCD_DISPLAY || IS_VFD_DISPLAY) {
-		// LCD and VFD displays only have one output port
+		/* LCD and VFD displays only have one output port */
 		(on) ?
 			write (fd, "\x0FEW", 2) :
 			write (fd, "\x0FEV", 2);
 	} else {
 		int i;
 
-		// Other displays have six output ports;
-		// the value "on" is a binary value determining which
-		// ports are turned on (1) and off (0).
+		/* Other displays have six output ports;
+		 * the value "on" is a binary value determining which
+		 * ports are turned on (1) and off (0).
+		 */
 
 		for(i = 0; i < 6; i++) {
 			(on & (1 << i)) ?
@@ -749,130 +570,90 @@ MtxOrb_output (int on)
 	}
 }
 
-/////////////////////////////////////////////////////////////////
-// Toggle the built-in linewrapping feature
-//
+/***********************************************************************************
+ * Toggle the built-in linewrapping feature
+ */
 static void
 MtxOrb_linewrap (int on)
 {
 	if (on) {
 		write (fd, "\x0FE" "C", 2);
-
-#ifdef USE_REPORT
-	debug(RPT_DEBUG, "MtxOrb: linewrap turned on");
-#else
-		if (debug_level > 3)
-			syslog(LOG_DEBUG, "MtxOrb: linewrap turned on");
-#endif
+		debug(RPT_DEBUG, "MtxOrb: linewrap turned on");
 	} else {
 		write (fd, "\x0FE" "D", 2);
-
-#ifdef USE_REPORT
-	debug(RPT_DEBUG, "MtxOrb: linewrap turned off");
-#else
-		if (debug_level > 3)
-			syslog(LOG_DEBUG, "MtxOrb: linewrap turned off");
-#endif
+		debug(RPT_DEBUG, "MtxOrb: linewrap turned off");
 	}
 }
 
-/////////////////////////////////////////////////////////////////
-// Toggle the built-in automatic scrolling feature
-//
+/************************************************************************************
+ * Toggle the built-in automatic scrolling feature
+ */
 static void
 MtxOrb_autoscroll (int on)
 {
 	if (on) {
 		write (fd, "\x0FEQ", 2);
-
-#ifdef USE_REPORT
-	debug(RPT_DEBUG, "MtxOrb: autoscroll turned on");
-#else
-		if (debug_level > 3)
-			syslog(LOG_DEBUG, "MtxOrb: autoscroll turned on");
-#endif
+		debug(RPT_DEBUG, "MtxOrb: autoscroll turned on");
 	} else {
 		write (fd, "\x0FER", 2);
-
-#ifdef USE_REPORT
-	debug(RPT_DEBUG, "MtxOrb: autoscroll turned off");
-#else
-		if (debug_level > 3)
-			syslog(LOG_DEBUG, "MtxOrb: autoscroll turned off");
-#endif
+		debug(RPT_DEBUG, "MtxOrb: autoscroll turned off");
 	}
 }
 
-// TODO: make sure this doesn't mess up non-VFD displays
-/////////////////////////////////////////////////////////////////
-// Toggle cursor blink on/off
-//
+/* TODO: make sure this doesn't mess up non-VFD displays*/
+
+/***********************************************************************************
+ * Toggle cursor blink on/off
+ */
 static void
 MtxOrb_cursorblink (int on)
 {
 	if (on) {
 		write (fd, "\x0FES", 2);
-
-#ifdef USE_REPORT
-	debug(RPT_DEBUG, "MtxOrb: cursorblink turned on");
-#else
-		if (debug_level > 3)
-			syslog(LOG_DEBUG, "MtxOrb: cursorblink turned on");
-#endif
+		debug(RPT_DEBUG, "MtxOrb: cursorblink turned on");
 	} else {
 		write (fd, "\x0FET", 2);
-
-#ifdef USE_REPORT
-	debug(RPT_DEBUG, "MtxOrb: cursorblink turned off");
-#else
-		if (debug_level > 3)
-			syslog(LOG_DEBUG, "MtxOrb: cursorblink turned off");
-#endif
+		debug(RPT_DEBUG, "MtxOrb: cursorblink turned off");
 	}
 }
 
-/////////////////////////////////////////////////////////////////
-// Sets up for vertical bars.  Call before lcd.vbar()
-//
+/************************************************************************************
+ * Sets up for vertical bars.  Call before lcd.vbar()
+ */
 static void
 MtxOrb_init_vbar ()
 {
 	custom = bar;
 }
 
-/////////////////////////////////////////////////////////////////
-// Inits horizontal bars...
-//
+/************************************************************************************
+ * Inits horizontal bars...
+ */
 static void
 MtxOrb_init_hbar ()
 {
 	custom = bar;
 }
 
-/////////////////////////////////////////////////////////////////
-// Returns string with general information about the display
-//
+/***********************************************************************************
+ * Returns string with general information about the display
+ */
 static char *
 MtxOrb_getinfo (void)
 {
 	char in = 0;
 	static char info[255];
 	char tmp[255], buf[64];
-	//int i = 0;
+	/* int i = 0; */
 	fd_set rfds;
 
 	struct timeval tv;
 	int retval;
 
-#ifdef USE_REPORT
-	debug(RPT_DEBUG, "MtxOrb: getinfo");
-#else
-	if (debug_level > 3)
-		syslog(LOG_DEBUG, "MtxOrb: getinfo");
-#endif
+	debug(RPT_DEBUG, "MtxOrb: getinfo()");
 
 	memset(info, '\0', sizeof(info));
-	strcpy(info, "Matrix Orbital Driver ");
+	strncpy(info, "Matrix Orbital Driver ", sizeof(info));
 
 	/*
 	 * Read type of display
@@ -885,14 +666,14 @@ MtxOrb_getinfo (void)
 	FD_SET(fd, &rfds);
 
 	/* Wait the specified amount of time. */
-	tv.tv_sec = 0;		// seconds
-	tv.tv_usec = 500;	// microseconds
+	tv.tv_sec = 0;		/* seconds */
+	tv.tv_usec = 500;	/* microseconds */
 
 	retval = select(1, &rfds, NULL, NULL, &tv);
 
 	if (retval) {
 		if (read (fd, &in, 1) < 0) {
-			syslog(LOG_WARNING, "MatrixOrbital driver: unable to read data");
+			report (RPT_WARNING, "MtxOrb: getinfo(): unable to read data");
 		} else {
 			switch (in) {
 				case '\x01': strcat(info, "LCD0821 "); break;
@@ -922,12 +703,13 @@ MtxOrb_getinfo (void)
 				case '\x33': strcat(info, "LK402-12 "); break;
 				case '\x34': strcat(info, "LK162-12 "); break;
 				case '\x35': strcat(info, "LK204-25PC "); break;
-				default: //snprintf(tmp, sizeof(tmp), "Unknown (%X) ", in); strcat(info, tmp);
-					     break;
+				default:
+					report(RPT_WARNING, "MtxOrb: getinfo(): Unknown device");
+					break;
 			}
 		}
 	} else
-		syslog(LOG_WARNING, "MatrixOrbital driver: unable to read device type");
+		report(RPT_WARNING, "MtxOrb: getinfo(): unable to read device type");
 
 	/*
 	 * Read serial number of display
@@ -944,13 +726,13 @@ MtxOrb_getinfo (void)
 
 	if (retval) {
 		if (read (fd, &tmp, 2) < 0) {
-			syslog(LOG_WARNING, "MatrixOrbital driver: unable to read data");
+			report (RPT_WARNING, "MtxOrb: getinfo(): unable to read data");
 		} else {
 			snprintf(buf, sizeof(buf), "Serial No: %ld ", (long int) tmp);
 			strcat(info, buf);
 		}
 	} else
-		syslog(LOG_WARNING, "MatrixOrbital driver: unable to read device serial number");
+		syslog(LOG_WARNING, "MtxOrb: getinfo(): unable to read device serial number");
 
 	/*
 	 * Read firmware revision number
@@ -967,23 +749,23 @@ MtxOrb_getinfo (void)
 
 	if (retval) {
 		if (read (fd, &tmp, 2) < 0) {
-			syslog(LOG_WARNING, "MatrixOrbital driver: unable to read data");
+			report (RPT_WARNING, "MtxOrb: getinfo(): unable to read data");
 		} else {
 			snprintf(buf, sizeof(buf), "Firmware Rev. %ld ", (long int) tmp);
 			strcat(info, buf);
 		}
 	} else
-		syslog(LOG_WARNING, "MatrixOrbital driver: unable to read device firmware revision");
+		report (RPT_WARNING, "MtxOrb: getinfo(): unable to read device firmware revision");
 
 	return info;
 }
 
-// TODO: Finish the support for bar growing reverse way.
-// TODO: Need a "y" as input also !!!
-/////////////////////////////////////////////////////////////////
-// Draws a vertical bar...
-// This is the new version ussing dynamic icon alocation
-//
+/* TODO: Finish the support for bar growing reverse way.*/
+/* TODO: Need a "y" as input also !!! */
+/**************************************************************************************************
+ * Draws a vertical bar...
+ * This is the new version ussing dynamic icon alocation
+ */
 static void
 MtxOrb_vbar (int x, int len)
 {
@@ -992,16 +774,11 @@ MtxOrb_vbar (int x, int len)
 
 	int y;
 
-#ifdef USE_REPORT
 	debug(RPT_DEBUG, "MtxOrb: vertical bar at %d set to %d", x, len);
-#else
-	if (debug_level > 4)
-		syslog(LOG_DEBUG, "MtxOrb: vertical bar at %d set to %d", x, len);
-#endif
 
-// REMOVE THE NEXT LINE FOR TESTING ONLY...
-//  len=-len;
-// REMOVE THE PREVIOUS LINE FOR TESTING ONLY...
+/* REMOVE THE NEXT LINE FOR TESTING ONLY...*/
+/*  len=-len;*/
+/* REMOVE THE PREVIOUS LINE FOR TESTING ONLY...*/
 
 	if (len > 0) {
 		for (y = MtxOrb->hgt; y > 0 && len > 0; y--) {
@@ -1026,11 +803,11 @@ MtxOrb_vbar (int x, int len)
 
 }
 
-// TODO: Finish the support for bar growing reverse way.
-/////////////////////////////////////////////////////////////////
-// Draws a horizontal bar to the right.
-// This is the new version ussing dynamic icon alocation
-//
+/* TODO: Finish the support for bar growing reverse way. */
+/*******************************************************************************
+ * Draws a horizontal bar to the right.
+ * This is the new version ussing dynamic icon alocation
+ */
 static void
 MtxOrb_hbar (int x, int y, int len)
 {
@@ -1040,12 +817,7 @@ MtxOrb_hbar (int x, int y, int len)
 	ValidX(x);
 	ValidY(y);
 
-#ifdef USE_REPORT
 	debug(RPT_DEBUG, "MtxOrb: horizontal bar at %d set to %d", x, len);
-#else
-	if (debug_level > 4)
-		syslog(LOG_DEBUG, "MtxOrb: horizontal bar at %d set to %d", x, len);
-#endif
 
 	if (len > 0) {
 		for (; x <= MtxOrb->wid && len > 0; x++) {
@@ -1072,23 +844,19 @@ MtxOrb_hbar (int x, int y, int len)
 
 }
 
-// TODO: Might not work, bignum is untested... an untested with dynamic bar.
-//
-// TODO: Rather than to use the hardware BigNum we should use software
-// emulation, this will make it work simultaniously as hbar/vbar. GLU
-//
-/////////////////////////////////////////////////////////////////
-// Sets up for big numbers.
-//
+/* TODO: Might not work, bignum is untested... an untested with dynamic bar.
+ */
+/* TODO: Rather than to use the hardware BigNum we should use software
+ * emulation, this will make it work simultaniously as hbar/vbar. GLU
+ */
+
+/**************************************************************************************
+ * Sets up for big numbers.
+ */
 static void
 MtxOrb_init_num ()
 {
-#ifdef USE_REPORT
 	debug(RPT_DEBUG, "MtxOrb: init for big numbers");
-#else
-	if (debug_level > 3)
-		syslog(LOG_DEBUG, "MtxOrb: init for big numbers");
-#endif
 
 	if (custom != bign) {
 		write (fd, "\x0FEn", 2);
@@ -1098,66 +866,63 @@ MtxOrb_init_num ()
 
 }
 
-// TODO: MtxOrb_set_char is d ing the j b "real-time" as oppose
-// to at flush time. Call to this function should be done in flush
-// this mean in  raw_frame. GLU
-//
-// TODO: Rather than to use the hardware BigNum we should use software
-// emulation, this will make it work simultaniously as hbar/vbar. GLU
-//
-// TODO: Before the desinitive solution we need to make the caracter
-// hiden behind the hardware bignum dirty so that they get cleaned
-// when draw_frame is called. There is no dirty char so I will use 254 
-// hoping nowone is using that char. GLU
+/* TODO: MtxOrb_set_char is d ing the j b "real-time" as oppose
+ * to at flush time. Call to this function should be done in flush
+ * this mean in  raw_frame. GLU
+ */
+/* TODO: Rather than to use the hardware BigNum we should use software
+ * emulation, this will make it work simultaniously as hbar/vbar. GLU
+ */
+/* TODO: Before the desinitive solution we need to make the caracter
+ * hiden behind the hardware bignum dirty so that they get cleaned
+ * when draw_frame is called. There is no dirty char so I will use 254
+ * hoping nobody is using that char. GLU
+ */
 
-/////////////////////////////////////////////////////////////////
-// Writes a big number.
-//
+/*************************************************************************
+ * Writes a big number.
+ */
 static void
 MtxOrb_num (int x, int num)
 {
 	int y, dx;
 	char out[5];
 
-#ifdef USE_REPORT
 	debug(RPT_DEBUG, "MtxOrb: write big number %d at %d", num, x);
-#else
-	if (debug_level > 4)
-		syslog(LOG_DEBUG, "MtxOrb: write big number %d at %d", num, x);
-#endif
 
 	snprintf (out, sizeof(out), "\x0FE#%c%c", x, num);
 	write (fd, out, 4);
 
-// Make this space dirty as far as frame buffer knows.
+/* Make this space dirty as far as frame buffer knows.*/
 	for (y = 1; y < 5; y++)
 		for (dx = 0; dx < 3; dx++)
 			MtxOrb_chr (x + dx, y, DIRTY_CHAR);
 
 }
 
-// TODO: Every time we define a custom char within the LCD,
-// we have to compute the binary value we are going to use.
-// It is easy to keep the bitmap in this source file,
-// but we compute that once rather than every time. GLU
-//
-// TODO: MtxOrb_set_char is doing the job "real-time" as oppose
-// to at flush time. Call to this function should be done in flush
-// this mean in draw_frame. GLU
-//
-// TODO: _icon should not call this directly, this is why we define
-// so frequently the heartbeat custom char. GLU
-//
-// TODO: We make one 3 bytes write folowed by MtxOrb->cellhgt one byte
-// write. This should be done in one single write. GLU
+/* TODO: Every time we define a custom char within the LCD,
+ * we have to compute the binary value we are going to use.
+ * It is easy to keep the bitmap in this source file,
+ * but we compute that once rather than every time. GLU
+ */
+/* TODO: MtxOrb_set_char is doing the job "real-time" as oppose
+ * to at flush time. Call to this function should be done in flush
+ * this mean in draw_frame. GLU
+ */
+/* TODO: _icon should not call this directly, this is why we define
+ * so frequently the heartbeat custom char. GLU
+ */
+/* TODO: We make one 3 bytes write folowed by MtxOrb->cellhgt one byte
+ * write. This should be done in one single write. GLU
+ */
 
 #define MAX_CUSTOM_CHARS 7
 
-/////////////////////////////////////////////////////////////////
-// Sets a custom character from 0-7...
-//
-// The input is just an array of characters...
-//
+/***********************************************************************************
+ * Sets a custom character from 0-7...
+ *
+ * The input is just an array of characters...
+ */
 static void
 MtxOrb_set_char (int n, char *dat)
 {
@@ -1176,22 +941,20 @@ MtxOrb_set_char (int n, char *dat)
 	for (row = 0; row < MtxOrb->cellhgt; row++) {
 		letter = 0;
 		for (col = 0; col < MtxOrb->cellwid; col++) {
-			// shift to make room for new scan line data
+			/* shift to make room for new scan line data */
 			letter <<= 1;
-			// Now read a single bit of data
-			// -- one entry in dat[] --
-			// and add it to the binary data in "letter"
+			/* Now read a single bit of data*/
+			/* -- one entry in dat[] --*/
+			/* and add it to the binary data in "letter"*/
 			letter |= (dat[(row * MtxOrb->cellwid) + col] > 0);
 		}
-		write (fd, &letter, 1); // write one character for each row
+		write (fd, &letter, 1); /* write one character for each row*/
 	}
 }
 
-// TODO (DONE): All the icon are now define at the end of the custom char
-// used for hbar/vbar. GLU
-//
-// TODO (DONE): Don't make direct call to caracter definition if the caracter is
-// already defined. GLU
+/************************************************************************************
+ * Set an icon
+ */
 static void
 MtxOrb_icon (int which, char dest)
 {
@@ -1200,11 +963,11 @@ MtxOrb_icon (int which, char dest)
 	MtxOrb_set_known_char (dest, START_ICON+which);
 }
 
-/////////////////////////////////////////////////////////////
-// Blasts a single frame onscreen, to the lcd...
-//
-// Input is a character array, sized lcd.wid*lcd.hgt
-//
+/************************************************************************************
+ * Blasts a single frame onscreen, to the lcd...
+ *
+ * Input is a character array, sized lcd.wid*lcd.hgt
+ */
 static void
 MtxOrb_draw_frame (char *dat)
 {
@@ -1240,9 +1003,10 @@ MtxOrb_draw_frame (char *dat)
 			if ((*p == *q) && (*p > 8))
 				mv = 1;
 			else {
-				// Draw characters that have changed, as well
-				// as custom characters.  We know not if a custom
-				// character has changed.
+				/* Draw characters that have changed, as well
+				 + as custom characters.  We know not if a custom
+				 * character has changed.
+				 */
 
 				if (mv == 1) {
 					snprintf(out, sizeof(out), "\x0FEG%c%c", j, i);
@@ -1257,27 +1021,30 @@ MtxOrb_draw_frame (char *dat)
 	}
 
 
-	//for (i = 0; i < MtxOrb->hgt; i++) {
-	//	snprintf (out, sizeof(out), "\x0FEG\x001%c", i + 1);
-	//	write (fd, out, 4);
-	//	write (fd, dat + (MtxOrb->wid * i), MtxOrb->wid);
-	//}
+	/*for (i = 0; i < MtxOrb->hgt; i++) {
+	 *	snprintf (out, sizeof(out), "\x0FEG\x001%c", i + 1);
+	 *	write (fd, out, 4);
+	 *	write (fd, dat + (MtxOrb->wid * i), MtxOrb->wid);
+	 *}
+	 */
 
 	strncpy(old, dat, MtxOrb->wid * MtxOrb->hgt);
 }
 
-// TODO: Recover the code for I2C connectivity to MtxOrb 
-// and don't query the LCD if it does not support keypad.
-// Otherwise crash of the LCD and/or I2C bus.
-//
-/////////////////////////////////////////////////////////////
-// returns one character from the keypad...
-// (A-Z) on success, 0 on failure...
-//
+/* TODO: Recover the code for I2C connectivity to MtxOrb
+ * and don't query the LCD if it does not support keypad.
+ * Otherwise crash of the LCD and/or I2C bus.
+ */
+/******************************************************************************
+ * returns one character from the keypad...
+ * (A-Z) on success, 0 on failure...
+ */
 static char
 MtxOrb_getkey ()
 {
 	char in = 0;
+
+	/*Reno's TODO: Put this into the configfile!*/
 
 	read (fd, &in, 1);
 	switch (in) {
@@ -1302,66 +1069,66 @@ MtxOrb_getkey ()
 	return in;
 }
 
-/////////////////////////////////////////////////////////////////
-// Ask for dynamic allocation of a custom caracter to be
-//  a well none bar graphic. The function is suppose to
-//  return a value between 0 and 7 but 0 is reserver for
-//  heart beat.
-//  This function manadge a cache of graphical caracter in use.
-//  I really hope it is working and bug-less because it is not
-//  completely tested, just a quick hack.
-//
+/****************************************************************************
+ * Ask for dynamic allocation of a custom caracter to be
+ *  a well none bar graphic. The function is suppose to
+ *  return a value between 0 and 7 but 0 is reserver for
+ *  heart beat.
+ *  This function manadge a cache of graphical caracter in use.
+ *  I really hope it is working and bug-less because it is not
+ *  completely tested, just a quick hack.
+ */
 static int
 MtxOrb_ask_bar (int type)
 {
 	int i;
 	int last_not_in_use;
-	int pos;							  // 0 is icon, 1 to 7 are free, 8 is not found.
-	// TODO: Reuse graphic caracter 0 if heartbeat is not in use.
+	int pos;			/* 0 is icon, 1 to 7 are free, 8 is not found.*/
+	/* TODO: Reuse graphic caracter 0 if heartbeat is not in use.*/
 
-	// REMOVE: fprintf(stderr, "GLU: MtxOrb_ask_bar(%d).\n", type);
-	// Check if the screen was clear.
-	if (clear) {					  // If the screen was clear then graphic caracter are not in use.
-		//REMOVE: fprintf(stderr, "GLU: MtxOrb_ask_bar| clear was set.\n");
-		use[0] = 1;					  // Heartbeat is always in use (not true but it help).
+	/* REMOVE: fprintf(stderr, "GLU: MtxOrb_ask_bar(%d).\n", type);*/
+	/* Check if the screen was clear. */
+	if (clear) {					/* If the screen was clear then graphic caracter are not in use.*/
+		/*REMOVE: fprintf(stderr, "GLU: MtxOrb_ask_bar| clear was set.\n");*/
+		use[0] = 1;				/* Heartbeat is always in use (not true but it help). */
 		for (pos = 1; pos < 8; pos++) {
-			use[pos] = 0;			  // Other are not in use.
+			use[pos] = 0;			/* Other are not in use. */
 		}
-		clear = 0;					  // We made the special treatement.
+		clear = 0;				/* We made the special treatement. */
 	} else {
-		// Nothing special if some caracter a curently in use (...) ?
+		/* Nothing special if some caracter a curently in use (...) ? */
 	}
 
-	// Search for a match with caracter already defined.
-	pos = 8;							  // Not found.
-	last_not_in_use = 8;			  // No empty slot to reuse.
-	for (i = 1; i < 8; i++) {	  // For all but first (heartbeat).
+	/* Search for a match with character already defined. */
+	pos = 8;				/* Not found.*/
+	last_not_in_use = 8;			/* No empty slot to reuse.*/
+	for (i = 1; i < 8; i++) {		/* For all but first (heartbeat). */
 		if (!use[i])
-			last_not_in_use = i;	  // New empty slot.
+			last_not_in_use = i;	/* New empty slot. */
 		if (def[i] == type)
-			pos = i;					  // Founded (should break now).
+			pos = i;		/* Found (should break now). */
 	}
 
 	if (pos == 8) {
-		// REMOVE: fprintf(stderr, "GLU: MtxOrb_ask_bar| not found.\n");
+		/* REMOVE: fprintf(stderr, "GLU: MtxOrb_ask_bar| not found.\n"); */
 		pos = last_not_in_use;
-		// TODO: Best match/deep search is no more graphic caracter are available.
+		/* TODO: Best match/deep search is no more graphic caracter are available.*/
 	}
 
-	if (pos != 8) {				  // A caracter is found (Best match could solve our problem).
-		// REMOVE: fprintf(stderr, "GLU: MtxOrb_ask_bar| found at %d.\n", pos);
+	if (pos != 8) {				/* A caracter is found (Best match could solve our problem). */
+		/* REMOVE: fprintf(stderr, "GLU: MtxOrb_ask_bar| found at %d.\n", pos); */
 		if (def[pos] != type) {
-			MtxOrb_set_known_char (pos, type);	// Define a new graphic caracter.
-			def[pos] = type;		  // Remember that now the caracter is available.
+			MtxOrb_set_known_char (pos, type);	/* Define a new graphic caracter. */
+			def[pos] = type;		 	/* Remember that now the caracter is available. */
 		}
-		if (!use[pos]) {			  // If the caracter is no yet in use (but defined).
-			use[pos] = 1;			  // Remember it is in use (so protect it from re-use).
+		if (!use[pos]) {			  /* If the caracter is no yet in use (but defined). */
+			use[pos] = 1;			  /* Remember it is in use (so protect it from re-use).*/
 		}
 	}
 
-	if (pos == 8)					  // TODO: Choose a character to approximate the graph
+	if (pos == 8)					  /* TODO: Choose a character to approximate the graph*/
 	{
-		//pos=65; // ("A")?
+		/*pos=65; */ /* ("A")?*/
 		switch (type) {
 		case baru1:
 			pos = '_';
@@ -1450,9 +1217,9 @@ MtxOrb_ask_bar (int type)
 	return (pos);
 }
 
-/////////////////////////////////////////////////////////////
-// Does the heartbeat...
-//
+/**********************************************************************
+ * Does the heartbeat...
+ */
 static void
 MtxOrb_heartbeat (int type)
 {
@@ -1465,18 +1232,19 @@ MtxOrb_heartbeat (int type)
 		saved_type = type;
 
 	if (type == HEARTBEAT_ON) {
-		// Set this to pulsate like a real heart beat...
+		/* Set this to pulsate like a real heart beat... */
 		whichIcon = (! ((timer + 4) & 5));
 
-		// This defines a custom character EVERY time...
-		// not efficient... is this necessary?
-//		MtxOrb_icon (whichIcon, 0);
+		/* This defines a custom character EVERY time...
+		 * not efficient... is this necessary?
+		 */
+		/*MtxOrb_icon (whichIcon, 0);*/
 		the_icon=MtxOrb_ask_bar (whichIcon+START_ICON);
 
-		// Put character on screen...
+		/* Put character on screen...*/
 		MtxOrb_chr (MtxOrb->wid, 1, the_icon);
 
-		// change display...
+		/* change display...*/
 		MtxOrb_flush ();
 	}
 
@@ -1484,15 +1252,15 @@ MtxOrb_heartbeat (int type)
 	timer &= 0x0f;
 }
 
-/////////////////////////////////////////////////////////////////
-// Sets up a well known character for use.
-//
+/***************************************************************************
+ * Sets up a well known character for use.
+ */
 static void
 MtxOrb_set_known_char (int car, int type)
 {
 	char all_bar[25][5 * 8] = {
 		{
-		0, 0, 0, 0, 0,	//  char u1[] = 
+		0, 0, 0, 0, 0,	//  char u1[] =
 		0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
@@ -1501,7 +1269,7 @@ MtxOrb_set_known_char (int car, int type)
 		0, 0, 0, 0, 0,
 		1, 1, 1, 1, 1,
 		}, {
-		0, 0, 0, 0, 0,	//  char u2[] = 
+		0, 0, 0, 0, 0,	//  char u2[] =
 		0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
@@ -1510,7 +1278,7 @@ MtxOrb_set_known_char (int car, int type)
 		1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1,
 		}, {
-		0, 0, 0, 0, 0,	//  char u3[] = 
+		0, 0, 0, 0, 0,	//  char u3[] =
 		0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
@@ -1519,7 +1287,7 @@ MtxOrb_set_known_char (int car, int type)
 		1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1,
 		}, {
-		0, 0, 0, 0, 0,	//  char u4[] = 
+		0, 0, 0, 0, 0,	//  char u4[] =
 		0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
@@ -1528,7 +1296,7 @@ MtxOrb_set_known_char (int car, int type)
 		1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1,
 		}, {
-		0, 0, 0, 0, 0,	//  char u5[] = 
+		0, 0, 0, 0, 0,	//  char u5[] =
 		0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
 		1, 1, 1, 1, 1,
@@ -1537,7 +1305,7 @@ MtxOrb_set_known_char (int car, int type)
 		1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1,
 		}, {
-		0, 0, 0, 0, 0,	//  char u6[] = 
+		0, 0, 0, 0, 0,	//  char u6[] =
 		0, 0, 0, 0, 0,
 		1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1,
@@ -1546,7 +1314,7 @@ MtxOrb_set_known_char (int car, int type)
 		1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1,
 		}, {
-		0, 0, 0, 0, 0,	//  char u7[] = 
+		0, 0, 0, 0, 0,	//  char u7[] =
 		1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1,
@@ -1555,7 +1323,7 @@ MtxOrb_set_known_char (int car, int type)
 		1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1,
 		}, {
-		1, 1, 1, 1, 1,	//  char d1[] = 
+		1, 1, 1, 1, 1,	//  char d1[] =
 		0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
@@ -1564,7 +1332,7 @@ MtxOrb_set_known_char (int car, int type)
 		0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
 		}, {
-		1, 1, 1, 1, 1,	//  char d2[] = 
+		1, 1, 1, 1, 1,	//  char d2[] =
 		1, 1, 1, 1, 1,
 		0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
@@ -1573,7 +1341,7 @@ MtxOrb_set_known_char (int car, int type)
 		0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
 		}, {
-		1, 1, 1, 1, 1,	//  char d3[] = 
+		1, 1, 1, 1, 1,	//  char d3[] =
 		1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1,
 		0, 0, 0, 0, 0,
@@ -1582,7 +1350,7 @@ MtxOrb_set_known_char (int car, int type)
 		0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
 		}, {
-		1, 1, 1, 1, 1,	//  char d4[] = 
+		1, 1, 1, 1, 1,	//  char d4[] =
 		1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1,
@@ -1591,7 +1359,7 @@ MtxOrb_set_known_char (int car, int type)
 		0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
 		}, {
-		1, 1, 1, 1, 1,	//  char d5[] = 
+		1, 1, 1, 1, 1,	//  char d5[] =
 		1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1,
@@ -1600,7 +1368,7 @@ MtxOrb_set_known_char (int car, int type)
 		0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
 		}, {
-		1, 1, 1, 1, 1,	//  char d6[] = 
+		1, 1, 1, 1, 1,	//  char d6[] =
 		1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1,
@@ -1609,7 +1377,7 @@ MtxOrb_set_known_char (int car, int type)
 		0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
 		}, {
-		1, 1, 1, 1, 1,	//  char d7[] = 
+		1, 1, 1, 1, 1,	//  char d7[] =
 		1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1,
 		1, 1, 1, 1, 1,
@@ -1618,7 +1386,7 @@ MtxOrb_set_known_char (int car, int type)
 		1, 1, 1, 1, 1,
 		0, 0, 0, 0, 0,
 		}, {
-		1, 0, 0, 0, 0,	//  char r1[] = 
+		1, 0, 0, 0, 0,	//  char r1[] =
 		1, 0, 0, 0, 0,
 		1, 0, 0, 0, 0,
 		1, 0, 0, 0, 0,
@@ -1627,7 +1395,7 @@ MtxOrb_set_known_char (int car, int type)
 		1, 0, 0, 0, 0,
 		1, 0, 0, 0, 0,
 		}, {
-		1, 1, 0, 0, 0,	//  char r2[] = 
+		1, 1, 0, 0, 0,	//  char r2[] =
 		1, 1, 0, 0, 0,
 		1, 1, 0, 0, 0,
 		1, 1, 0, 0, 0,
@@ -1636,7 +1404,7 @@ MtxOrb_set_known_char (int car, int type)
 		1, 1, 0, 0, 0,
 		1, 1, 0, 0, 0,
 		}, {
-		1, 1, 1, 0, 0,	//  char r3[] = 
+		1, 1, 1, 0, 0,	//  char r3[] =
 		1, 1, 1, 0, 0,
 		1, 1, 1, 0, 0,
 		1, 1, 1, 0, 0,
@@ -1645,7 +1413,7 @@ MtxOrb_set_known_char (int car, int type)
 		1, 1, 1, 0, 0,
 		1, 1, 1, 0, 0,
 		}, {
-		1, 1, 1, 1, 0,	//  char r4[] = 
+		1, 1, 1, 1, 0,	//  char r4[] =
 		1, 1, 1, 1, 0,
 		1, 1, 1, 1, 0,
 		1, 1, 1, 1, 0,
@@ -1654,7 +1422,7 @@ MtxOrb_set_known_char (int car, int type)
 		1, 1, 1, 1, 0,
 		1, 1, 1, 1, 0,
 		}, {
-		0, 0, 0, 0, 1,	//  char l1[] = 
+		0, 0, 0, 0, 1,	//  char l1[] =
 		0, 0, 0, 0, 1,
 		0, 0, 0, 0, 1,
 		0, 0, 0, 0, 1,
@@ -1663,7 +1431,7 @@ MtxOrb_set_known_char (int car, int type)
 		0, 0, 0, 0, 1,
 		0, 0, 0, 0, 1,
 		}, {
-		0, 0, 0, 1, 1,	//  char l2[] = 
+		0, 0, 0, 1, 1,	//  char l2[] =
 		0, 0, 0, 1, 1,
 		0, 0, 0, 1, 1,
 		0, 0, 0, 1, 1,
@@ -1672,7 +1440,7 @@ MtxOrb_set_known_char (int car, int type)
 		0, 0, 0, 1, 1,
 		0, 0, 0, 1, 1,
 		}, {
-		0, 0, 1, 1, 1,	//  char l3[] = 
+		0, 0, 1, 1, 1,	//  char l3[] =
 		0, 0, 1, 1, 1,
 		0, 0, 1, 1, 1,
 		0, 0, 1, 1, 1,
@@ -1681,7 +1449,7 @@ MtxOrb_set_known_char (int car, int type)
 		0, 0, 1, 1, 1,
 		0, 0, 1, 1, 1,
 		}, {
-		0, 1, 1, 1, 1,	//  char l4[] = 
+		0, 1, 1, 1, 1,	//  char l4[] =
 		0, 1, 1, 1, 1,
 		0, 1, 1, 1, 1,
 		0, 1, 1, 1, 1,
