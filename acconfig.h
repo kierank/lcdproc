@@ -1,5 +1,5 @@
 /* acconfig.h
-*   $Id: acconfig.h,v 1.7 2000/05/13 20:21:16 toykeeper Exp $
+*   $Id: acconfig.h,v 1.8 2000/11/29 18:48:53 willfe Exp $
 *   This file is in the public domain.
 *
 *   Descriptive text for the C preprocessor macros that
@@ -29,6 +29,8 @@
 
 #undef JOY_DRV
 
+#undef LB216_DRV
+
 #undef LCDPORT
 
 #undef LINUX
@@ -46,6 +48,8 @@
 #undef PROTOCOL_VERSION
 
 #undef SLI_DRV
+
+#undef SOLARIS
 
 #undef STAT_NFS
 
