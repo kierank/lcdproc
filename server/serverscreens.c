@@ -173,17 +173,6 @@ update_server_screen (int timer)
 }
 
 int
-no_screen_screen (int timer)
-{
-
-	lcd_ptr->clear ();
-	lcd_ptr->string (1, 1, "Error:  No screen!");
-	lcd_ptr->flush ();
-
-	return 0;
-}
-
-int
 goodbye_screen ()
 {
 	char *b20 = "                    ";
