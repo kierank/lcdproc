@@ -178,7 +178,7 @@ stv5730_is_mute (void)
 void
 stv5730_write16bit (unsigned int value)
 {
-    char i, databit;
+    int i, databit;
     stv5730_upause (IODELAY);
     port_out (stv5730_lptport, STV5730_CSN + stv5730_flags);
     stv5730_upause (IODELAY);
@@ -207,7 +207,7 @@ stv5730_write16bit (unsigned int value)
 void
 stv5730_write8bit (unsigned int value)
 {
-    char i, databit;
+    int i, databit;
     stv5730_upause (IODELAY);
     port_out (stv5730_lptport, STV5730_CSN + stv5730_flags);
     stv5730_upause (IODELAY);
