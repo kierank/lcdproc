@@ -10,6 +10,13 @@ Coming soon: (already implemented in 0.5 = CVS main branch)
  * Dynamically-loaded driver system
  + LCDproc Developer's Guide
 
+v0.4.5
+ * Fixed buffer overflow and format string vulnerabilities in the
+   client communications code. The original bugtraq posting
+   http://www.securityfocus.com/bid/10085 is somewhat misleading
+   and/or incorrect. A correction will be posted ASAP.
+ - Removed annoying "client crashed" message
+
 v0.4.4
  + Added Apache Network Server (ANS) LCD driver
  + Added option in curses to use our own ascii map
