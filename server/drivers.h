@@ -21,3 +21,6 @@ load_driver( char * name, char * filename, char * args );
 
 int
 unload_all_drivers();
+
+char
+drivers_getkey();

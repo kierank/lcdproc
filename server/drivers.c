@@ -190,6 +190,23 @@ fill_driver_functions( struct lcd_logical_driver * driver )
 	return 0;
 }
 
+char
+drivers_getkey()
+{
+	lcd_logical_driver * driver;
+	char ch = 0;
+
+	report( RPT_INFO, "drivers_getkey()");
+
+	for( driver = LL_GetFirst(loaded_drivers);
+	  driver != NULL && ch == 0;
+	  driver = LL_GetNext(loaded_drivers) ) {
+		debug( RPT_DEBUG, "driver->getkey %p", driver );
+		ch = driver->getkey();
+	}
+	debug( RPT_DEBUG, "driver_getkey returns char %d ('%c')", ch, ch );
+	return ch;
+}
 
 static int
 store_private_ptr(struct lcd_logical_driver * driver, void * private_data)

@@ -43,6 +43,7 @@
 #include "shared/report.h"
 
 #include "drivers/lcd.h"
+#include "drivers.h"
 
 #include "client_data.h"
 #include "clients.h"
@@ -74,7 +75,7 @@ handle_input ()
 	/*widget *w;*/
 	client *c;
 
-	if ((key = lcd_ptr->getkey ()) == 0)
+	if ((key = drivers_getkey ()) == 0)
 		return 0;
 
 	/*debug (RPT_DEBUG, "handle_input(%c)", (char) key);*/

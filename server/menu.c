@@ -32,6 +32,7 @@
 #include "main.h"
 
 #include "drivers/lcd.h"
+#include "drivers.h"
 #include "menu.h"
 #include "input.h"
 
@@ -111,12 +112,12 @@ do_menu (Menu menu)
 		 * FIXME: handles things according to keybindings...
 		 */
 
-		key = lcd_ptr->getkey (); /* A for loop doesn't work properly */
+		key = drivers_getkey (); /* A for loop doesn't work properly */
 		while ( key == 0) {
 			/* sleep for 1/8th second...*/
 			framedelay();
 			/* read from the driver */
-			key = lcd_ptr->getkey ();
+			key = drivers_getkey ();
 			/* do the heartbeat...*/
 			lcd_ptr->heartbeat (heartbeat);
 			/* Check for client input...*/
@@ -334,7 +335,7 @@ slid_func (menu_item * item)
 		}
 		/*lcd_ptr->flush();*/
 
-		for (key = lcd_ptr->getkey (); key == 0; key = lcd_ptr->getkey ()) {
+		for (key = drivers_getkey (); key == 0; key = lcd_ptr->getkey ()) {
 			/* do the heartbeat...*/
 			lcd_ptr->heartbeat (heartbeat);
 			/* sleep for 1/8th second...*/
