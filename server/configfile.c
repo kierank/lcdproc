@@ -51,6 +51,16 @@ int process_config( section ** current_section, char (*get_next_char)(), char mo
 
 int config_read_file( char *filename )
 {
+	/* REVISIT: The current implementation avoids problems
+	 * on memory protecting systems like OpenBSD >=3.4
+	 * by avoiding use of nested functions which are
+	 * handled by gcc in a way that is incompatible with
+	 * non-executable memory pages.
+	 * However, re-reading the configuration file will
+	 * only work with the code from the HEAD branch, not
+	 * with stable-0-4-x (Handling SIGHUP etc. is only
+	 * implemented in HEAD anyway.)
+	 */
 	FILE * f = NULL;
 	section * curr_section = NULL;
 
