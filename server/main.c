@@ -686,12 +686,6 @@ init_drivers()
 		res = load_driver (drivernames[i], driverfilenames[i], driverargs[i]);
 		if (res >= 0) {
 			/* Load went OK*/
-			if ((res >0)&&(output_loaded)) {
-				/*second output driver loaded - can't work*/
-				report( RPT_ERR, "CRITICAL ERROR: Only ONE output driver supported!" );
-				unload_all_drivers();
-				return -1;
-			}
 			switch( res ) {
 			  case 0: /* Driver does input only*/
 			  	break;
