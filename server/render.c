@@ -27,6 +27,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "shared/report.h"
 #include "shared/LL.h"
@@ -231,11 +232,14 @@ draw_frame (LinkedList * list,
 	int fx, fy;				  /* Scrolling offset for the frame...*/
 	int length, speed;
 	/*int lines;*/
+	int str_length = BUFSIZE-1;
 
 	int reset = 1;
 
-	wid = right - left;			  /* This is the size of the visible frame area*/
-	hgt = bottom - top;
+	wid = abs(right - left);		  /* This is the size of the visible frame area*/
+	if (wid >= BUFSIZE)
+		wid=BUFSIZE-1;
+	hgt = abs(bottom - top);
 
 	fx = 0;
 	fy = 0;
@@ -299,8 +303,11 @@ draw_frame (LinkedList * list,
 				if (ValidPoint(w) && TextPresent(w)) {
 					if ((w->y <= hgt + fy) && (w->y > fy)) {
 						if (w->x > wid) w->x=wid;
-						strncpy (str, w->text, wid - w->x + 1);
-						str[wid - w->x + 1] = 0;
+						str_length = abs(wid - w->x + 1);
+						if (str_length >= BUFSIZE)
+							str_length = BUFSIZE - 1;
+						strncpy (str, w->text, str_length);
+						str[str_length] = 0;
 						lcd_ptr->string (w->x + left, w->y + top - fy, str);
 					}
 				}
@@ -355,8 +362,10 @@ draw_frame (LinkedList * list,
 				memset (str, 255, wid);
 				str[2] = ' ';
 				length = strlen (w->text);
+				if (length >= BUFSIZE - 3)
+					length = BUFSIZE - 4;
 				if (length <= wid - 6) {
-					memcpy (str + 3, w->text, length);
+					strncpy (str + 3, w->text, length);
 					str[length + 3] = ' ';
 				} else					  /* Scroll the title, if it doesn't fit...*/
 				{
@@ -383,8 +392,11 @@ draw_frame (LinkedList * list,
 					{
 						x = (length - (wid - 6)) - x;
 					}
-					strncpy (str + 3, w->text + x, (wid - 6));
-					str[wid - 3] = ' ';
+					str_length = abs(wid - 6);
+					if (str_length >= BUFSIZE - 3)
+						str_length = BUFSIZE - 4;
+					strncpy (str + 3, w->text + x, str_length);
+					str[str_length + 3] = ' ';
 				}
 				str[wid] = 0;
 
@@ -399,7 +411,9 @@ draw_frame (LinkedList * list,
 					if (w->right < w->left)
 						break;
 					/*debug(RPT_DEBUG, "rendering: %s %d",w->text,w->timer);*/
-					screen_width = w->right - w->left + 1;
+					screen_width = abs(w->right - w->left + 1);
+					if (screen_width >= BUFSIZE)
+						screen_width = BUFSIZE -1;
 					switch (w->length) {	/* actually, direction...*/
 						/* FIXED:  Horz scrollers don't show the
 						 * last letter in the string...  (1-off error?)
