@@ -16,6 +16,11 @@ until the final release of LCDproc, which will probably take place in May or Jun
 If you run into any trouble feel free to write to the LCDproc mailing list.
 See <ulink url="http://lcdproc.omnipotent.net/mail.php3">http://lcdproc.omnipotent.net/mail.php3</ulink>
 for details on how to subscribe to the list.
+</para>
+<para>
+Therefore you might want to have a look at <ulink url="http://lcdproc.sourceforge.net/docs/">http://lcdproc.sourceforge.net/docs/</ulink>,
+to get the latest version of this document (, unless you want to generate it yourself from the
+docbook files in the CVS).
 </para></note>
 
 <para>
