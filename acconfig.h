@@ -1,5 +1,5 @@
 /* acconfig.h
-*   $Id: acconfig.h,v 1.13 2001/10/01 21:51:27 ddouthitt Exp $
+*   $Id: acconfig.h,v 1.14 2001/10/26 22:52:10 gfk Exp $
 *   This file is in the public domain.
 *
 *   Descriptive text for the C preprocessor macros that
@@ -31,6 +31,10 @@
 #undef GLK_DRV
 
 #undef HD44780_DRV
+
+#undef HAVE_SYS_NMLN
+
+#undef HAVE__SYS_NAMELEN
 
 #undef IRMANIN_DRV
 
