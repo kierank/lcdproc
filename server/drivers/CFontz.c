@@ -369,8 +369,8 @@ CFontz_backlight (int on)
 		return;
 
 	/* validate backlight value */
-	if (on > 255)
-		on = 255;
+	if (on > 100)
+		on = 100;
 	if (on < 0)
 		on = 0;
 
@@ -752,16 +752,8 @@ CFontz_draw_frame (char *dat)
 		if (memcmp(b_row, row, CFontz->wid) == 0)
 		    continue;
 
+        /* else, write out the entire row */
 		memcpy(b_row, row, CFontz->wid);
-
-		/* We no longer clear the screen on every frame
-		 *  so just clear the row we're writting
-		 */
-		snprintf (out, sizeof(out), "%c%c%c", 17, 0, i);
-		write (fd, out, 3);
-		write (fd, blankrow, CFontz->wid);
-
-		/* write the data */
 		snprintf (out, sizeof(out), "%c%c%c", 17, 0, i);
 		write (fd, out, 3);
 		write (fd, row, CFontz->wid);
