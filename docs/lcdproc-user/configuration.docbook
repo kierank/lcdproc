@@ -212,6 +212,128 @@ to syslog. Defaults to yes.
 
 </sect2>
 
+<sect2 id="input-section">
+<title><filename>LCDd.conf</filename>: The [input] Section</title>
+
+<para>
+The [input] section enables you to set some general ("global")
+options related to the way <application>LCDd</application> handles
+input "events".
+</para>
+
+<table>
+<title>The Standard LCDd Input Keys</title>
+<tgroup cols="3">
+<thead>
+<row>
+<entry>Keyname</entry>
+<entry>Function</entry>
+</row>
+<row>
+<entry></entry>
+<entry>Normal context</entry>
+<entry>Menu context</entry>
+</row>
+</thead>
+<tbody>
+<row>
+<entry>PauseKey</entry>
+<entry>Pause/Continue</entry>
+<entry>Enter/select</entry>
+</row>
+<row>
+<entry>BackKey</entry>
+<entry>Back (Go to previous screen)</entry>
+<entry>Up/Left</entry>
+</row>
+<row>
+<entry>ForwardKey</entry>
+<entry>Forward (Go to next screen)</entry>
+<entry>Down/Right</entry>
+</row>
+<row>
+<entry>MainMenuKey</entry>
+<entry>Open main menu</entry>
+<entry>Exit/Cancel</entry>
+</row>
+</tbody>
+</tgroup>
+</table>
+
+<note>
+<para>
+The way input keys are handled will change completely in LCDproc 0.5.
+</para>
+</note>
+
+
+<sect3 id="freekeyoptions">
+<title><filename>LCDd.conf</filename>: [input] Section: The Free*Key Options</title>
+
+<para>
+The Free*Key Options are interesting for those users whose keypad (or other input source)
+has got only four (or less) keys. In this case LCDd would normally use all those
+keys to enable you to control the server menu and the other server functions (like
+switching to the next screen). If these keys are used by a client to do anything
+but noticing that the user has e.g. entered the menu or switched to another screen,
+this will probably cause trouble, as one keypress has several effects at the same
+time.
+</para>
+<para>
+The Free*Key options enable you to influence this behaviour.
+</para>
+
+<variablelist>
+<varlistentry>
+<term>FreePauseKey=</term>
+<listitem>
+<para>
+If set to yes, this prevents LCDd from handling the PauseKey itself.
+Then a client can request the key 'A' and handle it.
+</para>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>FreeBackKey=</term>
+<listitem>
+<para>
+If set to yes, this prevents LCDd from handling the BackKey itself.
+Then a client can request the key 'B' and handle it.
+</para>
+</listitem>
+</varlistentry>
+<varlistentry>
+<term>FreeForwardKey=</term>
+<listitem>
+<para>
+If set to yes, this prevents LCDd from handling the ForwardKey itself.
+Then a client can request the key 'C' and handle it.
+</para>
+</listitem>
+</varlistentry>
+
+<varlistentry>
+<term>FreeMainMenuKey=</term>
+<listitem>
+<para>
+If set to yes, this prevents LCDd from handling the MainMenuKey itself.
+Then a client can request the key 'D' and handle it.
+</para>
+<tip>
+<para>
+Even if you "free" the above keys, you can still use the menu
+provided you set FreeMainMenuKey to no.
+</para>
+</tip>
+</listitem>
+</varlistentry>
+
+</variablelist>
+
+</sect3>
+
+</sect2>
+
 <sect2 id="drivers-section">
 <title><filename>LCDd.conf</filename>: The Drivers Section</title>
 
