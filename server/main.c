@@ -8,6 +8,7 @@
  * Copyright (c) 1999, William Ferrell, Scott Scriven
  *		 2001, Joris Robijn
  *		 2001, Rene Wagner
+ *		 2002, Mike Patnode
  *
  *
  * Contains main(), plus signal callback functions and a help screen.
@@ -166,6 +167,8 @@ main (int argc, char **argv)
 	signal (SIGTERM, exit_program);		/* and "kill"...*/
 	signal (SIGHUP, exit_program);		/* and "kill -HUP" (hangup)...*/
 	signal (SIGKILL, exit_program);		/* and just in case, "kill -KILL" (which cannot be trapped; but oh well)*/
+	signal (SIGPIPE, SIG_IGN);		    /* ignore sigpipe.  Who cares if
+	the client is gone... */
 
 	/* If no paramaters given, give the help screen.
 	 *if (argc == 1)
