@@ -22,8 +22,8 @@
 *  ---
 * 
 *  $Source: /cvsroot/lcdproc/lcdproc/clients/lcdproc/util.c,v $
-*  $Revision: 1.1 $
-*  Checked in by: $Author: marschap $
+*  $Revision: 1.2 $
+*  Checked in by: $Author: boercher $
 *
 *******************************************************************************/
 
@@ -42,7 +42,7 @@ sprintf_memory(char *dst, double value, double roundlimit)
 		if ((roundlimit <= 0.0) || (roundlimit > 1.0))
 			roundlimit = 0.5;
 
-		while (units[offs] != NULL > 0) {
+		while (units[offs] != NULL) {
 			if (value <= 1024 * roundlimit)
 				break;
 			offs++;
