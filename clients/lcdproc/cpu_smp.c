@@ -37,7 +37,7 @@
 *  ---
 * 
 *  $Source: /cvsroot/lcdproc/lcdproc/clients/lcdproc/cpu_smp.c,v $
-*  $Revision: 1.11 $ $Date: 2006/02/18 16:18:22 $
+*  $Revision: 1.12 $ $Date: 2006/02/18 19:50:50 $
 *  Checked in by: $Author: marschap $
 *
 *******************************************************************************/
@@ -65,11 +65,7 @@ static char *numnames[MAX_CPUS] = { "one", "two", "three", "four", "five", "six"
 // CPU screen shows info about percentage of the CPU being used
 //
 int
-#ifdef LCDPROC_MENUS
-cpu_smp_screen (int rep, int display, int * flags_ptr)
-#else
-cpu_smp_screen (int rep, int display)
-#endif
+cpu_smp_screen (int rep, int display, int *flags_ptr)
 {
 #undef CPU_BUF_SIZE
 #define CPU_BUF_SIZE 4
@@ -80,16 +76,9 @@ cpu_smp_screen (int rep, int display)
 	int numprocs;
 	char buf[256];
 	char *graphsize;
-#ifdef LCDPROC_MENUS
 
 	if ((*flags_ptr & INITIALIZED) == 0) {
 		*flags_ptr |= INITIALIZED;
-#else
-	static int first = TRUE;
-
-	if (first) {
-		first = FALSE;
-#endif
 
 		machine_get_smpload (load, &numprocs);
 
