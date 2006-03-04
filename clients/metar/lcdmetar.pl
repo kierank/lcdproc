@@ -1,8 +1,9 @@
 #!/usr/bin/perl -w
 
-# $Id: lcdmetar.pl,v 1.8 2005/10/16 14:20:42 marschap Exp $
+# $Id: lcdmetar.pl,v 1.9 2006/03/04 17:57:54 marschap Exp $
 
 # Following is the POD documentation, type perldoc lcdmetar.pl to read it.
+=pod
 
 =head1 NAME
 
@@ -98,7 +99,7 @@ See the website for more informations.
 
 =head1 WEBSITE
 
-Visit B<http://lcdproc.omnipotent.net/> for more infos and the lastest version.
+Visit B<http://www.lcdproc.org/> for more infos and the lastest version.
 
 =cut
 
