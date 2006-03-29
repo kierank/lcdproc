@@ -1,4 +1,4 @@
-lcdproc (0.5.0) unstable; urgency=low
+lcdproc (0.5.0-1) unstable; urgency=low
 
   * new upstream release
     - better support for operating systems other than Linux: *BSD, Darwin
