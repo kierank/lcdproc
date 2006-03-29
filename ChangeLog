@@ -1,15 +1,78 @@
 Recent changes:
 
-Key:  
+Key:
      - Something removed
      + Something added
      * Something changed / fixed
 
-Coming soon: (?) (my list of stuff to do soon...)
- + Client menus
- + Configuration file support
- * Better syntax for driver parameters
- * Dynamically-loaded driver system
+v0.5
+This version has split off from unstable-0.4.3. Includes major changes.
+ + LCDd now does dynamic loading of driver modules
+ * New API in use
+ + LCDd will use fill-in functions for drivers that don't support a certain
+   function. Available for: vbar, hbar, bignum, heartbeat, icon, cursor.
+ * Server internal functions cleaned up, moved to other files etc.
+ * Menu system rewritten
+ + Client-supplied menus are now supported
+ * Key support improved: now keys have descriptive names, not just a letter
+   anymore.
+ + Reloading of configuration and drivers by sending a SIGHUP. Probably
+   needs improvement ;)
+ * HD44780 output register support on winamp wiring
+ * Reporting levels are now used more consistently
+ + lcdexec client added
+ * Display update frequency is now exactly 8Hz. Key scan frequency increased
+   to 32Hz.
+ * Priority scheme changed. Priority classes are now used, that indicate what
+   kind of a screen we're dealing with. More useful for interactive clients.
+ + better support for operating systems other than Linux: *BSD, Darwin
+ + menu support for lcdproc client (configure option)
+ + Added CFontz633 driver for CrytalFontz CFA633
+ + Added CFontzPacket driver fro CrystalFontz CFA-633, CFA-631, CFA-635
+ + Added glcdlib meta-driver for all LCDs supported by graphlcd-base
+ + Added icp_a106 driver for A106 alarm/LCD boards in 19" racks by ICP
+ + Added imon driver for iMON IR/VFD Modules from Silverstone, Uneed, ...
+ + Added IOWarrior driver for IOWarrior USB controllers
+ + Added lcterm driver for serial LCD terminal from Neumark Elektronik
+ + Added ms6931 driver for MSI-6931 displays in 1U rack servers by MSI
+ + Added mtc_s16209x driver for MTC-S16209x by Microtips Technology Inc
+ + Added NoritakeVFD driver for Noritake VFD Device CU20045SCPB-T28A
+ + Added pylcd driver for Pyramid LC-Displays
+ + Added serialVFD driver for NEC FIPC8367 based VFDs
+ + Added tyan driver for LCDs in Tyan Barebone GS series
+ + Added xosd driver for On Screen Display on X
+ + Added HD44780 subdriver bwctusb for USB-to-LCD converters from BWCT
+ + Added HD44780 subdriver lcdserializer for an serial-LCD converter
+ + Added HD44780 subdriver i2c to conned LCDs using the I2C bus
+ + Added HD44780 subdriver lis2 for the LIS2 serial-to-USB converter
+
+v0.4.3
+ - Removed possibility of passing arguments to the drivers from the
+   command line, which can be done in the configuration file now
+ + Added configuration file support
+ + Added ability of dropping root privileges to LCDd
+ + Added LCDM001 driver (kernelconcepts.de)
+ + Added Toshiba T6963 driver
+ + Added Seiko-Epson SED 1520 driver
+ + Added Seiko-Epson SED 1330 driver
+ + Added STV5730 driver composite TV signal character generation driver
+ * Modified the CFontz driver so that the new ROM version is
+   supported
+ + Added ASCII emulation of BigNum to the drivers that did not
+   support custom characters
+ + Added ability of configuring (rearranging) the keypad of MtxOrb
+   displays
+ + Added .lircrc location to the options of the lirc driver
+ * Fixed backlight code (partly rewritten)
+ * Fixed heartbeat code (completely rewritten analogous to
+   the backlight code)
+ + Added init scripts for debian and Redhat/Mandrake
+ + Added EPM list file so that you can use EPM
+   (http://www.easysw.com/epm) to generate packages of LCDproc
+ + Added documentation in docbook format
+   (LCDproc User's Guide - docs/lcdproc-user)
+ * Ported some screens of lcdproc to *BSD.
+ * Ported the parallel port functions in port.h to *BSD.
 
 v0.4.2:
  - Removed multiple output driver support - to simplify life
@@ -24,6 +87,7 @@ v0.4.2:
  + Fixed compile problems on non-Linux platforms where cfmakeraw,
    CBAUD, and ioperm don't exist.  All drivers now use the same code
    to initialize a serial port.
+
 v0.4.1:
  + Changed protocol to 0.3 because we now accept both -foo and foo
    as argument introducers.  in 0.4-pre10, these were changed
@@ -92,7 +156,7 @@ v0.4-pre10:
 
 V0.4-pre9:
  * small fixes for irix
- * Added flag in LCDd to shut off server screen:  
+ * Added flag in LCDd to shut off server screen:
  	"-i off" or "--serverinfo off"
  + Wirz SLI driver
  + 16x2 support (server only)
@@ -105,7 +169,7 @@ V0.4-pre9:
  * sizes > 20x4 no longer crash
 
 V0.4-pre8:
- * LCDd gives more updated info in the connect string: 
+ * LCDd gives more updated info in the connect string:
 	cell size, lcd dimensions.
  * bargraphs are now the correct length on CFontz displays, in the main
    lcdproc client.  For other clients, please parse the connect string!
