@@ -18,15 +18,15 @@ lcdproc (0.5.0-1) unstable; urgency=low
       + mtc_s16209x: for MTC-S16209x by Microtips Technology Inc
       + NoritakeVFD: for Noritake VFD Device CU20045SCPB-T28A
       + pylcd: for Pyramid LC-Displays
-      + serialVFD: for NEC FIPC8367 based VFDs
+      + serialVFD: for NEC FIPC8367 based serial VFDs
       + tyan: for LCDs in Tyan Barebone GS series
+      + ula200: for the USB board ULA-200 from ELV
       + xosd: for On Screen Display on X
     - new HD44780 subdrivers:
       + bwctusb: for USB-to-LCD converters from BWCT
       + lcdserializer: for an serial-LCD converter
       + i2c: to conned LCDs using the I2C bus
       + lis2: for the LIS2 serial-to-USB converter
-
 
  -- Peter Marschall <peter@adpm.de>  Fri, 31 Dec 2004 23:21:28 +0100
 

@@ -1,0 +1,170 @@
+<sect1 id="t6963-howto">
+<title>The Toshiba T6963 Driver</title>
+
+<para>
+This section talks about using LCDproc with LCD displays that use the 
+T6963 chipset from Toshiba. Usually, this chipset is used on big character LCD 
+displays that can often act as a screen.
+</para>
+
+<sect2 id="t6963-connections">
+<title>Connections</title>
+
+<table>
+<title>T6963 wiring schematic</title>
+<tgroup cols="2">
+  <thead>
+    <row>
+      <entry>Parallel port</entry>
+      <entry>LCD</entry>
+    </row>
+  </thead>
+  <tbody>
+    <row>
+      <entry>1 (Strobe)</entry>
+      <entry>5 (WR)</entry>
+    </row>
+    <row>
+      <entry>2-9 (Data)</entry>
+      <entry>11-18 (Data)</entry>
+    </row>
+    <row>
+      <entry>14 (Autofeed)</entry>
+      <entry>7 (CE)</entry>
+    </row>
+    <row>
+      <entry>16 (Init)</entry>
+      <entry>8 (C/D)</entry>
+    </row>
+    <row>
+      <entry>17 (Slct)</entry>
+      <entry>6 (RD)</entry>
+    </row>
+    <row>
+      <entry>18 (GND)</entry>
+      <entry>3 (GND)</entry>
+    </row>
+    <row>
+      <entry>+5V</entry>
+      <entry>3 (LCD +)</entry>
+    </row>
+  </tbody>
+</tgroup>
+</table>
+
+</sect2>
+
+<sect2 id="t6963-compiling">
+<title>Compiling</title>
+
+<para>
+Make sure that the T6963 files are built when you run configure. This
+can be done by specifying "--enable-drivers=all" or by
+"--enable-drivers=t6963".
+</para>
+
+</sect2>
+
+<!-- ## Toshiba T6963 driver ## -->
+<sect2 id="t6963-config">
+<title>Configuration in LCDd.conf</title>
+
+<sect3>
+<title>[t6963]</title>
+
+<variablelist>
+<varlistentry>
+  <term>
+    <command>Size=</command>
+    <arg choice="plain">
+      <replaceable>WIDTH</replaceable>
+      <literal>x</literal>
+      <replaceable>HEIGHT</replaceable>
+    </arg>
+  </term>
+  <listitem><para>
+    set display size [default: 20x6]
+  </para></listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <command>Port=</command>
+    <arg choice="plain"><replaceable>PORT</replaceable></arg>
+  </term>
+  <listitem><para>
+    Specify the address of the parallel port the LCD is connected to.
+    Common values for <replaceable>PORT</replaceable> are <literal>0x278</literal>,
+    <literal>0x378</literal> and <literal>0x3BC</literal>.
+    Legal values are <literal>0x200</literal> - <literal>0x400</literal>.
+    If not given the default value is <literal>0x378</literal>.
+  </para></listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <command>ECPlpt=</command>
+    <arg choice="plain">
+    <group choice="req">
+      <arg choice="plain"><literal><emphasis>yes</emphasis></literal></arg>
+      <arg choice="plain"><literal>no</literal></arg>
+    </group>
+    </arg>
+  </term>
+  <listitem><para>
+    Is ECP mode on? [default: yes; legal: yes, no]
+  </para></listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <command>graphic=</command>
+    <arg choice="plain">
+    <group choice="req">
+      <arg choice="plain"><literal>yes</literal></arg>
+      <arg choice="plain"><literal><emphasis>no</emphasis></literal></arg>
+    </group>
+    </arg>
+  </term>
+  <listitem><para>
+    Use graphic? [default: no; legal: yes, no]
+  </para></listitem>
+</varlistentry>
+</variablelist>
+
+</sect3>
+
+</sect2>
+
+<sect2 id="t6963-running">
+<title>Running</title>
+
+<para>
+Modify the LCDd.conf file before you run LCDd. In this config file are
+detailed instructions on how to configure the T6963 driver.
+</para>
+
+<para>
+Then as usual, start LCDd with the correct config file:
+</para>
+
+<para>
+E.g. <command>LCDd -c ./LCDd.conf</command>
+</para>
+
+<para>
+If you want to override the driver selection in LCDd.conf then use:
+</para>
+
+<para>
+<command>LCDd -c ./LCDd.conf -d T6963</command>
+</para>
+
+<para>
+If you use this, the T6963 driver will read the options from the config
+file anyway.
+</para>
+
+</sect2>
+
+</sect1>

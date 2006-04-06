@@ -24,46 +24,30 @@
 
 #include "lcd.h"
 #include "irmanin.h"
-#include "../../../libirman-0.4.1b/irman.h"
+#include "report.h"
+#include "irman.h"
 
-char *progname = "irmanin";
 
-char *codes[] = {
-	/* dummy */ NULL,
-	/* KeyToLcd */ "lcdproc-A",
-	/* KeyToLcd */ "lcdproc-B",
-	/* KeyToLcd */ "lcdproc-C",
-	/* KeyToLcd */ "lcdproc-D",
-	/* KeyToLcd */ "lcdproc-E",
-	/* KeyToLcd */ "lcdproc-F",
-	/* KeyToLcd */ "lcdproc-G",
-	/* KeyToLcd */ "lcdproc-H",
-	/* KeyToLcd */ "lcdproc-I",
-	/* KeyToLcd */ "lcdproc-J",
-	/* KeyToLcd */ "lcdproc-K",
-	/* KeyToLcd */ "lcdproc-L",
-	/* KeyToLcd */ "lcdproc-M",
-	/* KeyToLcd */ "lcdproc-N",
-	/* KeyToLcd */ "lcdproc-O",
-	/* KeyToLcd */ "lcdproc-P",
-	/* KeyToLcd */ "lcdproc-Q",
-	/* KeyToLcd */ "lcdproc-R",
-	/* KeyToLcd */ "lcdproc-S",
-	/* KeyToLcd */ "lcdproc-T",
-	/* KeyToLcd */ "lcdproc-U",
-	/* KeyToLcd */ "lcdproc-V",
-	/* KeyToLcd */ "lcdproc-W",
-	/* KeyToLcd */ "lcdproc-X",
-	/* KeyToLcd */ "lcdproc-Y",
-	/* KeyToLcd */ "lcdproc-Z",
-	/* end */ NULL
+CodeMap codemap[] = {
+	{ "",  "" },	/* dummy: ir_register_command() needs offset > 0 */
+	{ "lcdproc-Up",     "Up"     },
+	{ "lcdproc-Down",   "Down"   },
+	{ "lcdproc-Left",   "Left"   },
+	{ "lcdproc-Right",  "Right"  },
+	{ "lcdproc-Enter",  "Enter"  },
+	{ "lcdproc-Escape", "Escape" },
+	{ NULL, NULL }
 };
 
 //////////////////////////////////////////////////////////////////////////
 ////////////////////// Base "class" to derive from ///////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-lcd_logical_driver *irmanin;
+
+MODULE_EXPORT char *api_version = API_VERSION;
+MODULE_EXPORT int stay_in_foreground = 0;
+MODULE_EXPORT int supports_multiple = 0;
+MODULE_EXPORT char *symbol_prefix = "irmanin_";
 
 //void sigterm(int sig)
 //{
@@ -75,121 +59,110 @@ lcd_logical_driver *irmanin;
 ////////////////////////////////////////////////////////////
 // init() should set up any device-specific stuff, and
 // point all the function pointers.
-int
-irmanin_init (struct lcd_logical_driver *driver, char *args)
+MODULE_EXPORT int
+irmanin_init (Driver *drvthis)
 {
-	char device[256];
-	char *ptrdevice;
-	char config[256];
-	char *ptrconfig;
+	PrivateData *p;
+	char *ptrdevice = NULL;
+	char *ptrconfig = NULL;
+	int i;
 
-	char *portname;
+	/* Allocate and store private data */
+	p = (PrivateData *) calloc(1, sizeof(PrivateData));
+	if (p == NULL)
+		return -1;
+	if (drvthis->store_private_ptr(drvthis, p))
+		return -1;
+	
+	/* Read config file */
 
-	char *argv[64];
-	int argc, i, j;
-	char *filename;
+	/* What device should be used */
+	strncpy(p->device, drvthis->config_get_string(drvthis->name, "Device", 0,
+						   ""), sizeof(p->device));
+	p->device[sizeof(p->device)-1] = '\0';
+	if (p->device[0] != '\0')
+		ptrdevice = p->device;
 
-	ptrconfig = NULL;
-	ptrdevice = NULL;
+	/* What config file should be used */
+	strncpy(p->config, drvthis->config_get_string(drvthis->name, "Config", 0,
+						   ""), sizeof(p->config));
+	p->config[sizeof(p->config)-1] = '\0';
+	if (p->config[0] != '\0')
+		ptrconfig = p->config;
 
-	irmanin = driver;
+	/* End of config file parsing */
 
-	argc = get_args (argv, args, 64);
+	if (ir_init_commands(ptrconfig, 1) < 0) {
+		report(RPT_ERR, "%s: error initialising commands: %s", drvthis->name, strerror(errno));
+		return -1;
+	}
 
-	for (i = 0; i < argc; i++) {
-		//printf("Arg(%i): %s\n", i, argv[i]);
-		if (0 == strcmp (argv[i], "-d") || 0 == strcmp (argv[i], "--device")) {
-			if (i + 1 > argc) {
-				fprintf (stderr, "irmanin_init: %s requires an argument\n", argv[i]);
-				return -1;
-			}
-			strcpy (device, argv[++i]);
-			ptrdevice = device;
-		} else if (0 == strcmp (argv[i], "-c") || 0 == strcmp (argv[i], "--config")) {
-			if (i + 1 > argc) {
-				fprintf (stderr, "irmanin_init: %s requires an argument\n", argv[i]);
-				return -1;
-			}
-			strcpy (config, argv[++i]);
-			ptrconfig = config;
-		} else if (0 == strcmp (argv[i], "-h") || 0 == strcmp (argv[i], "--help")) {
-			printf ("LCDproc IrMan input driver\n" "\t-d\t--device\tSelect the input device to use\n" "\t-d\t--config\tSelect the configuration file to use\n" "\t-h\t--help\t\tShow this help information\n");
+	p->portname = ir_default_portname();
+	if (p->portname == NULL) {
+		if (ptrdevice != NULL) {
+			p->portname = ptrdevice;
+		} else {
+			report(RPT_ERR, "%s: error no device defined", drvthis->name);
 			return -1;
-		} else {
-			printf ("Invalid parameter: %s\n", argv[i]);
 		}
 	}
 
-	if (ir_init_commands (ptrconfig, 1) < 0) {
-		fprintf (stderr, "error initialising commands: %s\n", strerror (errno));
-		exit (1);
-	}
-
-	portname = ir_default_portname ();
-	if (portname == NULL) {
-		if (ptrdevice == NULL) {
-			portname = ptrdevice;
-		} else {
-			fprintf (stderr, "error no device defined\n");
-			exit (1);
-		}
-	}
-
-	driver->getkey = irmanin_getkey;
-	driver->close = irmanin_close;
-
-	for (i = 1; codes[i] != NULL; i++) {
-		if (ir_register_command (codes[i], i) < 0) {
+	for (i = 1; codemap[i].irman != NULL; i++) {
+		if (ir_register_command((char *) codemap[i].irman, i) < 0) {
 			if (errno == ENOENT) {
-				fprintf (stderr, "%s: no code set for `%s'\n", progname, codes[i]);
+				report(RPT_WARNING, "%s: no code set for `%s'",
+					drvthis->name, codemap[i].irman);
 			} else {
-				fprintf (stderr, "error registering `%s': `%s'\n", codes[i], strerror (errno));
+				report(RPT_WARNING, "%s: error registering `%s': %s",
+					drvthis->name, codemap[i].irman, strerror(errno));
 			}
 		}
 	}
 
 	errno = 0;
-	if (ir_init (portname) < 0) {
-		fprintf (stderr, "%s: error initialising Irman: `%s'\n", strerror (errno), portname);
-		exit (1);
+	if (ir_init(p->portname) < 0) {
+		report(RPT_ERR, "%s: error initialising Irman %s: %s",
+			drvthis->name, p->portname, strerror(errno));
+		return -1;
 	}
 
-	return 1;						  // 200 is arbitrary.  (must be 1 or more)
+	return 1;						  // return success
 }
 
 void
-irmanin_close ()
+irmanin_close (Driver *drvthis)
 {
-	if (irmanin->framebuf != NULL)
-		free (irmanin->framebuf);
+	PrivateData *p = drvthis->private_data;
 
-	irmanin->framebuf = NULL;
-
-	ir_free_commands ();
-	ir_finish ();
+	if (p != NULL)
+		free(p);
+	drvthis->store_private_ptr(drvthis, NULL);
+	
+	ir_free_commands();
+	ir_finish();
 }
 
 //////////////////////////////////////////////////////////////////////
-// Tries to read a character from an input device...
+// Tries to read a LCDproc character string from an input device...
 //
-// Return 0 for "nothing available".
+// Return NULL for "nothing available".
 //
-char
-irmanin_getkey ()
+char *
+irmanin_get_key (Driver *drvthis)
 {
-	int i;
 	int cmd;
-	char key;
+	const char *key = NULL;
 
-	key = (char) 0;
-	switch (cmd = ir_poll_command ()) {
+	switch (cmd = ir_poll_command()) {
 	case IR_CMD_ERROR:
-		fprintf (stderr, "%s: error reading command: %s\n", progname, strerror (errno));
+		report(RPT_WARNING, "%s: error reading command: %s",
+			drvthis->name, strerror(errno));
 		break;
 	case IR_CMD_UNKNOWN:
 		break;
 	default:
-		key = (char) ('A' - 1 + cmd);
+		if ((cmd > 0) && (cmd < 7))	 // only 6 keys, startinig at ofset 1
+			key = codemap[cmd].lcdproc;
 		break;
 	}
 

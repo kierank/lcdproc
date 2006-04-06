@@ -1,10 +1,19 @@
 #ifndef LCD_IRMANIN__H
 #define LCD_IRMANIN_H
 
-extern lcd_logical_driver *joy;
+typedef struct _codemap {
+	const char *irman;
+	const char *lcdproc;
+} CodeMap;
 
-int irmanin_init (struct lcd_logical_driver *driver, char *args);
-void irmanin_close ();
-char irmanin_getkey ();
+typedef struct driver_private_data {
+	char device[256];
+	char config[256];
+	char *portname;
+} PrivateData;
+
+MODULE_EXPORT int irmanin_init (Driver *drvthis);
+MODULE_EXPORT void irmanin_close (Driver *drvthis);
+MODULE_EXPORT char *irmanin_get_key (Driver *drvthis);
 
 #endif
