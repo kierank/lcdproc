@@ -8,17 +8,23 @@
 
 #include "lcd.h"
 
-int sed1330_init( lcd_logical_driver * driver, char *args );
-void sed1330_close();
-void sed1330_clear();
-void sed1330_string( int x, int y, char lcd[] );
-void sed1330_chr( int x, int y, char c );
-void sed1330_flush();
-void sed1330_cursor( int x, int y, char state );
-void sed1330_backlight( int on );
-void sed1330_vbar( int x, int len );
-void sed1330_hbar( int x, int y, int len );
-void sed1330_num( int x, int num );
-void sed1330_heartbeat( int type );
+MODULE_EXPORT int sed1330_init( Driver * drvthis );
+MODULE_EXPORT void sed1330_close( Driver * drvthis );
+MODULE_EXPORT int sed1330_width( Driver * drvthis );
+MODULE_EXPORT int sed1330_height( Driver * drvthis );
+MODULE_EXPORT void sed1330_clear( Driver * drvthis );
+MODULE_EXPORT void sed1330_flush( Driver * drvthis );
+MODULE_EXPORT void sed1330_string( Driver * drvthis, int x, int y, char lcd[] );
+MODULE_EXPORT void sed1330_chr( Driver * drvthis, int x, int y, char c );
+
+MODULE_EXPORT void sed1330_vbar( Driver * drvthis, int x, int y, int len, int promille, int pattern );
+MODULE_EXPORT void sed1330_hbar( Driver * drvthis, int x, int y, int len, int promille, int pattern );
+MODULE_EXPORT void sed1330_num( Driver * drvthis, int x, int y, int num );
+MODULE_EXPORT void sed1330_heartbeat( Driver * drvthis, int type );
+// No cursor function: use software cursor to prevent flickering ! */
+MODULE_EXPORT int sed1330_icon( Driver * drvthis, int x, int y, int icon);
+
+MODULE_EXPORT void sed1330_backlight( Driver * drvthis, int on );
+MODULE_EXPORT const char * sed1330_get_key(Driver *drvthis);
 
 #endif

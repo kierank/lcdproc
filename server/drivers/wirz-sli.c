@@ -1,7 +1,7 @@
 /*	wirz-sli.c -- Source file for LCDproc Wirz SLI driver
 	Copyright (C) 1999 Horizon Technologies-http://horizon.pair.com/
 	Written by Bryan Rittmeyer <bryanr@pair.com> - Released under GPL
-			
+
         LCD info: http://www.wirz.com/                               */
 
 #include <stdlib.h>
@@ -18,10 +18,14 @@
 
 #include "lcd.h"
 #include "wirz-sli.h"
-#include "drv_base.h"
+//#include "drv_base.h"
+#include "report.h"
+#include "lcd_lib.h"
 
-#include "shared/debug.h"
+//#include "shared/debug.h"
 #include "shared/str.h"
+
+#define SLI_DEFAULT_DEVICE	"/dev/lcd"
 
 static int custom = 0;
 typedef enum {
@@ -31,93 +35,72 @@ typedef enum {
 	beat = 8
 } custom_type;
 
-static int fd;
-static char lastframe[32];
+static int fd = -1;
+static char *framebuf = NULL;
+static int width = 0;
+static int height = 0;
+static int cellwidth = LCD_DEFAULT_CELLWIDTH;
+static int cellheight = LCD_DEFAULT_CELLHEIGHT;
 
-lcd_logical_driver *sli;
+// Vars for the server core
+MODULE_EXPORT char *api_version = API_VERSION;
+MODULE_EXPORT int stay_in_foreground = 0;
+MODULE_EXPORT int supports_multiple = 0;
+MODULE_EXPORT char *symbol_prefix = "sli_";
+
 
 /////////////////////////////////////////////////////////////////
 // Opens com port and sets baud correctly...
 //
-int
-sli_init (lcd_logical_driver * driver, char *args)
+MODULE_EXPORT int
+sli_init (Driver *drvthis)
 {
-	char *argv[64];
-	int argc;
 	struct termios portset;
-	int i;
-	int tmp;
 	char out[2];
 
-	char device[256] = "/dev/lcd";
+	char device[256] = SLI_DEFAULT_DEVICE;
 	int speed = B19200;
 
-	sli = driver;
+	/* Read config file */
 
-	//debug("sli_init: Args(all): %s\n", args);
+	/* What device should be used */
+	strncpy(device, drvthis->config_get_string(drvthis->name, "Device", 0,
+						   SLI_DEFAULT_DEVICE), sizeof(device));
+	device[sizeof(device)-1] = '\0';
+	report(RPT_INFO, "%s: using Device %s", drvthis->name, device);
 
-	argc = get_args (argv, args, 64);
-
-	/*
-	   for(i=0; i<argc; i++)
-	   {
-	   printf("Arg(%i): %s\n", i, argv[i]);
-	   }
-	 */
-
-	for (i = 0; i < argc; i++) {
-		//printf("Arg(%i): %s\n", i, argv[i]);
-		if (0 == strcmp (argv[i], "-d") || 0 == strcmp (argv[i], "--device")) {
-			if (i + 1 > argc) {
-				fprintf (stderr, "sli_init: %s requires an argument\n", argv[i]);
-				return -1;
-			}
-			strcpy (device, argv[++i]);
-		} else if (0 == strcmp (argv[i], "-s") || 0 == strcmp (argv[i], "--speed")) {
-			if (i + 1 > argc) {
-				fprintf (stderr, "sli_init: %s requires an argument\n", argv[i]);
-				return -1;
-			}
-			tmp = atoi (argv[++i]);
-			if (tmp == 1200)
-				speed = B1200;
-			else if (tmp == 2400)
-				speed = B2400;
-			else if (tmp == 9600)
-				speed = B9600;
-			else if (tmp == 19200)
-				speed = B19200;
-			else if (tmp == 38400)
-				speed = B38400;
-			else if (tmp == 57600)
-				speed = B57600;
-			else if (tmp == 115200)
-				speed = B115200;
-			else {
-				fprintf (stderr, "sli_init: %s argument must be 1200, 2400, 9600, 19200, 38400, 57600, or 115200. Using default value (19200).\n", argv[i]);
-			}
-		} else if (0 == strcmp (argv[i], "-h") || 0 == strcmp (argv[i], "--help")) {
-			printf ("LCDproc Wirz SLI LCD driver\n" "\t-d\t--device\tSelect the output device to use [/dev/lcd]\n" "\t-s\t--speed\t\tSet the communication speed [19200]\n" "\t-h\t--help\t\tShow this help information\n");
-			return -1;
-		} else {
-			printf ("Invalid parameter: %s\n", argv[i]);
-		}
-
+	/* What speed to use */
+	speed = drvthis->config_get_int(drvthis->name, "Speed", 0, 19200);
+  
+	if (speed == 1200)        speed = B1200;
+	else if (speed == 2400)   speed = B2400;
+	else if (speed == 9600)   speed = B9600;
+	else if (speed == 19200)  speed = B19200;
+	else if (speed == 38400)  speed = B38400;
+	else if (speed == 57600)  speed = B57600;
+	else if (speed == 115200) speed = B115200;
+	else {
+		report(RPT_WARNING, "%s: illegal Speed: %d; must be one of 1200, 2400, 9600, 19200, 38400, 57600, or 115200; using default %d",
+				drvthis->name, speed);
+		speed = B19200;
 	}
+
+	/* End of config file parsing */
 
 	// Set up io port correctly, and open it...
-	fd = open (device, O_RDWR | O_NOCTTY | O_NDELAY);
+	fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY);
 	if (fd == -1) {
-		fprintf (stderr, "sli_init: failed (%s)\n", strerror (errno));
+		report(RPT_ERR, "%s: open(%s) failed (%s)", drvthis->name, device, strerror(errno));
 		return -1;
 	}
-	//else fprintf(stderr, "sli_init: opened device %s\n", device);
-	tcgetattr (fd, &portset);
+	report(RPT_DEBUG, "%s: opened device %s", drvthis->name, device);
+	
+	tcgetattr(fd, &portset);
 
 	// We use RAW mode
 #ifdef HAVE_CFMAKERAW
 	// The easy way
-	cfmakeraw( &portset );
+	cfmakeraw(&portset);
 #else
 	// The hard way
 	portset.c_iflag &= ~( IGNBRK | BRKINT | PARMRK | ISTRIP
@@ -129,114 +112,107 @@ sli_init (lcd_logical_driver * driver, char *args)
 #endif
 
 	// Set port speed
-	cfsetospeed (&portset, speed);
-	cfsetispeed (&portset, B0);
+	cfsetospeed(&portset, speed);
+	cfsetispeed(&portset, B0);
 
 	// Do it...
-	tcsetattr (fd, TCSANOW, &portset);
+	tcsetattr(fd, TCSANOW, &portset);
 
-	/* Initialize SLI using autobaud detection, and then turn off cursor 
+	/* Initialize SLI using autobaud detection, and then turn off cursor
 	   and clear screen */
-	usleep (150000);				  /* 150ms delay to allow SLI to power on */
-	out[0] = 13;					  /* CR for SLI autobaud */
-	write (fd, out, 1);
-	usleep (3000);					  /* 3ms delay.. wait for it to autobaud */
+	usleep(150000);			  /* 150ms delay to allow SLI to power on */
+	out[0] = 13;			  /* CR for SLI autobaud */
+	write(fd, out, 1);
+	usleep(3000);			  /* 3ms delay.. wait for it to autobaud */
 	out[0] = 0x0FE;
-	out[1] = 0x00C;				  /* No cursor */
-	write (fd, out, 2);
+	out[1] = 0x00C;			  /* No cursor */
+	write(fd, out, 2);
 	out[0] = 0x0FE;
-	out[1] = 0x001;				  /* Clear LCD, not sure if this belongs here */
-	write (fd, out, 2);
+	out[1] = 0x001;			  /* Clear LCD, not sure if this belongs here */
+	write(fd, out, 2);
 
 	// Set LCD parameters (I use a 16x2 LCD) -- small but still useful
 	// Its also much cheaper than the higher quality Matrix Orbital modules
 	// Currently, $30 for interface kit and 16x2 non-backlit LCD...
-	driver->wid = 15;
-	driver->hgt = 2;
+	width = 15;
+	height = 2;
 
-	// Set the functions the driver supports...
+	report(RPT_DEBUG, "%s: init() done", drvthis->name);
 
-	driver->clear = sli_clear;
-	driver->string = sli_string;
-	driver->chr = sli_chr;
-	driver->vbar = sli_vbar;
-	driver->init_vbar = sli_init_vbar;
-	driver->hbar = sli_hbar;
-	driver->init_hbar = sli_init_hbar;
-	//driver->num = NULL;
-	//driver->init_num = NULL;
-
-	driver->init = sli_init;
-	driver->close = sli_close;
-	driver->flush = sli_flush;
-	driver->flush_box = sli_flush_box;
-	//driver->contrast = NULL;
-	//driver->backlight = NULL;
-	driver->set_char = sli_set_char;
-	driver->icon = sli_icon;
-	driver->draw_frame = sli_draw_frame;
-
-	//driver->getkey = NULL;
-
-	return fd;
+	return 1;
 }
 
-/* Clean-up */
-void
-sli_close ()
+/////////////////////////////////////////////////////////////////
+// Clean up
+//
+MODULE_EXPORT void
+sli_close (Driver *drvthis)
 {
-	close (fd);
+	if (fd >= 0)
+		close(fd);
 
-	if (sli->framebuf)
-		free (sli->framebuf);
-
-	sli->framebuf = NULL;
+	if (framebuf)
+		free(framebuf);
+	framebuf = NULL;
 }
 
-void
-sli_flush ()
+/////////////////////////////////////////////////////////////////
+// Returns the display width
+//
+MODULE_EXPORT int
+sli_width (Driver *drvthis)
 {
-	sli_draw_frame (sli->framebuf);
+	return width;
 }
 
-/* no bounds checking is done in MtxOrb.c (which I shamelessly ripped)
-   this is bad imho, so I added it.. may remove later
-   speed is not a huge issue though, this isnt a 
-   device driver or anything ;)                           */
-void
-sli_flush_box (int lft, int top, int rgt, int bot)
+/////////////////////////////////////////////////////////////////
+// Returns the display height
+//
+MODULE_EXPORT int
+sli_height (Driver *drvthis)
 {
-	int y;
-	char out[2];					  /* Why does the matrix driver allocate so much here? */
+	return height;
+}
 
-	/* simple bounds checking */
-	if ((top > sli->hgt) | (bot > sli->hgt))
-		return;
+/////////////////////////////////////////////////////////////////
+// Flush framebuffer to LCD
+//
+MODULE_EXPORT void
+sli_flush (Driver *drvthis)
+{
+	char out[2];					  /* Again, why does the Matrix driver allocate so much here? */
 
-	if ((lft > sli->wid) | (rgt > sli->wid))
-		return;
+	/*
+	   out[0] = 0x0FE;
+	   out[1] = 0x001;
+	   write(fd, out, 2);
+	 */
 
-//  printf("Flush (%i,%i)-(%i,%i)\n", lft, top, rgt, bot);
+	/* Don't update if we have no new data
+	   this keeps me from getting a migraine
+	   (just like those copyleft penguin mints... mmmmmm)  */
 
-/* I like having hex, everywhere and all the time */
-	for (y = top; y <= bot; y++) {
-		if (y == 1)
-			snprintf (out, sizeof(out), "%c%c", 0x0FE, 0x080 + lft);
-		if (y == 2)
-			snprintf (out, sizeof(out), "%c%c", 0x0FE, 0x0C0 + lft);
-		write (fd, out, 0x002);
-		write (fd, sli->framebuf + (y * sli->wid) + lft, rgt - lft + 1);
-	}
+	//   if (!strncmp(dat,lastframe,32)) /* Nothing has changed */
+	//     return;
 
+	/* Do the actual refresh */
+	out[0] = 0x0FE;
+	out[1] = 0x080;
+	write(fd, out, 2);
+	write(fd, &framebuf[0], 16);
+	usleep(10);
+	write(fd, &framebuf[16], 15);
+
+	//   strncpy(lastframe,dat,32); // Update lastframe...
 }
 
 /////////////////////////////////////////////////////////////////
 // Clears the LCD screen
 //
-void
-sli_clear ()
+MODULE_EXPORT void
+sli_clear (Driver *drvthis)
 {
-	memset (sli->framebuf, ' ', sli->wid * sli->hgt);
+	memset(framebuf, ' ', width * height);
 
 }
 
@@ -244,19 +220,19 @@ sli_clear ()
 // Prints a string on the lcd display, at position (x,y).  The
 // upper-left is (1,1), and the lower right should be (20,4).
 //
-void
-sli_string (int x, int y, char string[])
+MODULE_EXPORT void
+sli_string (Driver *drvthis, int x, int y, char string[])
 {
 	int i;
 
-	x -= 1;							  // Convert 1-based coords to 0-based...
-	y -= 1;
+	x--;				  // Convert 1-based coords to 0-based...
+	y--;
 
 	for (i = 0; string[i]; i++) {
 		// Check for buffer overflows...
-		if ((y * sli->wid) + x + i > (sli->wid * sli->hgt))
+		if ((y * width) + x + i > (width * height))
 			break;
-		sli->framebuf[(y * sli->wid) + x + i] = string[i];
+		framebuf[(y * width) + x + i] = string[i];
 	}
 }
 
@@ -264,26 +240,13 @@ sli_string (int x, int y, char string[])
 // Prints a character on the lcd display, at position (x,y).  The
 // upper-left is (1,1), and the lower right should be (20,4).
 //
-void
-sli_chr (int x, int y, char c)
+MODULE_EXPORT void
+sli_chr (Driver *drvthis, int x, int y, char c)
 {
 	y--;
 	x--;
 
-	sli->framebuf[(y * sli->wid) + x] = c;
-}
-
-/////////////////////////////////////////////////////////////////
-// Prints a character on the lcd display, at position (x,y).  The
-// upper-left is (1,1), and the lower right should be (20,4).
-//
-void
-sli_chr (int x, int y, char c)
-{
-	y--;
-	x--;
-
-	sli->framebuf[(y * sli->wid) + x] = c;
+	framebuf[(y * width) + x] = c;
 }
 
 /////////////////////////////////////////////////////////////////
@@ -293,14 +256,14 @@ sli_chr (int x, int y, char c)
 /* Because of the way we do this (custom characters in CGRAM)
    we can't have both horizontal and vertical bars at once...
    this also appears to be a limitation of the Matrix Orbital
-   modules so I will assume that all client coders know about it 
+   modules so I will assume that all client coders know about it
 
    I think it would be cool to use triangular stuff for the non-full
-   characters, so that you can do both bar types at once.. maybe I 
+   characters, so that you can do both bar types at once.. maybe I
    will release a new version of the SLI driver that attempts this */
 
-void
-sli_init_vbar ()
+static void
+sli_init_vbar (Driver *drvthis)
 {
 	char a[] = {
 		0, 0, 0, 0, 0,
@@ -374,13 +337,13 @@ sli_init_vbar ()
 	};
 
 	if (custom != vbar) {
-		sli_set_char (1, a);
-		sli_set_char (2, b);
-		sli_set_char (3, c);
-		sli_set_char (4, d);
-		sli_set_char (5, e);
-		sli_set_char (6, f);
-		sli_set_char (7, g);
+		sli_set_char(drvthis, 1, a);
+		sli_set_char(drvthis, 2, b);
+		sli_set_char(drvthis, 3, c);
+		sli_set_char(drvthis, 4, d);
+		sli_set_char(drvthis, 5, e);
+		sli_set_char(drvthis, 6, f);
+		sli_set_char(drvthis, 7, g);
 		custom = vbar;
 	}
 }
@@ -388,8 +351,8 @@ sli_init_vbar ()
 /////////////////////////////////////////////////////////////////
 // Inits horizontal bars...
 //
-void
-sli_init_hbar ()
+static void
+sli_init_hbar (Driver *drvthis)
 {
 
 	char a[] = {
@@ -432,12 +395,23 @@ sli_init_hbar ()
 		1, 1, 1, 1, 0,
 		1, 1, 1, 1, 0,
 	};
+	char e[] = {
+		1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1,
+		1, 1, 1, 1, 1,
+	};
 
 	if (custom != hbar) {
-		sli_set_char (1, a);
-		sli_set_char (2, b);
-		sli_set_char (3, c);
-		sli_set_char (4, d);
+		sli_set_char(drvthis, 1, a);
+		sli_set_char(drvthis, 2, b);
+		sli_set_char(drvthis, 3, c);
+		sli_set_char(drvthis, 4, d);
+		sli_set_char(drvthis, 5, e);
 		custom = hbar;
 	}
 }
@@ -451,41 +425,23 @@ sli_init_hbar ()
    since we only have 2 lines anyway this is rather pointless
    for me to add                                               */
 
-void
-sli_vbar (int x, int len)
+MODULE_EXPORT void
+sli_vbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 {
-	char map[9] = { 32, 1, 2, 3, 4, 5, 6, 7, 255 };
+	sli_init_vbar(drvthis);
 
-	int y;
-	for (y = sli->hgt; y > 0 && len > 0; y--) {
-		if (len >= sli->cellhgt)
-			sli_chr (x, y, 255);
-		else
-			sli_chr (x, y, map[len]);
-
-		len -= sli->cellhgt;
-	}
-
+	lib_vbar_static(drvthis, x, y, len, promille, options, cellheight, 0);
 }
 
 /////////////////////////////////////////////////////////////////
 // Draws a horizontal bar to the right.
 //
-void
-sli_hbar (int x, int y, int len)
+MODULE_EXPORT void
+sli_hbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 {
-	char map[6] = { 32, 1, 2, 3, 4, 255 };
+	sli_init_hbar(drvthis);
 
-	for (; x <= sli->wid && len > 0; x++) {
-		if (len >= sli->cellwid)
-			sli_chr (x, y, 255);
-		else
-			sli_chr (x, y, map[len]);
-
-		len -= sli->cellwid;
-
-	}
-
+	lib_hbar_static(drvthis, x, y, len, promille, options, cellwidth, 0);
 }
 
 /////////////////////////////////////////////////////////////////
@@ -495,15 +451,14 @@ sli_hbar (int x, int y, int len)
 //
 // The input is just an array of characters...
 //
-void
-sli_set_char (int n, char *dat)
+MODULE_EXPORT void
+sli_set_char (Driver *drvthis, int n, char *dat)
 {
 	char out[2];
 	int row, col;
-	int letter;
 
 	/* SLI also has 8 user definable characters */
-	if (n < 0 || n > 7)
+	if ((n < 0) || (n > 7))
 		return;
 	if (!dat)
 		return;
@@ -511,26 +466,27 @@ sli_set_char (int n, char *dat)
 	/* Move cursor to CGRAM */
 	out[0] = 0x0FE;
 	out[1] = 0x040 + 8 * n;
-	write (fd, out, 2);
+	write(fd, out, 2);
 
-	for (row = 0; row < sli->cellhgt; row++) {
-		letter = 0;
-		for (col = 0; col < sli->cellwid; col++) {
+	for (row = 0; row < LCD_DEFAULT_CELLHEIGHT; row++) {
+		int letter = 0;
+
+		for (col = 0; col < LCD_DEFAULT_CELLWIDTH; col++) {
 			letter <<= 1;
-			letter |= (dat[(row * sli->cellwid) + col] > 0);
+			letter |= (dat[(row * LCD_DEFAULT_CELLWIDTH) + col] > 0);
 		}
-		letter |= 0x020;			  /* SLI can't accept CR, LF, etc in this character! */
-		write (fd, &letter, 1);
+		letter |= 0x020;	  /* SLI can't accept CR, LF, etc in this character! */
+		write(fd, &letter, 1);
 	}
 
 	/* Move cursor back to DDRAM */
 	out[0] = 0x0FE;
 	out[1] = 0x080;
-	write (fd, out, 2);
+	write(fd, out, 2);
 }
 
-void
-sli_icon (int which, char dest)
+MODULE_EXPORT int
+sli_icon (Driver *drvthis, int x, int y, int icon)
 {
 	char icons[3][5 * 8] = {
 		{
@@ -570,44 +526,21 @@ sli_icon (int which, char dest)
 
 	if (custom == bign)
 		custom = beat;
-	sli_set_char (dest, &icons[which][0]);
+	switch ( icon ) {
+		case ICON_BLOCK_FILLED:
+			sli_chr(drvthis, x, y, 255);
+			break;
+		case ICON_HEART_FILLED:
+			sli_set_char( drvthis, 0, icons[1]);
+			sli_chr(drvthis, x, y, 0);
+			break;
+		case ICON_HEART_OPEN:
+			sli_set_char( drvthis, 0, icons[0]);
+			sli_chr(drvthis, x, y, 0);
+			break;
+		default:
+			return -1;
+	}
+	return 0;
 }
 
-/////////////////////////////////////////////////////////////
-// Blasts a single frame onscreen, to the lcd...
-//
-// Input is a character array, sized sli->wid*sli->hgt
-//
-void
-sli_draw_frame (char *dat)
-{
-	char out[2];					  /* Again, why does the Matrix driver allocate so much here? */
-	int y;
-
-	if (!dat)
-		return;
-
-	/*
-	   out[0]=0x0FE;
-	   out[1]=0x001;
-	   write(fd, out, 2);
-	 */
-
-	/* Don't update if we have no new data
-	   this keeps me from getting a migraine
-	   (just like those copyleft penguin mints... mmmmmm)  */
-
-	//   if (!strncmp(dat,lastframe,32)) /* Nothing has changed */
-	//     return;
-
-	/* Do the actual refresh */
-	out[0] = 0x0FE;
-	out[1] = 0x080;
-	write (fd, out, 2);
-	write (fd, &dat[0], 16);
-	usleep (10);
-	write (fd, &dat[16], 15);
-
-	//   strncpy(lastframe,dat,32); // Update lastframe...
-
-}

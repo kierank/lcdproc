@@ -4,111 +4,182 @@
  * Displays LCD screens, one after another; suitable for hard-copy
  * terminals.
  *
+ * Copyright (C) 1998-2004 The LCDproc Team
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
  */
+
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <termios.h>
 #include <fcntl.h>
 #include <string.h>
-#include <sys/errno.h>
-#include <syslog.h>
 
 #include "lcd.h"
 #include "text.h"
-#include "drv_base.h"
+#include "report.h"
+//#include "drv_base.h"
 
-lcd_logical_driver *text;
+
+// Variables
+static int width;
+static int height;
+static char * framebuf;
+
+// Vars for the server core
+MODULE_EXPORT char *api_version = API_VERSION;
+MODULE_EXPORT int stay_in_foreground = 0;
+MODULE_EXPORT int supports_multiple = 0;
+MODULE_EXPORT char *symbol_prefix = "text_";
 
 //////////////////////////////////////////////////////////////////////////
 ////////////////////// For Text-Mode Output //////////////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-#define LCD_DEFAULT_WIDTH 20
-#define LCD_DEFAULT_HEIGHT 4
-#define LCD_DEFAULT_CELL_WIDTH 5
-#define LCD_DEFAULT_CELL_HEIGHT 8
 
-// TODO: When using the text driver, ^C fails to interrupt!
-// Why?  Fix it...
-
-int
-text_init (lcd_logical_driver * driver, char *args)
+MODULE_EXPORT int
+text_init (Driver *drvthis)
 {
-	text = driver;
+	char buf[256];
 
-	text->wid = LCD_DEFAULT_WIDTH;
-	text->hgt = LCD_DEFAULT_HEIGHT;
-	text->cellwid = LCD_DEFAULT_CELL_WIDTH;
-	text->cellhgt = LCD_DEFAULT_CELL_HEIGHT;
+	// Set display sizes
+	if ((drvthis->request_display_width() > 0)
+	    && (drvthis->request_display_height() > 0)) {
+		// Use size from primary driver
+		width = drvthis->request_display_width();
+		height = drvthis->request_display_height();
+	}
+	else {
+		/* Use our own size from config file */
+		strncpy(buf, drvthis->config_get_string(drvthis->name, "Size", 0, TEXTDRV_DEFAULT_SIZE), sizeof(buf));
+		buf[sizeof(buf)-1] = '\0';
+		if ((sscanf(buf , "%dx%d", &width, &height) != 2)
+		    || (width <= 0) || (width > LCD_MAX_WIDTH)
+		    || (height <= 0) || (height > LCD_MAX_HEIGHT)) {
+			report(RPT_WARNING, "%s: cannot read Size: %s; using default %s",
+					drvthis->name, buf, TEXTDRV_DEFAULT_SIZE);
+			sscanf(TEXTDRV_DEFAULT_SIZE, "%dx%d", &width, &height);
+		}
+	}
 
-	text->clear = text_clear;
-	text->string = text_string;
-	text->chr = text_chr;
-	text->vbar = text_vbar;
-	//text->init_vbar = NULL;
-	text->hbar = text_hbar;
-	//text->init_hbar = NULL;
-	text->num = text_num;
-	//text->init_num = NULL;
+	// Allocate the framebuffer
+	framebuf = malloc(width * height);
+	if (framebuf == NULL) {
+		report(RPT_ERR, "%s: unable to create framebuffer", drvthis->name);
+		return -1;
+	}
+	
+	memset(framebuf, ' ', width * height);
 
-	text->init = text_init;
-	text->close = text_close;
-	text->flush = text_flush;
-	//text->flush_box = NULL;
-	//text->contrast = NULL;
-	//text->backlight = NULL;
-	//text->set_char = NULL;
-	//text->icon = NULL;
-	text->draw_frame = text_draw_frame;
+	report(RPT_DEBUG, "%s: init() done", drvthis->name);
 
-	//text->getkey = NULL;
-
-	return 200;						  // 200 is arbitrary.  (must be 1 or more)
+	return 1;
 }
 
-void
-text_close ()
+/////////////////////////////////////////////////////////////////
+// Closes the device
+//
+MODULE_EXPORT void
+text_close (Driver *drvthis)
 {
-	if (text->framebuf != NULL)
-		free (text->framebuf);
+	if (framebuf != NULL)
+		free(framebuf);
 
-	text->framebuf = NULL;
+	framebuf = NULL;
+}
+
+/////////////////////////////////////////////////////////////////
+// Returns the display width
+//
+MODULE_EXPORT int
+text_width (Driver *drvthis)
+{
+	return width;
+}
+
+/////////////////////////////////////////////////////////////////
+// Returns the display height
+//
+MODULE_EXPORT int
+text_height (Driver *drvthis)
+{
+	return height;
 }
 
 /////////////////////////////////////////////////////////////////
 // Clears the LCD screen
 //
-void
-text_clear ()
+MODULE_EXPORT void
+text_clear (Driver *drvthis)
 {
-	memset (text->framebuf, ' ', text->wid * text->hgt);
-
+	memset(framebuf, ' ', width * height);
 }
 
 //////////////////////////////////////////////////////////////////
 // Flushes all output to the lcd...
 //
-void
-text_flush ()
+MODULE_EXPORT void
+text_flush (Driver *drvthis)
 {
-	text_draw_frame (text->framebuf);
+	int i, j;
+
+	char out[LCD_MAX_WIDTH];
+
+	for (i = 0; i < width; i++) {
+		out[i] = '-';
+	}
+	out[width] = 0;
+	printf("+%s+\n", out);
+
+	for (i = 0; i < height; i++) {
+		for (j = 0; j < width; j++) {
+			out[j] = framebuf[j + (i * width)];
+		}
+		out[width] = 0;
+		printf("|%s|\n", out);
+	}
+
+	for (i = 0; i < width; i++) {
+		out[i] = '-';
+	}
+	out[width] = 0;
+	printf("+%s+\n", out);
+        fflush(stdin);
 }
 
 /////////////////////////////////////////////////////////////////
 // Prints a string on the lcd display, at position (x,y).  The
 // upper-left is (1,1), and the lower right should be (20,4).
 //
-void
-text_string (int x, int y, char string[])
+MODULE_EXPORT void
+text_string (Driver *drvthis, int x, int y, char string[])
 {
 	int i;
 
 	x--; y--; // Convert 1-based coords to 0-based...
 
-	for (i = 0; string[i]; i++) {
-		text->framebuf[(y * text->wid) + x + i] = string[i];
+	if ((y < 0) || (y >= height))
+                return;
+
+	for (i = 0; (string[i] != '\0') && (x < width); i++, x++) {
+		if (x >= 0)	// no write left of left border
+			framebuf[(y * width) + x] = string[i];
 	}
 }
 
@@ -116,133 +187,32 @@ text_string (int x, int y, char string[])
 // Prints a character on the lcd display, at position (x,y).  The
 // upper-left is (1,1), and the lower right should be (20,4).
 //
-void
-text_chr (int x, int y, char c)
+MODULE_EXPORT void
+text_chr (Driver *drvthis, int x, int y, char c)
 {
 	y--; x--;
 
-	text->framebuf[(y * text->wid) + x] = c;
-}
-
-int
-text_contrast (int contrast)
-{
-//  printf("Contrast: %i\n", contrast);
-	return 0;
-}
-
-void
-text_backlight (int on)
-{
-/*
-  if(on)
-  {
-    printf("Backlight ON\n");
-  }
-  else
-  {
-    printf("Backlight OFF\n");
-  }
-*/
-}
-
-void
-text_init_vbar ()
-{
-//  printf("Vertical bars.\n");
-}
-
-void
-text_init_hbar ()
-{
-//  printf("Horizontal bars.\n");
-}
-
-void
-text_init_num ()
-{
-//  printf("Big Numbers.\n");
-}
-
-void
-text_num (int x, int num)
-{
-//  printf("BigNum(%i, %i)\n", x, num);
-}
-
-void
-text_set_char (int n, char *dat)
-{
-//  printf("Set Character %i\n", n);
+	if ((x >= 0) && (y >= 0) && (x < width) && (y < height))
+		framebuf[(y * width) + x] = c;
 }
 
 /////////////////////////////////////////////////////////////////
-// Draws a vertical bar; erases entire column onscreen.
+// Sets the contrast
 //
-void
-text_vbar (int x, int len)
+MODULE_EXPORT void
+text_set_contrast (Driver *drvthis, int promille)
 {
-	int y;
-	for (y = text->hgt; y > 0 && len > 0; y--) {
-		text_chr (x, y, '|');
-
-		len -= text->cellhgt;
-	}
-
+	debug(RPT_DEBUG, "Contrast: %d", promille);
 }
 
 /////////////////////////////////////////////////////////////////
-// Draws a horizontal bar to the right.
+// Sets the backlight brightness
 //
-void
-text_hbar (int x, int y, int len)
+MODULE_EXPORT void
+text_backlight (Driver *drvthis, int on)
 {
-	for (; x <= text->wid && len > 0; x++) {
-		text_chr (x, y, '-');
+	//PrivateData * p = (PrivateData*) drvthis->private_data;
 
-		len -= text->cellwid;
-	}
-
+	debug(RPT_DEBUG, "Backlight %s", (on) ? "ON" : "OFF");
 }
 
-void
-text_flush_box (int lft, int top, int rgt, int bot)
-{
-	text_flush ();
-
-}
-
-void
-text_draw_frame (char *dat)
-{
-	int i, j;
-
-	char out[LCD_MAX_WIDTH];
-
-	if (!dat)
-		return;
-
-//  printf("Frame (%ix%i): \n%s\n", lcd.wid, lcd.hgt, dat);
-
-	for (i = 0; i < text->wid; i++) {
-		out[i] = '-';
-	}
-	out[text->wid] = 0;
-	printf ("+%s+\n", out);
-
-	for (i = 0; i < text->hgt; i++) {
-		for (j = 0; j < text->wid; j++) {
-			out[j] = dat[j + (i * text->wid)];
-		}
-		out[text->wid] = 0;
-		printf ("|%s|\n", out);
-
-	}
-
-	for (i = 0; i < text->wid; i++) {
-		out[i] = '-';
-	}
-	out[text->wid] = 0;
-	printf ("+%s+\n", out);
-
-}

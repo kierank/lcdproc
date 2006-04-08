@@ -26,18 +26,21 @@
 # include "config.h"
 #endif
 
-#ifdef HAVE_NCURSES_H
-# include <ncurses.h>
-#else
-# include <curses.h>
-#endif
+//#ifdef HAVE_NCURSES_H
+//# include <ncurses.h>
+//#else
+//# include <curses.h>
+//#endif
 
-#include "shared/str.h"
-#include "shared/debug.h"
 #include "lcd.h"
 #include "lb216.h"
-#include "drv_base.h"
-#include "render.h"
+#include "shared/str.h"
+#include "report.h"
+//#include "drv_base.h"
+
+#define LB216_DEFAULT_DEVICE		"/dev/lcd"
+#define LB216_DEFAULT_SPEED		9600
+#define LB216_DEFAULT_BRIGHTNESS	255
 
 static int custom=0;
 typedef enum {
@@ -47,183 +50,123 @@ typedef enum {
         beat = 8 } custom_type;
 
 
-
-static int fd;
+static int fd = -1;
+static char *framebuf = NULL;
+static int width = LCD_DEFAULT_WIDTH;
+static int height = LCD_DEFAULT_HEIGHT;
+static int cellwidth = LCD_DEFAULT_CELLWIDTH;
+static int cellheight = LCD_DEFAULT_CELLHEIGHT;
 
 static void LB216_hidecursor();
 static void LB216_reboot();
 
-// TODO:  Get rid of this variable?
-lcd_logical_driver *LB216;
+// Vars for the server core
+MODULE_EXPORT char *api_version = API_VERSION;
+MODULE_EXPORT int stay_in_foreground = 0;
+MODULE_EXPORT int supports_multiple = 0;
+MODULE_EXPORT char *symbol_prefix = "LB216_";
+
+
 // TODO:  Get the frame buffers working right
 
 /////////////////////////////////////////////////////////////////
 // Opens com port and sets baud correctly...
 //
-int LB216_init(lcd_logical_driver *driver, char *args)
+MODULE_EXPORT int
+LB216_init(Driver * drvthis)
 {
-   char *argv[64];
-   int argc;
    struct termios portset;
-   int i;
-   int tmp;
-   int reboot=0;
-   
-   char device[256] = "/dev/lcd";
-   int speed=B9600;
-   
-   LB216 = driver;
+   int reboot = 0;
+   char device[256] = LB216_DEFAULT_DEVICE;
+   int speed = LB216_DEFAULT_SPEED;
+   int backlight_brightness = LB216_DEFAULT_BRIGHTNESS;
 
-   //debug("LB216_init: Args(all): %s\n", args);
-   
-   argc = get_args(argv, args, 64);
 
-   /*
-   for(i=0; i<argc; i++)
-   {
-      printf("Arg(%i): %s\n", i, argv[i]);
-   }
-   */
-   
-   for(i=0; i<argc; i++)
-   {
-      //printf("Arg(%i): %s\n", i, argv[i]);
-      if(0 == strcmp(argv[i], "-d")  ||
-	 0 == strcmp(argv[i], "--device"))
-      {
-	 if(i + 1 > argc) {
-	    fprintf(stderr, "LB216_init: %s requires an argument\n",
-		    argv[i]);
-	    return -1;
-	 }
-	 strcpy(device, argv[++i]);
-      }
-      else if(0 == strcmp(argv[i], "-b")  ||
-	 0 == strcmp(argv[i], "--brightness"))
-      {
-	 if(i + 1 > argc) {
-	    fprintf(stderr, "LB216_init: %s requires an argument\n",
-		    argv[i]);
-	    return -1;
-	 }
-	 tmp = atoi(argv[++i]);
-         if((tmp < 0) || (tmp > 255)){
-	    fprintf(stderr, "LB216_init: %s argument must between 0 and 255. Using default value.\n",
-		    argv[i]);
-         } else backlight_brightness = tmp;
-      }
-      else if(0 == strcmp(argv[i], "-s")  ||
-	 0 == strcmp(argv[i], "--speed"))
-      {
-	 if(i + 1 > argc) {
-	    fprintf(stderr, "LB216_init: %s requires an argument\n",
-		    argv[i]);
-	    return -1;
-	 }
-	 tmp = atoi(argv[++i]);
-         if(tmp==2400) speed=B2400;
-         else if(tmp==9600) speed=B9600;
-         else {
-	    fprintf(stderr, "LB216_init: %s argument must be 2400, or 9600. Using default value.\n",
-		    argv[i]);
-         }
-      }
-      else if(0 == strcmp(argv[i], "-h")  ||
-	 0 == strcmp(argv[i], "--help"))
-      {
-	 printf("LCDproc LB216 LCD driver\n"
-		"\t-d\t--device\tSelect the output device to use [/dev/lcd]\n"
-		"\t-t\t--type\t\tSelect the LCD type (size) [16x2]\n"
-		"\t-b\t--brightness\tSet the initial brightness [255]\n"
-		"\t-s\t--speed\t\tSet the communication speed [9600]\n"
-		"\t-r\t--reboot\tReinitialize the LCD's BIOS\n"
-		"\t-h\t--help\t\tShow this help information\n");
-	 return -1;
-      }
-      else if(0 == strcmp(argv[i], "-r")  ||
-	 0 == strcmp(argv[i], "--reboot"))
-      {
-	 printf("LCDd: rebooting LB216 LCD...\n");
-	 reboot=1;
-      }
-      else
-      {
-	 printf("Invalid parameter: %s\n", argv[i]);
-      }
+  /* Read config file */
+
+  /* What device should be used */
+  strncpy(device, drvthis->config_get_string(drvthis->name, "Device", 0,
+					     LB216_DEFAULT_DEVICE), sizeof(device));
+  device[sizeof(device)-1] = '\0';
+  report(RPT_INFO, "%s: using Device %s", drvthis->name, device);
+
+  /* What speed to use */
+  speed = drvthis->config_get_int(drvthis->name, "Speed", 0, LB216_DEFAULT_SPEED);
+  
+  if (speed == 2400)       speed = B2400;
+  else if (speed == 9600)  speed = B9600;
+  else {
+    report(RPT_WARNING, "%s: illegal Speed: %d; must be 2400 or 9600; using default %d",
+		    drvthis->name, speed, LB216_DEFAULT_SPEED);
+    speed = B9600;
+  }
+
+  /* Which backlight brightness */
+  backlight_brightness = drvthis->config_get_int(drvthis->name, "Brightness", 0, LB216_DEFAULT_BRIGHTNESS);
+  if ((backlight_brightness < 0) || (backlight_brightness > 255)) {
+    report(RPT_WARNING, "%s: Brightness must be between 0 and 255; using default %d",
+		    drvthis->name, backlight_brightness);
+    backlight_brightness = LB216_DEFAULT_BRIGHTNESS;
+  }
       
-   }
-   
-   // Set up io port correctly, and open it...
-   fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY); 
-   if (fd == -1) 
-   {
-      fprintf(stderr, "LB216_init: failed (%s)\n", strerror(errno));
-      return -1;
-   }
-   //else fprintf(stderr, "LB216_init: opened device %s\n", device);
-   tcgetattr(fd, &portset);
+  /* Reboot display? */
+  reboot = drvthis->config_get_bool(drvthis->name , "Reboot", 0, 0);
 
-   // We use RAW mode
+  /* End of config file parsing */
+      
+  // Set up io port correctly, and open it...
+  fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY);
+  if (fd == -1) {
+    report(RPT_ERR, "%s: open(%s) failed (%s)", drvthis->name, device, strerror(errno));
+    return -1;
+  }
+  report(RPT_DEBUG, "%s: opened device %s", drvthis->name, device);
+
+  tcgetattr(fd, &portset);
+
+  // We use RAW mode
 #ifdef HAVE_CFMAKERAW
-   // The easy way
-   cfmakeraw( &portset );
+  // The easy way
+  cfmakeraw(&portset);
 #else
-   // The hard way
-   portset.c_iflag &= ~( IGNBRK | BRKINT | PARMRK | ISTRIP
-                         | INLCR | IGNCR | ICRNL | IXON );
-   portset.c_oflag &= ~OPOST;
-   portset.c_lflag &= ~( ECHO | ECHONL | ICANON | ISIG | IEXTEN );
-   portset.c_cflag &= ~( CSIZE | PARENB | CRTSCTS );
-   portset.c_cflag |= CS8 | CREAD | CLOCAL ;
+  // The hard way
+  portset.c_iflag &= ~( IGNBRK | BRKINT | PARMRK | ISTRIP
+                        | INLCR | IGNCR | ICRNL | IXON );
+  portset.c_oflag &= ~OPOST;
+  portset.c_lflag &= ~( ECHO | ECHONL | ICANON | ISIG | IEXTEN );
+  portset.c_cflag &= ~( CSIZE | PARENB | CRTSCTS );
+  portset.c_cflag |= CS8 | CREAD | CLOCAL ;
 #endif
 
-   // Set port speed
-   cfsetospeed (&portset, speed);
-   cfsetispeed (&portset, B0);
+  // Set port speed
+  cfsetospeed(&portset, speed);
+  cfsetispeed(&portset, B0);
 
-   // Do it...
-   tcsetattr(fd, TCSANOW, &portset);
-   
+  // Do it...
+  tcsetattr(fd, TCSANOW, &portset);
 
-   // Set display-specific stuff..
-   if(reboot)
-   {
-      LB216_reboot();
-      sleep(4);
-      reboot=0;
-   }
-   sleep(1);
-   LB216_hidecursor();
-   LB216_backlight(backlight_brightness);
+  // Make sure the frame buffer is there...
+  framebuf = malloc(width * height);
+  if (framebuf == NULL) {
+     report(RPT_ERR, "%s: unable to create framebuffer", drvthis->name);
+     return -1;
+  }
+  memset (framebuf, ' ', width * height);
 
-   // Set the functions the driver supports...
+  // Set display-specific stuff..
+  if (reboot) {
+    report(RPT_INFO, "%s: rebooting LCD...", drvthis->name);
+    LB216_reboot();
+    sleep(4);
+    reboot = 0;
+  }
+  sleep(1);
+  LB216_hidecursor();
+  LB216_backlight(drvthis, backlight_brightness);
 
-   driver->clear =      LB216_clear;
-   driver->string =     LB216_string;
-   driver->chr =        LB216_chr;
-   driver->vbar =       LB216_vbar;
-   driver->init_vbar =  LB216_init_vbar;
-   driver->hbar =       LB216_hbar;
-   driver->init_hbar =  LB216_init_hbar;
-   //driver->num =        NULL;
-   //driver->init_num =   NULL;
+  report(RPT_DEBUG, "%s: init() done", drvthis->name);
 
-   driver->init =       LB216_init;
-   driver->close =      LB216_close;
-   driver->flush =      LB216_flush;
-   //driver->flush_box =  NULL;
-   //driver->contrast =   NULL;
-   driver->backlight =  LB216_backlight;
-   driver->set_char =   LB216_set_char;
-   driver->icon =       LB216_icon;
-   driver->draw_frame = LB216_draw_frame;
-
-   LB216->cellwid = 5;
-   LB216->cellhgt = 8;
-
-   debug("LB216: foo!\n");
-   
-   return fd;
+  return 1;
 }
 
 
@@ -231,28 +174,67 @@ int LB216_init(lcd_logical_driver *driver, char *args)
 /////////////////////////////////////////////////////////////////
 // Clean-up
 //
-void LB216_close() 
+MODULE_EXPORT void
+LB216_close(Driver * drvthis)
 {
-  close (fd); 
+  if (fd >= 0)
+    close(fd);
 
-  if(LB216->framebuf) free(LB216->framebuf);
+  if (framebuf)
+    free(framebuf);
+  framebuf = NULL;
+}
 
-  LB216->framebuf = NULL;
+/////////////////////////////////////////////////////////////////
+// Returns the display width
+//
+MODULE_EXPORT int
+LB216_width (Driver *drvthis)
+{
+  return width;
+}
+
+/////////////////////////////////////////////////////////////////
+// Returns the display height
+//
+MODULE_EXPORT int
+LB216_height (Driver *drvthis)
+{
+  return height;
 }
 
 /////////////////////////////////////////////////////////////////
 // Clears the LCD screen
 //
-void
-LB216_clear ()
+MODULE_EXPORT void
+LB216_clear (Driver * drvthis)
 {
-	memset (LB216->framebuf, ' ', LB216->wid * LB216->hgt);
-
+  memset(framebuf, ' ', width * height);
 }
 
-void LB216_flush()
+
+/////////////////////////////////////////////////////////////////
+// Flushes the framebuffer to the LCD
+//
+MODULE_EXPORT void
+LB216_flush(Driver * drvthis)
 {
-   LB216_draw_frame(LB216->framebuf);
+  char out[LCD_MAX_WIDTH * LCD_MAX_HEIGHT];
+  int i, j;
+
+  snprintf(out, sizeof(out), "%c%c", 254, 80);
+  write(fd, out, 2);
+
+  for (j = 0; j < height; j++) {
+    if (j >= 2)
+      snprintf(out, sizeof(out), "%c%c", 254, 148 + (64 * (j - 2)));
+    else
+      snprintf(out, sizeof(out), "%c%c", 254, 128 + (64 * j));
+    write(fd, out, 2);
+
+    for (i = 0; i < width; i++)
+      write(fd, &framebuf[i + (j * width)], 1);
+  }
 }
 
 
@@ -261,16 +243,23 @@ void LB216_flush()
 // Prints a character on the lcd display, at position (x,y).  The
 // upper-left is (1,1), and the lower right should be (16,2).
 //
-void LB216_chr(int x, int y, char c) 
+MODULE_EXPORT void
+LB216_chr(Driver * drvthis, int x, int y, char c)
 {
   //y--;
  // x--;
-  
-  //if(c < 32  &&  c >= 0) c += 128;
-//  LB216->framebuf[(y*LB216->wid) + x] = c;
-	char chr[1];
-	snprintf (chr, sizeof(chr), "%c", c);
-	LB216_string (x, y, chr);
+
+//if (c < 32  &&  c >= 0) c += 128;
+//  framebuf[(y*width) + x] = c;
+
+//	char chr[1];
+//	snprintf(chr, sizeof(chr), "%c", c);
+// Above two lines are incorrect (Joris)
+
+	char chr[2];
+	chr[0] = c;
+	chr[1] = 0;
+	LB216_string(drvthis, x, y, chr);
 }
 
 
@@ -278,18 +267,13 @@ void LB216_chr(int x, int y, char c)
 // Sets the backlight on or off -- can be done quickly for
 // an intermediate brightness...
 //
-void LB216_backlight(int on)
+MODULE_EXPORT void
+LB216_backlight(Driver * drvthis, int on)
 {
   char out[4];
-  if(on)
-  {
-    snprintf (out, sizeof(out), "%c%c", 254, 253);
-  }
-  else
-  {
-    snprintf (out, sizeof(out), "%c%c", 254, 252);
-  }
-    write(fd, out, 2);
+
+  snprintf(out, sizeof(out), "%c%c", 254, (on) ? 253 : 252);
+  write(fd, out, 2);
 }
 
 
@@ -299,7 +283,8 @@ void LB216_backlight(int on)
 static void LB216_hidecursor()
 {
   char out[4];
-  snprintf (out, sizeof(out), "%c%c", 254,12);
+
+  snprintf(out, sizeof(out), "%c%c", 254, 12);
   write(fd, out, 2);
 }
 
@@ -309,63 +294,33 @@ static void LB216_hidecursor()
 static void LB216_reboot()
 {
   char out[4];
-  snprintf (out, sizeof(out), "%c%c", 254,1);
-  write(fd, out, 2);
-}
-
-
-/////////////////////////////////////////////////////////////
-// Blasts a single frame onscreen, to the lcd...
-//
-// Input is a character array, sized LB216->wid*LB216->hgt
-//
-void LB216_draw_frame(char *dat)
-{
-  char out[LCD_MAX_WIDTH * LCD_MAX_HEIGHT];
-  int i,j;
   
-  if(!dat) return;
-
-  snprintf (out, sizeof(out), "%c%c", 254,80);
+  snprintf(out, sizeof(out), "%c%c", 254, 1);
   write(fd, out, 2);
-
-  for(j=0; j<LB216->hgt; j++) {
-	if (j>=2) {
-    	snprintf (out, sizeof(out),"%c%c",254,148+(64*(j-2)));
-	} else {
-    	snprintf (out, sizeof(out),"%c%c",254,128+(64*(j)));
-	}
-    write(fd, out, 2);
-    for(i=0; i<LB216->wid; i++) {
-      snprintf (out, sizeof(out),"%c",dat[i+(j*LB216->wid)]);
-      write(fd, out, 1);
-    }
-  }
 }
 
-void LB216_string (int x, int y, char string[])
+
+MODULE_EXPORT void
+LB216_string (Driver * drvthis, int x, int y, char string[])
 {
-   int i;
-   char c;
+  int i;
 
 //printf("%d,%d:%s\n",x,y,string);
-   y--;x--;
-   for(i=0; string[i]; i++)
-   {
-      c = string[i];
-      switch(c)
-      {
-         case '\254': c = '#'; break;
-      }
-      LB216->framebuf[(y*LB216->wid) + x+i] = c;
-   }
+  y--;x--;
+  for (i = 0; string[i] != '\0'; i++) {
+    char c = string[i];
 
+    if (c == '\254') 	/* is this correct ? */
+      c= '#';
+    framebuf[(y * width) + x + i] = c;
+  }
 }
 
 /////////////////////////////////////////////////////////////////
 // Sets up for vertical bars.  Call before LB216->vbar()
 //
-void LB216_init_vbar() 
+MODULE_EXPORT void
+LB216_init_vbar(Driver * drvthis)
 {
   char a[] = {
     0,0,0,0,0,
@@ -438,22 +393,23 @@ void LB216_init_vbar()
     1,1,1,1,1,
   };
 
-  if(custom!=vbar) {
-    LB216_set_char(1,a);
-    LB216_set_char(2,b);
-    LB216_set_char(3,c);
-    LB216_set_char(4,d);
-    LB216_set_char(5,e);
-    LB216_set_char(6,f);
-    LB216_set_char(7,g);
-    custom=vbar;
+  if (custom != vbar) {
+    LB216_set_char(drvthis, 1, a);
+    LB216_set_char(drvthis, 2, b);
+    LB216_set_char(drvthis, 3, c);
+    LB216_set_char(drvthis, 4, d);
+    LB216_set_char(drvthis, 5, e);
+    LB216_set_char(drvthis, 6, f);
+    LB216_set_char(drvthis, 7, g);
+    custom = vbar;
   }
 }
 
 /////////////////////////////////////////////////////////////////
 // Inits horizontal bars...
 //
-void LB216_init_hbar() 
+MODULE_EXPORT void
+LB216_init_hbar(Driver * drvthis)
 {
 
   char a[] = {
@@ -507,53 +463,51 @@ void LB216_init_hbar()
     1,1,1,1,1,
   };
 
-  if(custom!=hbar) {
-    LB216_set_char(1,a);
-    LB216_set_char(2,b);
-    LB216_set_char(3,c);
-    LB216_set_char(4,d);
-    LB216_set_char(5,e);
-    custom=hbar;
+  if (custom != hbar) {
+    LB216_set_char(drvthis, 1, a);
+    LB216_set_char(drvthis, 2, b);
+    LB216_set_char(drvthis, 3, c);
+    LB216_set_char(drvthis, 4, d);
+    LB216_set_char(drvthis, 5, e);
+    custom = hbar;
   }
 }
 
 /////////////////////////////////////////////////////////////////
 // Draws a vertical bar...
 //
-void LB216_vbar(int x, int len) 
+MODULE_EXPORT void
+LB216_vbar(Driver * drvthis, int x, int len)
 {
-  char map[9] = {32, 1, 2, 3, 4, 5, 6, 7, 255 };
-  
-
+  char map[9] = { 32, 1, 2, 3, 4, 5, 6, 7, 255 };
   int y;
-  for(y=LB216->hgt; y > 0 && len>0; y--)
-    {
-      if(len >= LB216->cellhgt) LB216_chr(x, y, 255);
-      else LB216_chr(x, y, map[len]);
-
-      len -= LB216->cellhgt;
-    }
   
+  for (y = height; y > 0 && len > 0; y--) {
+    if (len >= cellheight)
+      LB216_chr(drvthis, x, y, map[8]);
+    else
+      LB216_chr(drvthis, x, y, map[len]);
+
+    len -= cellheight;
+  }
 }
 
 /////////////////////////////////////////////////////////////////
 // Draws a horizontal bar to the right.
 //
-void LB216_hbar(int x, int y, int len)
+MODULE_EXPORT void
+LB216_hbar(Driver * drvthis, int x, int y, int len)
 {
   char map[7] = { 32, 1, 2, 3, 4, 5 };
 
-  for(; x<=LB216->wid && len>0; x++)
-    {
-      if(len >= LB216->cellwid) LB216_chr(x,y,map[5]);
-      else LB216_chr(x, y, map[len]);
-      
-	 //printf ("%d,",len);
-      len -= LB216->cellwid;
-      
-    }
-//	printf ("\n");
+  for ( ; x <= width && len > 0; x++) {
+    if (len >= cellwidth)
+      LB216_chr(drvthis, x, y, map[5]);
+    else
+      LB216_chr(drvthis, x, y, map[len]);
 
+    len -= cellwidth;
+  }
 }
 
 
@@ -564,70 +518,71 @@ void LB216_hbar(int x, int y, int len)
 //
 // The input is just an array of characters...
 //
-void LB216_set_char(int n, char *dat)
+MODULE_EXPORT void
+LB216_set_char(Driver * drvthis, int n, char *dat)
 {
   char out[4];
   int row, col;
-  int letter;
 
-  if(n < 0 || n > 7) return;
-  n=64+(8*n);
-  if(!dat) return;
+  if ((n < 0) || (n > 7))
+    return;
+  if (!dat)
+    return;
 
-  snprintf (out, sizeof(out), "%c%c", 254, n);
+  snprintf(out, sizeof(out), "%c%c", 254, 64 + (8 * n));
   write(fd, out, 2);
 
-  for(row=0; row<LB216->cellhgt; row++)
-  {
-    letter = 1;
-    for(col=0; col<LB216->cellwid; col++)
-    {
+  for (row = 0; row < cellheight; row++) {
+    int letter = 1;
+
+    for (col = 0; col < cellwidth; col++) {
       letter <<= 1;
-      letter |= (dat[(row*LB216->cellwid) + col] > 0);
+      letter |= (dat[(row * cellwidth) + col] > 0);
     }
-	snprintf (out, sizeof(out),"%c",letter);
+    snprintf(out, sizeof(out), "%c", letter);
     write(fd, out, 1);
   }
 }
 
-void LB216_icon(int which, char dest)
-{
-  char icons[3][8*8] = {
-   {
-     1,1,1,1,1,  // Empty Heart
-     1,0,1,0,1,
-     0,0,0,0,0,
-     0,0,0,0,0,
-     0,0,0,0,0,
-     1,0,0,0,1,
-     1,1,0,1,1,
-     1,1,1,1,1,
-   },   
 
-   {
-     1,1,1,1,1,  // Filled Heart
-     1,0,1,0,1,
-     0,1,0,1,0,
-     0,1,1,1,0,
-     0,1,1,1,0,
-     1,0,1,0,1,
-     1,1,0,1,1,
-     1,1,1,1,1,
-   },
-   
-   {
-     0,0,0,0,0,  // Ellipsis
-     0,0,0,0,0,
-     0,0,0,0,0,
-     0,0,0,0,0,
-     0,0,0,0,0,
-     0,0,0,0,0,
-     0,0,0,0,0,
-     1,0,1,0,1,
-   },
-   
-  };
-  
-  if(custom==bign) custom=beat;
-  LB216_set_char(dest, &icons[which][0]);
+MODULE_EXPORT int
+LB216_icon(Driver * drvthis, int x, int y, int icon)
+{
+  static char heart_open[] = {
+    1, 1, 1, 1, 1,
+    1, 0, 1, 0, 1,
+    0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0,
+    1, 0, 0, 0, 1,
+    1, 1, 0, 1, 1,
+    1, 1, 1, 1, 1 };
+
+  static char heart_filled[] = {
+    1, 1, 1, 1, 1,
+    1, 0, 1, 0, 1,
+    0, 1, 0, 1, 0,
+    0, 1, 1, 1, 0,
+    0, 1, 1, 1, 0,
+    1, 0, 1, 0, 1,
+    1, 1, 0, 1, 1,
+    1, 1, 1, 1, 1 };
+
+  switch (icon) {
+    case ICON_BLOCK_FILLED:
+      LB216_chr(drvthis, x, y, 255);
+      break;
+    case ICON_HEART_FILLED:
+      LB216_set_char(drvthis, 0, heart_filled);
+      LB216_chr(drvthis, x, y, 0);
+      break;
+    case ICON_HEART_OPEN:
+      LB216_set_char(drvthis, 0, heart_open);
+      LB216_chr(drvthis, x, y, 0);
+      break;
+    default:
+      return -1;
+  }
+  return 0;
 }
+

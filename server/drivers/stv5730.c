@@ -8,6 +8,9 @@
 // tains a heartbeat icon and some characters that can be used as       //
 // hbars / vbars.                                                       //
 //                                                                      //
+// Moved the delay timing code by Charles Steinkuehler to timing.h.     //
+// Guillaume Filion <gfk@logidac.com>, December 2001                    //
+//                                                                      //
 // (C) 2001 Robin Adams ( robin@adams-online.de )                       //
 //                                                                      //
 // This driver is released under the GPL. See file COPYING in this      //
@@ -21,10 +24,10 @@
 #include <fcntl.h>
 #include <string.h>
 #include <sys/errno.h>
-#include <sys/io.h>
-#include <sched.h>
+//#include <sys/io.h>
 #include <time.h>
 #include "port.h"
+#include "timing.h"
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -33,6 +36,7 @@
 #include "shared/str.h"
 #include "lcd.h"
 #include "stv5730.h"
+#include "report.h"
 
 
 #ifndef LPTPORT
@@ -68,7 +72,7 @@
 
 // Choose Colors: FLINE: First line text color, TEXT: Text color, CBACK: Character Background Color
 //                CBORD: Character Border Color, SBACK: Screen Background color
-// 0:Black, 1: Blue, 2:Green, 3: Cyan, 4: Red, 5: Magenta, 6: Yellow, 7: White 
+// 0:Black, 1: Blue, 2:Green, 3: Cyan, 4: Red, 5: Magenta, 6: Yellow, 7: White
 #define STV5730_COL_FLINE	4
 #define STV5730_COL_TEXT	1
 #define STV5730_COL_CBACK	3
@@ -80,6 +84,15 @@
 unsigned int stv5730_lptport = LPTPORT;
 unsigned int stv5730_charattrib = STV5730_ATTRIB;
 unsigned int stv5730_flags = 0;
+char * stv5730_framebuf = NULL;
+
+// Vars for the server core
+MODULE_EXPORT char *api_version = API_VERSION;
+MODULE_EXPORT int stay_in_foreground = 0;
+MODULE_EXPORT int supports_multiple = 0;
+MODULE_EXPORT char *symbol_prefix = "stv5730_";
+
+
 
 // Translation map ascii->stv5730 charset
 unsigned char stv5730_to_ascii[256] =
@@ -118,9 +131,9 @@ unsigned char stv5730_to_ascii[256] =
 };
 
 
-lcd_logical_driver *stv5730;
 
-static void stv5730_upause (int delayCalls);
+//static void stv5730_upause (int delayCalls);
+#define stv5730_upause timing_uPause
 
 /////////////////////////////////////////////////////////////////
 // This function returns true if a powered and working STV5730
@@ -259,291 +272,255 @@ stv5730_drawchar2fb (int x, int y, unsigned char z)
 
     if (x < 0 || x >= STV5730_WID || y < 0 || y >= STV5730_HGT)
 	return;
-    stv5730->framebuf[(y * STV5730_WID) + x] = stv5730_to_ascii[(unsigned int) z];
+    stv5730_framebuf[(y * STV5730_WID) + x] = stv5730_to_ascii[(unsigned int) z];
 
 }
 
 /////////////////////////////////////////////////////////////////
-// This initialises the stuff. We support supplying port as 
+// This initialises the stuff. We support supplying port as
 // a command line argument.
-// 
-int
-stv5730_init (struct lcd_logical_driver *driver, char *args)
+//
+MODULE_EXPORT int
+stv5730_init (Driver *drvthis)
 {
-    char *argv[64], *str;
-    int argc, i;
+    int i;
 
-    stv5730 = driver;
+    /* Read config file */
 
-    if (args)
-	if ((str = (char *) malloc (strlen (args) + 1)))
-	    strcpy (str, args);
-	else
-	  {
-	      fprintf (stderr, "Error mallocing\n");
-	      return -1;
-	  }
-    else
-	str = NULL;
+    /* What port to use */
+    stv5730_lptport = drvthis->config_get_int(drvthis->name, "Port", 0, LPTPORT);
+  
+    /* End of config file parsing */
 
-    argc = get_args (argv, args, 64);
-    for (i = 0; i < argc; i++)
-      {
-	  if (0 == strcmp (argv[i], "-p")
-	      || 0 == strcmp (argv[i], "--port\0"))
-	    {
-		if (i + 1 >= argc)
-		  {
-		      fprintf (stderr,
-			       "stv5730_init: %s requires an argument\n",
-			       argv[i]);
-		      return -1;
-		  }
-		else
-		  {
-		      int myport;
-		      if (sscanf (argv[i + 1], "%i", &myport) != 1)
-			{
-			    fprintf (stderr,
-				     "stv5730_init: Couldn't read port address -"
-				     " using default value 0x%x\n",
-				     stv5730_lptport);
-			    return -1;
-			}
-		      else
-			{
-			    stv5730_lptport = myport;
-			    ++i;
-			}
-		  }
-	    }
-	  else if (0 == strcmp (argv[i], "-h")
-		   || 0 == strcmp (argv[i], "--help"))
-	    {
-		//int i;
-		printf
-		    ("LCDproc stv5730 driver\n\t-p n\t--port n\tSelect the output device to use port n\n");
-		printf ("put the options in quotes like this:  '-p 0x278'\n");
-		printf ("\t-h\t--help\t\tShow this help information\n");
-		return -1;
-	    }
-      }
-
-    driver->wid = STV5730_WID;
-    driver->hgt = STV5730_HGT;
-
-    {
-	struct sched_param param;
-	param.sched_priority = 1;
-	if ((sched_setscheduler (0, SCHED_RR, &param)) == -1)
-	  {
-	      fprintf (stderr, "stv5730_init: failed (%s)\n",
-		       strerror (errno));
-	      return -1;
-	  }
+    if (timing_init() == -1) {
+	report(RPT_ERR, "%s: timing_init() failed (%s)", drvthis->name, strerror(errno));
+	return -1;
     }
 
     // Initialize the Port and the stv5730
-    if (port_access (stv5730_lptport) || port_access (stv5730_lptport + 1))
-      {
-	  printf
-	      ("Couldn't get IO-permission for 0x%X ! Are we running as root ?\n ",
-	       stv5730_lptport); return -1;
-      };
-
-    if (stv5730_detect ())
-      {
-	  printf ("No STV5730 hardware found at 0x%X !\n ", stv5730_lptport);
+    if (port_access(stv5730_lptport) || port_access(stv5730_lptport + 1)) {
+	  report(RPT_ERR,
+	      "%s: cannot get IO-permission for 0x%03X! Are we running as root?",
+	       drvthis->name, stv5730_lptport);
 	  return -1;
-      };
+    }
 
-    port_out (stv5730_lptport, 0);
+    if (stv5730_detect()) {
+	  report(RPT_ERR, "%s: no STV5730 hardware found at 0x%03X ",
+			  drvthis->name, stv5730_lptport);
+	  return -1;
+    }
+
+    port_out(stv5730_lptport, 0);
 
     // Reset the STV5730
-    stv5730_write16bit (0x3000);
-    stv5730_write16bit (0x3000);
-    stv5730_write16bit (0x00db);
-    stv5730_write16bit (0x1000);
+    stv5730_write16bit(0x3000);
+    stv5730_write16bit(0x3000);
+    stv5730_write16bit(0x00db);
+    stv5730_write16bit(0x1000);
 
     // Setup Mode + Control Register for video detection
-    stv5730_write16bit (STV5730_REG_MODE);
-    stv5730_write16bit (0x1576);
+    stv5730_write16bit(STV5730_REG_MODE);
+    stv5730_write16bit(0x1576);
 
-    stv5730_write16bit (STV5730_REG_CONTROL);
-    stv5730_write16bit (0x1FF4);
+    stv5730_write16bit(STV5730_REG_CONTROL);
+    stv5730_write16bit(0x1FF4);
 
-    printf ("Detecting Video Signal: ");
+    report(RPT_INFO, "%s: detecting video signal: ", drvthis->name);
     usleep (50000);
 
-    if (stv5730_is_mute ())
-      {
-	  printf ("No Video Signal found, using full page mode.\n");
+    if (stv5730_is_mute()) {
+	  report(RPT_INFO, "%s: no video signal found; using full page mode", drvthis->name);
 	  // Setup Mode + Control for full page mode
 	  stv5730_charattrib = STV5730_ATTRIB;
-	  stv5730_write16bit (STV5730_REG_MODE);
-	  stv5730_write16bit (0x15A6);
+	  stv5730_write16bit(STV5730_REG_MODE);
+	  stv5730_write16bit(0x15A6);
 
-	  stv5730_write16bit (STV5730_REG_CONTROL);
+	  stv5730_write16bit(STV5730_REG_CONTROL);
 #ifdef PAL
-	  stv5730_write16bit (0x1FD5);
+	  stv5730_write16bit(0x1FD5);
 #endif
 #ifdef NTSC
-	  stv5730_write16bit (0x1ED4);
+	  stv5730_write16bit(0x1ED4);
 #endif
 
-
-      }
-    else
-      {
-	  printf ("Video Signal found, using mixed mode (B&W).\n");
+    }
+    else {
+	  report(RPT_INFO, "%s: video signal found, using mixed mode (B&W)", drvthis->name);
 	  // Setup Mode + Control for mixed mode, disable color
 	  stv5730_charattrib = 0;
-	  stv5730_write16bit (STV5730_REG_MODE);
-	  stv5730_write16bit (0x1576);
+	  stv5730_write16bit(STV5730_REG_MODE);
+	  stv5730_write16bit(0x1576);
 
-	  stv5730_write16bit (STV5730_REG_CONTROL);
+	  stv5730_write16bit(STV5730_REG_CONTROL);
 #ifdef PAL
-	  stv5730_write16bit (0x1DD4);
+	  stv5730_write16bit(0x1DD4);
 #endif
 #ifdef NTSC
-	  stv5730_write16bit (0x1CF4);
+	  stv5730_write16bit(0x1CF4);
 #endif
       }
 
     // Position Register
-    stv5730_write16bit (STV5730_REG_POSITION);
-    stv5730_write16bit (0x1000 + 64 * 30 + 30);
+    stv5730_write16bit(STV5730_REG_POSITION);
+    stv5730_write16bit(0x1000 + 64 * 30 + 30);
 
     // Color Register
-    stv5730_write16bit (STV5730_REG_COLOR);
-    stv5730_write16bit (0x1000 + (STV5730_COL_SBACK << 9) +
+    stv5730_write16bit(STV5730_REG_COLOR);
+    stv5730_write16bit(0x1000 + (STV5730_COL_SBACK << 9) +
 			(STV5730_COL_CBORD << 6) + STV5730_COL_CBACK);
 
     // Zoom Register: Zoom first line
-    stv5730_write16bit (STV5730_REG_ZOOM);
-    stv5730_write16bit (0x1000 + 4);
+    stv5730_write16bit(STV5730_REG_ZOOM);
+    stv5730_write16bit(0x1000 + 4);
 
     // Set the Row Attributes
-    for (i = 0; i <= 10; i++)
-      {
-	  stv5730_write16bit (0x00C0 + i);
-	  stv5730_write16bit (0x10C0);
-      }
+    for (i = 0; i <= 10; i++) {
+	  stv5730_write16bit(0x00C0 + i);
+	  stv5730_write16bit(0x10C0);
+    }
 
-
-    // The Framebuffer LCDproc allocates by default is too small,
-    // so we free() it and allocate one of adequate size.
-    if (!driver->framebuf)
-	free (driver->framebuf);
-
-    driver->framebuf = malloc (STV5730_WID * STV5730_HGT);
-    if (!driver->framebuf)
-      {
-	  stv5730_close ();
+    // Allocate our own framebuffer
+    stv5730_framebuf = malloc(STV5730_WID * STV5730_HGT);
+    if (stv5730_framebuf == NULL) {
+	  report(RPT_ERR, "%s: unable to allocate framebuffer", drvthis->name);
+	  stv5730_close(drvthis);
 	  return -1;
-      }
+    }
 
     // clear screen
-    memset (driver->framebuf, 0, STV5730_WID * STV5730_HGT);
+    memset(stv5730_framebuf, 0, STV5730_WID * STV5730_HGT);
 
-    driver->cellwid = 4;
-    driver->cellhgt = 6;
+    report(RPT_DEBUG, "%s: init() done", drvthis->name);
 
-    driver->clear = stv5730_clear;
-    driver->string = stv5730_string;
-    driver->chr = stv5730_chr;
-    driver->vbar = stv5730_vbar;
-    driver->hbar = stv5730_hbar;
-    driver->num = stv5730_num;
-    driver->init = stv5730_init;
-    driver->close = stv5730_close;
-    driver->flush = stv5730_flush;
-    driver->flush_box = stv5730_flush_box;
-    // We dont't have any programmable chars.
-    //driver->set_char = NULL;
-
-    driver->icon = stv5730_icon;
-    driver->draw_frame = stv5730_draw_frame;
-    // We dont't need init for vbar,hbar and friends.
-    //driver->init_hbar = NULL;
-    //driver->init_vbar = NULL;
-    //driver->init_num = NULL;
-    // Neither contrast nor backlight are controllable.
-    //driver->contrast = NULL;
-    //driver->backlight = NULL;
-    // There are some unused input lines that may be used for input,
-    // but nothing is programmed so far.
-    //driver->getkey = NULL;
-    return 200;			// 200 is arbitrary.  (must be 1 or more)
+    return 0;
 }
 
 /////////////////////////////////////////////////////////////////
 // Frees the framebuffer and exits the driver.
 //
-void
-stv5730_close ()
+MODULE_EXPORT void
+stv5730_close (Driver *drvthis)
 {
-    if (stv5730->framebuf != NULL)
-	free (stv5730->framebuf);
-    stv5730->framebuf = NULL;
+    if (stv5730_framebuf != NULL)
+	free(stv5730_framebuf);
+    stv5730_framebuf = NULL;
 }
+
+/////////////////////////////////////////////////////////////////
+// Returns the display width
+//
+MODULE_EXPORT int
+stv5730_width (Driver *drvthis)
+{
+    return STV5730_WID;
+}
+
+/////////////////////////////////////////////////////////////////
+// Returns the display height
+//
+MODULE_EXPORT int
+stv5730_height (Driver *drvthis)
+{
+    return STV5730_HGT;
+}
+
+/////////////////////////////////////////////////////////////////
+// Returns the number of pixels a character is wide
+//
+MODULE_EXPORT int
+stv5730_cellwidth (Driver *drvthis)
+{
+    return 4;
+}
+
+/////////////////////////////////////////////////////////////////
+// Returns the number of pixels a character is high
+//
+MODULE_EXPORT int
+stv5730_cellheight (Driver *drvthis)
+{
+    return 6;
+}
+// cellwidth and cellheight are only needed for old_vbar.
+// Therefor these values are now hardcoded into these functions.
+// When old_vbar is not used anymore, these two functions can be removed.
+
 
 /////////////////////////////////////////////////////////////////
 // Clears the screen
 //
-void
-stv5730_clear ()
+MODULE_EXPORT void
+stv5730_clear (Driver *drvthis)
 {
-    memset (stv5730->framebuf, 0x0B, STV5730_WID * STV5730_HGT);
+    memset(stv5730_framebuf, 0x0B, STV5730_WID * STV5730_HGT);
 }
 
 /////////////////////////////////////////////////////////////////
-// 
+//
 // Flushes all output to the lcd...
 //
-void
-stv5730_flush ()
+MODULE_EXPORT void
+stv5730_flush (Driver *drvthis)
 {
-    stv5730->draw_frame (stv5730->framebuf);
+    int i, j, atr;
+
+    stv5730_locate(0, 0);
+
+    for (i = 0; i < STV5730_HGT; i++) {
+	  if (i == 0)
+	      atr = (STV5730_COL_FLINE << 8);
+	  else
+	      atr = (STV5730_COL_TEXT << 8);
+	  stv5730_write16bit (0x1000 + atr + stv5730_framebuf[i * STV5730_WID] +
+			      stv5730_charattrib);
+	  for (j = 1; j < STV5730_WID; j++) {
+		if (stv5730_framebuf[j + (i * STV5730_WID) - 1] !=
+		    stv5730_framebuf[j + (i * STV5730_WID)])
+		    stv5730_write8bit (stv5730_framebuf[j + (i * STV5730_WID)]);
+		else
+		    stv5730_write0bit();
+
+	  }
+    }
 }
 
 /////////////////////////////////////////////////////////////////
 // Prints a string on the screen, at position (x,y).  The
 // upper-left is (1,1), and the lower right should be (28,11).
 //
-void
-stv5730_string (int x, int y, char string[])
+MODULE_EXPORT void
+stv5730_string (Driver *drvthis, int x, int y, char string[])
 {
     int i;
+
     x--;			// Convert 1-based coords to 0-based...
     y--;
 
-    for (i = 0; string[i]; i++)
-      {
-	  stv5730_drawchar2fb (x + i, y, string[i]);
-      }
+    for (i = 0; string[i] != '\0'; i++) {
+	  stv5730_drawchar2fb(x + i, y, string[i]);
+    }
 }
 
 /////////////////////////////////////////////////////////////////
 // Writes  char c at position x,y into the framebuffer.
 // x and y are 1-based textmode coordinates.
 //
-void
-stv5730_chr (int x, int y, char c)
+MODULE_EXPORT void
+stv5730_chr (Driver *drvthis, int x, int y, char c)
 {
     y--;
     x--;
-    stv5730_drawchar2fb (x, y, c);
+    stv5730_drawchar2fb(x, y, c);
 }
 
 /////////////////////////////////////////////////////////////////
 // This function draws ugly big numbers. We could use the zoom
 // feature of the stv5730 if we'd know when big numbers start
 // and stop.
-void
-stv5730_num (int x, int num)
+MODULE_EXPORT void
+stv5730_num (Driver *drvthis, int x, int num)
 {
-
     int i, j;
     x--;
 
@@ -554,59 +531,49 @@ stv5730_num (int x, int num)
     if (num == 10 && (x < 0 || x > 19))
 	return;
 
-    for (j = 1; j < 10; j++)
-      {
-	  if (num != 10)
-	    {
+    for (j = 1; j < 10; j++) {
+	  if (num != 10) {
 		for (i = 0; i < 3; i++)
 		    stv5730_drawchar2fb (x + i, j, '0' + num);
-	    }
-	  else
-	    {
+	  }
+	  else {
 		stv5730_drawchar2fb (x, j, ':');
-	    }
-      }
-
+	  }
+    }
 }
 
 /////////////////////////////////////////////////////////////////
-// Draws a vertical bar from the bottom up to the last 7 rows of the 
+// Draws a vertical bar from the bottom up to the last 7 rows of the
 // framebuffer at 1-based position x. len is given in pixels.
-// 
-void
-stv5730_vbar (int x, int len)
+//
+MODULE_EXPORT void
+stv5730_old_vbar (Driver *drvthis, int x, int len)
 {
-
     int i;
     x--;
 
     if (x < 0 || len < 0 || (len / 6) >= STV5730_WID)
 	return;
 
-    for (i = 0; i <= len; i += 6)
-      {
-
-	  if (len >= (i + 6))
-	    {
-		stv5730->framebuf[((10 - (i / 6)) * STV5730_WID) + x] = 0x77;
-	    }
-	  else
-	    {
-		stv5730->framebuf[((10 - (i / 6)) * STV5730_WID) + x] =
+    for (i = 0; i <= len; i += 6) {
+	  if (len >= (i + 6)) {
+		stv5730_framebuf[((10 - (i / 6)) * STV5730_WID) + x] = 0x77;
+	  }
+	  else {
+		stv5730_framebuf[((10 - (i / 6)) * STV5730_WID) + x] =
 		    0x72 + (len % 6);
-	    }
-      }
-
+	  }
+    }
 }
 
 
 /////////////////////////////////////////////////////////////////
-// Draws a horizontal bar from left to right at 1-based position 
+// Draws a horizontal bar from left to right at 1-based position
 // x,y into the framebuffer. len is given in pixels.
-// It uses the STV5730 'channel-tuning' chars(0x64-0x68) to do 
+// It uses the STV5730 'channel-tuning' chars(0x64-0x68) to do
 // this.
-void
-stv5730_hbar (int x, int y, int len)
+MODULE_EXPORT void
+stv5730_old_hbar (Driver *drvthis, int x, int y, int len)
 {
     int i;
     x--;
@@ -616,32 +583,27 @@ stv5730_hbar (int x, int y, int len)
 	|| (x + (len / 5)) >= STV5730_WID)
 	return;
 
-    for (i = 0; i <= len; i += 5)
-      {
-
-	  if (len >= (i + 4))
-	    {
-		stv5730->framebuf[(y * STV5730_WID) + x + (i / 5)] = 0x64;
-	    }
-	  else
-	    {
-		stv5730->framebuf[(y * STV5730_WID) + x + (i / 5)] =
+    for (i = 0; i <= len; i += 5) {
+	  if (len >= (i + 4)) {
+		stv5730_framebuf[(y * STV5730_WID) + x + (i / 5)] = 0x64;
+	  }
+	  else {
+		stv5730_framebuf[(y * STV5730_WID) + x + (i / 5)] =
 		    0x65 + (len % 5);
-	    }
-      }
+	  }
+    }
 }
 
 /////////////////////////////////////////////////////////////////
-// Reprogrammes character dest to contain an icon given by 
-// which. 
+// Reprogrammes character dest to contain an icon given by
+// which.
 // The STV5730 has no programmable chars. The charset is very
 // limited, it doesn't even contain a '%' char. But wait...
 // It contains a heartbeat char ! :-)
-void
-stv5730_icon (int which, char dest)
+MODULE_EXPORT void
+stv5730_old_icon (Driver *drvthis, int which, char dest)
 {
-    switch (which)
-      {
+    switch (which) {
       case 0:			// 0:empty Heart
 	  stv5730_to_ascii[(int) dest] = 0x71;
 	  break;
@@ -654,71 +616,5 @@ stv5730_icon (int which, char dest)
       default:
 	  stv5730_to_ascii[(int) dest] = 0x0B;
 	  break;
-
-      }
-
-}
-
-/////////////////////////////////////////////////////////////////
-// Send a rectangular area from lft,top to rgt,bot to the display
-// These coordinates are probably one-based, too. It's so fast to
-// flush the whole display that it makes no sense to flush less then
-// the whole display. Therefore this function redraws the whole
-// display. 
-// FIXME: Check if this function is worth implementing.
-//
-void
-stv5730_flush_box (int lft, int top, int rgt, int bot)
-{
-    stv5730_flush ();
-}
-
-/////////////////////////////////////////////////////////////////
-// Outputs the whole framebuffer *dat to the display.
-// Attributes are set for every row only.
-// The first line has special attributes.
-void
-stv5730_draw_frame (char *dat)
-{
-    int i, j, atr;
-    if (!dat)
-	return;
-
-    stv5730_locate (0, 0);
-    
-    for (i = 0; i < STV5730_HGT; i++)
-      {
-	  if (i == 0)
-	      atr = (STV5730_COL_FLINE << 8);
-	  else
-	      atr = (STV5730_COL_TEXT << 8);
-	  stv5730_write16bit (0x1000 + atr + dat[i * STV5730_WID] +
-			      stv5730_charattrib);
-	  for (j = 1; j < STV5730_WID; j++)
-	    {
-		if (dat[j + (i * STV5730_WID) - 1] !=
-		    dat[j + (i * STV5730_WID)])
-		    stv5730_write8bit (dat[j + (i * STV5730_WID)]);
-		else
-		    stv5730_write0bit ();
-
-	    };
-      }
-}
-
-/////////////////////////////////////////////////////////////////
-// This function delays a legth given by delayCalls
-// x 10 Nanoseconds
-//
-void
-stv5730_upause (int delayCalls)
-{
-    struct timespec delay, remaining;
-    delay.tv_sec = 0;
-    delay.tv_nsec = delayCalls * 10;
-    while (nanosleep (&delay, &remaining) == -1)
-      {
-	  delay.tv_sec = remaining.tv_sec;
-	  delay.tv_nsec = remaining.tv_nsec;
       }
 }

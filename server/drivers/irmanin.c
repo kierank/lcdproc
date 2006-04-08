@@ -80,8 +80,10 @@ irmanin_init (Driver *drvthis)
 	strncpy(p->device, drvthis->config_get_string(drvthis->name, "Device", 0,
 						   ""), sizeof(p->device));
 	p->device[sizeof(p->device)-1] = '\0';
-	if (p->device[0] != '\0')
+	if (p->device[0] != '\0') {
+		report(RPT_INFO, "%s: using Device %s", drvthis->name, p->device);
 		ptrdevice = p->device;
+	}	
 
 	/* What config file should be used */
 	strncpy(p->config, drvthis->config_get_string(drvthis->name, "Config", 0,
@@ -126,10 +128,12 @@ irmanin_init (Driver *drvthis)
 		return -1;
 	}
 
+	report(RPT_DEBUG, "%s: init() done", drvthis->name);
+
 	return 1;						  // return success
 }
 
-void
+MODULE_EXPORT void
 irmanin_close (Driver *drvthis)
 {
 	PrivateData *p = drvthis->private_data;
@@ -147,7 +151,7 @@ irmanin_close (Driver *drvthis)
 //
 // Return NULL for "nothing available".
 //
-char *
+MODULE_EXPORT const char *
 irmanin_get_key (Driver *drvthis)
 {
 	int cmd;

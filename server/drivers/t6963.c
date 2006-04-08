@@ -1,13 +1,15 @@
 /*
- * Base driver module for Toshiba T6963 based LCD displays. ver 1.0
+ * Base driver module for Toshiba T6963 based LCD displays. ver 2.2
  *
- * Parts of this file are based on the kernel driver by Alexander Frink <Alexander.Frink@Uni-Mainz.DE> 
+ * Parts of this file are based on the kernel driver by Alexander Frink <Alexander.Frink@Uni-Mainz.DE>
  *
  *
  * This file is released under the GNU General Public License. Refer to the
  * COPYING file distributed with this package.
  *
  * Copyright (c)  2001 Manuel Stahl <mythos@xmythos.de>
+ *
+ * 
  */
 
 #include <stdlib.h>
@@ -15,40 +17,54 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-#include <asm/io.h>
-#include <sys/perm.h>
+//#include <asm/io.h>
+//#include <sys/perm.h>
 
-#include "shared/str.h"
-#include "shared/debug.h"
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include "lcd.h"
 #include "t6963.h"
 #include "t6963_font.h"
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
+#include "shared/debug.h"
+#include "report.h"
+#include "lcd_lib.h"
+#include "port.h"
 
-lcd_logical_driver *t6963;
+
+//extern int debug_level;
 
 static u16 t6963_out_port;
 static u16 t6963_display_mode;
 static u8  *t6963_display_buffer1;
 static u8  *t6963_display_buffer2;
-static u8  t6963_hbar_len[6];
 static u8  t6963_graph_line[6];
 
-int
-t6963_init (struct lcd_logical_driver *driver, char *args)
+static char *framebuf = NULL;
+static int width;
+static int height;
+static int cellwidth;
+static int cellheight;
+static short bidirectLPT;
+static short graphicON;
+
+// Vars for the server core
+MODULE_EXPORT char *api_version = API_VERSION;
+MODULE_EXPORT int stay_in_foreground = 0;
+MODULE_EXPORT int supports_multiple = 0;
+MODULE_EXPORT char *symbol_prefix = "t6963_";
+
+MODULE_EXPORT int
+t6963_init (Driver *drvthis)
 {
-        char *argv[64];
-        int argc;
-        int i;
-        int tmp;
+	int w, h, p, i, ecp_input;
 
-	debug ("Doing initialization\n");
+	char size[200] = DEFAULT_SIZE;
 
-	t6963_out_port = 0x378;
+		debug(RPT_INFO, "T6963: init(%p)", drvthis );
+
 	t6963_display_mode = 0;
 	t6963_graph_line[0] = 0x20;
 	t6963_graph_line[1] = 0x30;
@@ -57,175 +73,207 @@ t6963_init (struct lcd_logical_driver *driver, char *args)
 	t6963_graph_line[4] = 0x3E;
 	t6963_graph_line[5] = 0x3F;
 
-	t6963 = driver;
+	debug(RPT_DEBUG, "T6963: reading config file...");
 
-	debug ("Reading arguments...\n");
-        argc = get_args (argv, args, 64);
+	/* Read config file */
 
-        
-     /*     for(i=0; i<argc; i++)
-           {
-           printf("Arg(%i): %s\n", i, argv[i]);
-           } */
-        
+	/* -------------------------- Which size --------------------------------------*/
+	strncpy(size, drvthis->config_get_string(drvthis->name, "Size", 0, DEFAULT_SIZE), sizeof(size));
+	size[sizeof(size)-1] = '\0';
+	if ((sscanf(size, "%dx%d", &w, &h) != 2)
+	    || (w <= 0) || (w > LCD_MAX_WIDTH)
+	    || (h <= 0) || (h > LCD_MAX_HEIGHT)) {
+	  	report(RPT_WARNING, "%s: cannot read Size: %s, Using default %s",
+				drvthis->name, size, DEFAULT_SIZE);
+		sscanf(DEFAULT_SIZE, "%dx%d", &w, &h);
+	}
+	width = w;
+	height = h;
 
-        for (i = 0; i < argc; i++) {
-                //printf("Arg(%i): %s\n", i, argv[i]);
-                if (0 == strcmp (argv[i], "-p") || 0 == strcmp (argv[i], "--port")) {
-                        if (i + 1 > argc) {
-                                fprintf (stderr, "T6963_init: %s requires an argument\n", argv[i]);
-                                return -1;
-                        }
-                        t6963_out_port = atoi (argv[++i]);
-               } else if (0 == strcmp (argv[i], "-h") || 0 == strcmp (argv[i], "--help")) {
-                        printf ("LCDproc Toshiba T6963 LCD driver\n" "\t-p\t--port\tSelect the output port to use [0x378]\n" "\t-t\t--type\t\tSelect the LCD type (size) [20x6]\n" "\t-h\t--help\t\tShow this help information\n");
-                        return -1;
-               } else {
-                        printf ("Invalid parameter: %s\n", argv[i]);
-                }
+	/* --------------------------- Which port --------------------------------------*/
+	p = drvthis->config_get_int(drvthis->name, "Port", 0, DEFAULT_PORT);
+	if ((p < 0x200) || (p > 0x400)) {
+		p = DEFAULT_PORT;
+		report(RPT_WARNING, "%s: Port value must be between 0x200 and 0x400. Using default 0x%03X",
+				drvthis->name, DEFAULT_PORT);
+	}
+	t6963_out_port = p;
 
+	/* ---------------------------- Is ECP mode on ----------------------------------*/
+	bidirectLPT = drvthis->config_get_bool(drvthis->name, "ECPlpt", 0, 1);
+	/* ---------------------------- Use graphic -------------------------------------*/
+        graphicON = drvthis->config_get_bool(drvthis->name, "graphic", 0, 0);
+
+
+	/* -- Get permission to parallel port --------------------------------------------*/
+	debug(RPT_DEBUG, "T6963: Getting permission to parallel port %d...", t6963_out_port);
+
+        if (port_access_multiple(t6963_out_port, 3)) {   //ioperm(t6963_out_port, 3, 1)) {
+		report(RPT_ERR, "%s: no permission to port %d: (%s)",
+				drvthis->name, t6963_out_port, strerror(errno));
+               	return -1;
         }
 
-	debug ("Getting permissions to %i...\n", t6963_out_port);
-
-	if(ioperm(t6963_out_port, 3, 1)) {
-		fprintf (stderr, "T6963_init: failed (%s)\n", strerror (errno));
+        if (port_access(0x80)) {	//ioperm(0x80, 1, 1)) {
+	       report(RPT_ERR, "%s: no permission to port 0x80: (%s)",
+			       drvthis->name, strerror(errno));
                 return -1;
         }
+	debug(RPT_DEBUG, "T6963:   cool, got 'em!");
 
-	if(ioperm(0x80, 1, 1)) {
-		fprintf (stderr, "T6963_init: failed (%s)\n", strerror (errno));
-                return -1;
-        }
 
-	debug ("   cool, got 'em!\nSetting width and height\n");
-	
-	driver->wid = 20;
-	driver->hgt = 6;
+	/* -- Set charakter size --*/
+	cellwidth = 6;
+	cellheight = 8;
 
-	debug ("done\nAllocating memory: %i x %i bytes = %i\n", driver->wid, driver->hgt, driver->wid * driver->hgt);
-
-	// You must use driver->framebuf here, but may use lcd.framebuf later.
-	if (!driver->framebuf)
-		driver->framebuf = malloc (driver->wid * driver->hgt);
-
-	if (!driver->framebuf) {
-		t6963_close ();
+	/* -- Allocate framebuffer --*/
+	debug(RPT_DEBUG, "T6963: Allocate framebuffer...");
+	framebuf = malloc(width * height);
+	if (framebuf == NULL) {
+		report(RPT_ERR, "%s: No memory for framebuffer", drvthis->name);
+		t6963_close(drvthis);
 		return -1;
 	}
+	debug(RPT_DEBUG, "T6963:    done!");
 
-	t6963_display_buffer1 = malloc (driver->wid * 6);
-	t6963_display_buffer2 = malloc (driver->wid * 6);
-// Debugging...
-	if(t6963_display_buffer1) memset(t6963_display_buffer1, ' ', driver->wid * 6);
-	if(t6963_display_buffer2) memset(t6963_display_buffer1, ' ', driver->wid * 6);
 
-	driver->cellwid = 6;
-	driver->cellhgt = 8;
-	t6963->cellwid = 6;
-	t6963->cellhgt = 8;
+	/* -- Allocate memory for double buffering --*/
 
-	driver->clear = t6963_clear;
-	driver->string = t6963_string;
-	driver->chr = t6963_chr;
-	driver->vbar = t6963_vbar;
-	//driver->init_vbar = NULL;
-	driver->hbar = t6963_hbar;
-	//driver->init_hbar = NULL;
-	driver->num = t6963_num;
-	driver->init_num = t6963_init_num;
+	debug(RPT_DEBUG, "T6963: Allocating double buffering...");
+	t6963_display_buffer1 = malloc(width * height);
+	t6963_display_buffer2 = malloc(width * height);
+	if ((t6963_display_buffer1 == NULL) || (t6963_display_buffer2 == NULL)) {
+		report(RPT_ERR, "%s: No memory for double buffering", drvthis->name);
+		t6963_close(drvthis);
+		return -1;
+	}
+  	/* - Clear front and back buffer -*/
+	memset(t6963_display_buffer1, ' ', width * height);
+	memset(t6963_display_buffer2, ' ', width * height);
+	debug(RPT_DEBUG, "T6963:     done!");
 
-	driver->init = t6963_init;
-	driver->close = t6963_close;
-	driver->flush = t6963_flush;
-	//driver->flush_box = NULL;
-	driver->contrast = t6963_contrast;
-	driver->backlight = t6963_backlight;
-	driver->set_char = t6963_set_char;
-	driver->icon = t6963_icon;
-	driver->draw_frame = t6963_draw_frame;
+	/* ------------------- I N I T I A L I Z A T I O N ----------------------- */
+	debug(RPT_DEBUG, "T6963: Sending init to display...");
 
-	driver->getkey = t6963_getkey;
+        t6963_low_set_control(1, 1, 1, 1);
+        T6963_DATAOUT; // make 8-bit parallel port an output port
 
-	T6963_CEHI;  // disable chip
-	T6963_RDHI;  // disable reading from LCD
-	T6963_WRHI;  // disable writing to LCD
-	T6963_CDHI;  // command/status mode
-	T6963_DATAOUT; // make 8-bit parallel port an output port
+	/* - Test ECP mode -*/
+        if (bidirectLPT == 1) {
+        	debug(RPT_WARNING, "T6963: Testing ECP mode...");
+       		i=0; ecp_input=0;
+		T6963_DATAIN;
+		do {
+		    	i++;
+			t6963_low_set_control(1, 1, 1, 1);   // wr, ce, cd, rd
+			t6963_low_set_control(1, 0, 1, 0);
+			t6963_low_set_control(1, 0, 1, 0);
+			t6963_low_set_control(1, 0, 1, 0);
+			ecp_input = port_in(T6963_DATA_PORT);
+			t6963_low_set_control(1, 1, 1, 1);
+		} while (i < 100 && (ecp_input & 0x03)!=0x03);
+		T6963_DATAOUT;
+		if (i >= 100) {
+			debug(RPT_WARNING, "T6963: ECP mode not working!\n -> is now disabled  (STA0: %i, STA1: %i\n", ecp_input & 1, ecp_input & 2);
+			bidirectLPT = 0;
+		}
+		else
+			debug(RPT_WARNING, "T6963: working!");
+        }
 
-        t6963_low_command_word (SET_GRAPHIC_HOME_ADDRESS, ATTRIB_BASE);
-        t6963_low_command_word (SET_GRAPHIC_AREA,         driver->wid);
-        t6963_low_command_word (SET_TEXT_HOME_ADDRESS,    TEXT_BASE);
-        t6963_low_command_word (SET_TEXT_AREA,            driver->wid);
+	debug(RPT_DEBUG, "T6963:  set graphic/text home adress and area");
+
+        t6963_low_command_word(SET_GRAPHIC_HOME_ADDRESS, ATTRIB_BASE);
+        t6963_low_command_word(SET_GRAPHIC_AREA,         width);
+        t6963_low_command_word(SET_TEXT_HOME_ADDRESS,    TEXT_BASE);
+        t6963_low_command_word(SET_TEXT_AREA,            width);
 
         t6963_low_command         (SET_MODE | OR_MODE | EXTERNAL_CG);
         t6963_low_command_2_bytes (SET_OFFSET_REGISTER, CHARGEN_BASE>>11, 0);
         t6963_low_command         (SET_CURSOR_PATTERN | 7); // cursor is 8 lines high
         t6963_low_command_2_bytes (SET_CURSOR_POINTER, 0, 0);
 
-	t6963_set_nchar (0, fontdata_6x8, 255);
+        t6963_set_nchar(drvthis, 0, fontdata_6x8, 256);
 
-	t6963_low_enable_mode (TEXT_ON);
-	t6963_low_enable_mode (GRAPHIC_ON);
-	t6963_low_disable_mode (CURSOR_ON);
-	t6963_low_disable_mode (BLINK_ON);
+        t6963_low_enable_mode(TEXT_ON);
+        if (graphicON == 0)
+		t6963_low_disable_mode(GRAPHIC_ON);
+        else
+		t6963_low_enable_mode(GRAPHIC_ON);
+        t6963_low_disable_mode(CURSOR_ON);
+        t6963_low_disable_mode(BLINK_ON);
 
-	t6963_clear ();
-	t6963_graphic_clear (0, 0, driver->wid, driver->cellhgt * 6);
-	t6963_flush();
-	debug ("Initialization done!\n");
+        t6963_clear(drvthis);
+        t6963_graphic_clear(drvthis, 0, 0, width, cellheight * height);
+        t6963_flush(drvthis);
 
-	return 200;						  // 200 is arbitrary.  (must be 1 or more)
+	report(RPT_DEBUG, "%s: init() done", drvthis->name);
+
+	return 1;						  // return success
 }
 
 // Below here, you may use either lcd.framebuf or driver->framebuf..
 // lcd.framebuf will be set to the appropriate buffer before calling
 // your driver.
 
-void
-t6963_close ()
+MODULE_EXPORT void
+t6963_close (Driver *drvthis)
 {
-	debug ("Shutting down!\n");
-	t6963_low_disable_mode (BLINK_ON);
+	debug(RPT_INFO, "Shutting down!");
+	t6963_low_disable_mode(BLINK_ON);
 
-	ioperm(t6963_out_port, 3, 0);
-	if (t6963->framebuf != NULL)
-		free (t6963->framebuf);
-	if (t6963_display_buffer1 != NULL) free (t6963_display_buffer1);
-	if (t6963_display_buffer2 != NULL) free (t6963_display_buffer2);
+	port_deny_multiple(t6963_out_port,3);
 
-	t6963->framebuf = NULL;
+	if (framebuf != NULL)
+		free(framebuf);
+	framebuf = NULL;
+	
+	if (t6963_display_buffer1 != NULL)
+		free(t6963_display_buffer1);
 	t6963_display_buffer1 = NULL;
+	
+	if (t6963_display_buffer2 != NULL)
+		free(t6963_display_buffer2);
 	t6963_display_buffer2 = NULL;
+}
+
+/////////////////////////////////////////////////////////////////
+// Returns the display width
+//
+MODULE_EXPORT int
+t6963_width (Driver *drvthis)
+{
+	return width;
+}
+
+/////////////////////////////////////////////////////////////////
+// Returns the display height
+//
+MODULE_EXPORT int
+t6963_height (Driver *drvthis)
+{
+	return height;
 }
 
 /////////////////////////////////////////////////////////////////
 // Clears the LCD screen
 //
-void
-t6963_clear ()
+MODULE_EXPORT void
+t6963_clear (Driver *drvthis)
 {
-	int i;
-
-	debug ("Clearing Display of size %i x %i\n", t6963->wid, 6);
-
-	memset (t6963_display_buffer1, ' ', t6963->wid * 6);
-//	for (i=0; i < 6; i++)
-//		if (t6963_hbar_len[i]==0) t6963_graphic_clear(0, i*t6963->cellhgt, t6963->wid, (i+1)*t6963->cellhgt);
-
-	debug ("Done\n");
+	debug(RPT_DEBUG, "Clearing Display of size %d x %d", width, height);
+	memset(t6963_display_buffer1, ' ', width * height);
+	debug(RPT_DEBUG, "Done");
 }
 
 void
-t6963_graphic_clear (int x1, int y1, int x2, int y2)
+t6963_graphic_clear(Driver *drvthis, int x1, int y1, int x2, int y2)
 {
-	int x; 
+	int x;
 
-	debug ("Clearing Graphic %i bytes\n", (x2-x1)*(y2-y1));
-
-	for (;y1 < y2; y1++)
-	{
-		t6963_low_command_word(SET_ADDRESS_POINTER, ATTRIB_BASE + y1 * t6963->wid + x1);
+	debug(RPT_DEBUG, "Clearing Graphic %d bytes", (x2-x1)*(y2-y1));
+	for ( ; y1 < y2; y1++) {
+		t6963_low_command_word(SET_ADDRESS_POINTER, ATTRIB_BASE + y1 * width + x1);
 		for (x = x1; x < x2; x++)
 			t6963_low_command_byte(DATA_WRITE_INC, 0);
 	}
@@ -234,119 +282,60 @@ t6963_graphic_clear (int x1, int y1, int x2, int y2)
 //////////////////////////////////////////////////////////////////
 // Flushes all output to the lcd...
 //
-void
-t6963_flush ()
+MODULE_EXPORT void
+t6963_flush (Driver *drvthis)
 {
 	int i;
-	debug ("Flushing %i x %i\n", t6963->wid, t6963->hgt);
+	debug(RPT_DEBUG, "Flushing %d x %d", width, height);
 
-	for (i = 0; i < (t6963->wid * 6); i++)
-	{
-		debug ("%c%c|", t6963_display_buffer1[i], t6963_display_buffer2[i]);
-		if (t6963_display_buffer1[i] != t6963_display_buffer2[i])
-		{
+	for (i = 0; i < (width * height); i++) {
+		// debug(RPT_DEBUG, "%i%i|", t6963_display_buffer1[i], t6963_display_buffer2[i]);
+		if (t6963_display_buffer1[i] != t6963_display_buffer2[i]) {
 			t6963_low_command_word(SET_ADDRESS_POINTER, TEXT_BASE + i);
 			t6963_low_command_byte(DATA_WRITE, t6963_display_buffer1[i]);
 		}
 	}
-	debug ("\n");
-	//t6963->draw_frame(t6963->framebuf);
+	debug(RPT_DEBUG, "Done");
 	t6963_swap_buffers();
-	t6963_clear();
-}
-
-//////////////////////////////////////////////////////////////////////
-// Send a rectangular area to the display.
-//
-// I've just called drv_base_flush() because there's not much point yet
-// in flushing less than the entire framebuffer.
-//
-void
-t6963_flush_box (int lft, int top, int rgt, int bot)
-{
-	debug ("flush_box\n");
-	t6963_flush();
-	//drv_base_flush();
-
+	t6963_clear(drvthis);
 }
 
 /////////////////////////////////////////////////////////////////
 // Prints a string on the lcd display, at position (x,y).  The
 // upper-left is (1,1), and the lower right should be (20,6).
 //
-void
-t6963_string (int x, int y, char string[])
+MODULE_EXPORT void
+t6963_string (Driver *drvthis, int x, int y, char string[])
 {
-	int i;
-
-	debug ("String out\n");
+	debug(RPT_DEBUG, "String out");
 
 	x -= 1;							  // Convert 1-based coords to 0-based...
 	y -= 1;
 
-//	t6963_low_command_word(SET_ADDRESS_POINTER,TEXT_BASE+POSITION(x,y));
-	if(y * t6963->wid + x + strlen(string) <= t6963->wid * 6);
-		memcpy(&t6963_display_buffer1[y * t6963->wid + x], string, strlen(string));
+	if ((y * width + x + strlen(string)) <= (width * height));
+		memcpy(&t6963_display_buffer1[y * width + x], string, strlen(string));
 
 }
 
 /////////////////////////////////////////////////////////////////
 // Prints a character on the lcd display, at position (x,y).  The
-// upper-left is (1,1), and the lower right should be (20,4).
+// upper-left is (1,1), and the lower right should be (20,6).
 //
-void
-t6963_chr (int x, int y, char c)
+MODULE_EXPORT void
+t6963_chr (Driver *drvthis, int x, int y, char c)
 {
-	debug ("Char out\n");
+	debug(RPT_DEBUG, "Char out");
 	y--;
 	x--;
-	if ((y * t6963->wid) + x <= (t6963->wid * 6))
-		t6963_display_buffer1[(y * t6963->wid) + x] = c;
-}
-
-//////////////////////////////////////////////////////////////////////
-// Sets the contrast of the display.  Value is 0-255, where 140 is
-// what I consider "just right".
-//
-int
-t6963_contrast (int contrast)
-{
-//  printf("Contrast: %i\n", contrast);
-	return -1;
-}
-
-//////////////////////////////////////////////////////////////////////
-// Turns the lcd backlight on or off...
-//
-void
-t6963_backlight (int on)
-{
-	/*
-	   if(on)
-	   {
-	   printf("Backlight ON\n");
-	   }
-	   else
-	   {
-	   printf("Backlight OFF\n");
-	   }
-	 */
-}
-
-//////////////////////////////////////////////////////////////////////
-// Tells the driver to get ready for big numbers, if possible.
-//
-void
-t6963_init_num ()
-{
-//  printf("Big Numbers.\n");
+	if ((y * width) + x <= (width * height))
+		t6963_display_buffer1[(y * width) + x] = c;
 }
 
 //////////////////////////////////////////////////////////////////////
 // Draws a big (4-row) number.
 //
-void
-t6963_num (int x, int num)
+MODULE_EXPORT void
+t6963_num (Driver *drvthis, int x, int num)
 {
 //  printf("BigNum(%i, %i)\n", x, num);
 }
@@ -355,133 +344,165 @@ t6963_num (int x, int num)
 // Changes the font data of character n.
 //
 void
-t6963_set_nchar (int n, char *dat, int num)
+t6963_set_nchar (Driver *drvthis, int n, char *dat, int num)
 {
 	int row, col;
-	char tmp;
 	char letter;
 
-	debug ("Setting char %i", n);
+	debug(RPT_DEBUG, "Setting char %d", n);
 
-        if (!dat || n+num > 256)
+        if ((!dat) || (n + num > 256))
                 return;
 
 	t6963_low_command_word(SET_ADDRESS_POINTER, CHARGEN_BASE + n*8);
-        for (row = 0; row < t6963->cellhgt * num; row++) {
+        for (row = 0; row < cellheight * num; row++) {
                 letter = 0;
-                for (col = 0; col < t6963->cellwid; col++) {
+                for (col = 0; col < cellwidth; col++) {
                         letter <<= 1;
-                        letter |= (dat[(row * t6963->cellwid) + col] > 0);
+                        letter |= (dat[(row * cellwidth) + col] > 0);
                 }
 
 		t6963_low_command_byte(DATA_WRITE_INC, letter);
         }
 }
 
-void
-t6963_set_char (int n, char *dat)
+MODULE_EXPORT void
+t6963_set_char (Driver *drvthis, int n, char *dat)
 {
-	t6963_set_nchar (n, dat, 1);
+	t6963_set_nchar(drvthis, n, dat, 1);
 }
 
 /////////////////////////////////////////////////////////////////
 // Draws a vertical bar, from the bottom of the screen up.
 //
-void
-t6963_vbar (int x, int len)
+MODULE_EXPORT void
+t6963_vbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 {
-	int y;
-
-	for (y = 0; y < len/t6963->cellhgt; y++)
-		t6963_chr (x, 6-y, 219);
-
-	if (len % t6963->cellhgt) 
-		t6963_chr (x, 6-y, 211 + (len % t6963->cellhgt));
-
+	lib_vbar_static(drvthis, x, y, len, promille, options, cellheight, 212);
 }
 
 /////////////////////////////////////////////////////////////////
 // Draws a horizontal bar to the right.
 //
-void
-t6963_hbar (int x, int y, int len)
+MODULE_EXPORT void
+t6963_hbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 {
-	int stop = x + len/t6963->cellwid;
-	for (; x <= stop; x++)
-		t6963_chr (x, y, 219);
-
-	if (len % t6963->cellwid)
-		t6963_chr (x, y, 225 - (len % t6963->cellwid));
-
-
+	lib_hbar_static(drvthis, x, y, len, promille, options, cellwidth, 220);
 }
 
 /////////////////////////////////////////////////////////////////
-// Sets character 0 to an icon...
+// Sets an icon...
 //
-void
-t6963_icon (int which, char dest)
+MODULE_EXPORT int
+t6963_icon (Driver *drvthis, int x, int y, int icon)
 {
-//  printf("Char %i set to icon %i\n", dest, which);
-}
-
-void
-t6963_draw_frame (char *dat)
-{
-	int x, y;
-
-	if(!dat) return;
-
-	for(x=1; x<=t6963->wid; x++)
-	{
-   		t6963_chr (x, 1, '-');
-   		t6963_chr (x, 6, '-');
+	debug(RPT_DEBUG, "T6963: set icon %d", icon);
+	switch (icon) {
+		case ICON_BLOCK_FILLED:
+			t6963_chr( drvthis, x, y, 219 );
+			break;
+		case ICON_HEART_FILLED:
+			t6963_chr( drvthis, x, y, 3 );
+			break;
+		case ICON_HEART_OPEN:
+			t6963_chr( drvthis, x, y, 4 );
+			break;
+		default:
+			return -1;
 	}
-  
-	for(y=0; y<t6963->hgt; y++)
-	{
-		for(x=0; x<t6963->wid; x++)
-			t6963_chr(x+1, y+1, dat[x+(y*t6963->wid)]);
-	}
-}
-
-//////////////////////////////////////////////////////////////////////
-// Tries to read a character from an input device...
-//
-// Return 0 for "nothing available".
-//
-char
-t6963_getkey ()
-{
 	return 0;
+}
+
+/* ---------------------- internal functions ------------------------------------- */
+void
+t6963_low_set_control(char wr, char ce, char cd, char rd)
+{
+	unsigned char status = port_in(T6963_CONTROL_PORT); /* TODO: support multiple wirings! */
+	if (wr == 1)  /* WR = HI */
+		status &= 0xfe;
+	else if (wr == 0)
+		status |= 0x01;
+	if (ce == 1)  /* CE = HI */
+		status &= 0xfd;
+	else if (ce == 0)
+		status |= 0x02;
+	if (cd == 0)  /* CD = HI */
+		status &= 0xfb;
+	else if (cd == 1)
+		status |= 0x04;
+	if (rd == 1)  /* CE = HI */
+		status &= 0xf7;
+	else if (rd == 0)
+		status |= 0x08;
+	port_out(T6963_CONTROL_PORT, status);
+
+}
+
+void
+t6963_low_dsp_ready (void)
+{
+    int i = 0;
+    int input;
+
+    T6963_DATAIN;
+    if (bidirectLPT == 1) {
+	    do {
+	    	i++;
+/*		t6963_low_set_control(1, 0, 1, -1);
+		t6963_low_set_control(1, 0, 1, 0);
+		input = port_in(T6963_DATA_PORT);
+		t6963_low_set_control(1, 0, 1, -1); */
+		t6963_low_set_control(1, 1, 1, 1);
+		t6963_low_set_control(1, 0, 1, 0);
+		t6963_low_set_control(1, 0, 1, 0);
+		t6963_low_set_control(1, 0, 1, 0);
+                // tacc max 150ns
+		input = port_in(T6963_DATA_PORT);
+		t6963_low_set_control(1, 1, 1, 1);
+
+	    } while (i < 100 && (input & 3)!=3);
+    } else {
+   // 	for (i=0; i<3; i++)
+		t6963_low_set_control(1, 1, 1, 1);
+		t6963_low_set_control(1, 0, 1, 0);
+		t6963_low_set_control(1, 1, 1, 1);
+		port_out(0x80, 0x00);  // wait 1ms
+    } 
+    T6963_DATAOUT;
 }
 
 void
 t6963_low_data (u8 byte)
 {
- //   lcd_wait_until_ready();
+    t6963_low_dsp_ready();
+    t6963_low_set_control(1, 1, 0, 1);   // CD down (data)
+    t6963_low_set_control(0, 0, 0, 1);   // CE & WR down
+    port_out(T6963_DATA_PORT, byte);     // present data
+    port_out(0x80, 0x00);
+    t6963_low_set_control(1, 1, 1, 1);   // all up again
 
-    T6963_CDLO;
-    T6963_WRLO;                       // activate LCD's write mode
-    outb_p(byte, T6963_DATA_PORT);     // write value to data port
-    T6963_CELO;                       // pulse enable LOW > 80 ns (hah!)
-    T6963_CEHI;                       // return enable HIGH
-    T6963_WRHI;                       // restore Write mode to inactive
+/*    port_out(T6963_DATA_PORT, byte);     // write value to data port
+    t6963_low_set_control(1, 1,  0, 1);
+    t6963_low_set_control(0, 0,  0, 1);
+    t6963_low_set_control(1, 1,  1, 1); */
 }
 
 void
 t6963_low_command (u8 byte)
 {
-  //  lcd_wait_until_ready();
+    t6963_low_dsp_ready();
 
-    outb_p(byte, T6963_DATA_PORT);  // present data to LCD on PC's port pins
-
-    T6963_CDHI;                      // control/status mode
-    T6963_RDHI;                      // make sure LCD read mode is off
-    T6963_WRLO;                      // activate LCD write mode
-    T6963_CELO;                      // pulse ChipEnable LOW, > 80 ns, enables LCD I/O
-    T6963_CEHI;                      // disable LCD I/O
-    T6963_WRHI;                      // deactivate write mode
+    t6963_low_set_control(1, 1, 1, 1);  // CD up (command)
+    t6963_low_set_control(0, 0, 1, 1);  // CE & WR down
+    port_out(T6963_DATA_PORT, byte);    // present data to LCD on PC's port pins
+    port_out(0x80, 0x00);
+    t6963_low_set_control(1, 1, 0, 1);  // CE & WR up, CD down
+    
+/*
+    port_out(T6963_DATA_PORT, byte);  // present data to LCD on PC's port pins
+    t6963_low_set_control(1, 1, 1, 1);
+    t6963_low_set_control(0, 0, 1, 1);
+    t6963_low_set_control(1, 1, 0, 1); */
 }
 
 void

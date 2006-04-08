@@ -18,135 +18,126 @@
 #include <termios.h>
 #include <fcntl.h>
 #include <string.h>
+#include <errno.h>
 #include <sys/errno.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
-#include <syslog.h>
 
 #include <linux/joystick.h>
 #ifndef JSIOCGNAME
 #define JSIOCGNAME(len)           _IOC(_IOC_READ, 'j', 0x13, len)         /* get identifier string */
 #endif
 
-#include "shared/debug.h"
-#include "shared/str.h"
-
-#define NAME_LENGTH 128
-#define JOY_DEFAULT_DEVICE "/dev/js0"
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include "lcd.h"
 #include "joy.h"
+#include "report.h"
+#include "shared/str.h"
 
-lcd_logical_driver *joy;
+#define JOY_NAMELENGTH		128
+#define JOY_DEFAULT_DEVICE	"/dev/js0"
+#define JOY_MAPSIZE		16
+#define JOY_DEFAULT_AXISMAP	"EFGHIJKLMNOPQRST"
+#define JOY_DEFAULT_BUTTONMAP	"BDACEFGHIJKLMNOP"
 
-int fd;
-extern int debug_level;
+int fd = -1;
 
 struct js_event js;
 
 char axes = 2;
 char buttons = 2;
-int jsversion = 0x000800;
-char jsname[NAME_LENGTH] = "Unknown";
+int jsversion = 0x000801;
+char jsname[JOY_NAMELENGTH] = "Unknown";
 
-int *axis;
-int *button;
+int *axis = NULL;
+int *button = NULL;
 
 // Configured for a Gravis Gamepad  (2 axis, 4 button)
-char *axismap = "EFGHIJKLMNOPQRST";
-char *buttonmap = "BDACEFGHIJKLMNOP";
+char axismap[JOY_MAPSIZE+1] = JOY_DEFAULT_AXISMAP;
+char buttonmap[JOY_MAPSIZE+1] = JOY_DEFAULT_BUTTONMAP;
+
+// Vars for the server core
+MODULE_EXPORT char *api_version = API_VERSION;
+MODULE_EXPORT int stay_in_foreground = 0;
+MODULE_EXPORT int supports_multiple = 0;
+MODULE_EXPORT char *symbol_prefix = "joy_";
+
 
 ////////////////////////////////////////////////////////////
 // init() should set up any device-specific stuff, and
 // point all the function pointers.
-int
-joy_init (struct lcd_logical_driver *driver, char *args)
+MODULE_EXPORT int
+joy_init (Driver *drvthis)
 {
 	char device[256];
-	char *argv[64];
-	int argc, i;
 
-	joy = driver;
+	/* Read config file */
 
-	strcpy (device, JOY_DEFAULT_DEVICE);
+	/* What device should be used */
+	strncpy(device, drvthis->config_get_string(drvthis->name, "Device", 0,
+						   JOY_DEFAULT_DEVICE), sizeof(device));
+	device[sizeof(device)-1] = '\0';
+	report(RPT_INFO, "%s: using Device %s", drvthis->name, device);
 
-	argc = get_args (argv, args, 64);
+	/* How does the axis map look like */
+	strncpy(axismap, drvthis->config_get_string(drvthis->name, "AxisMap", 0,
+						    JOY_DEFAULT_AXISMAP), sizeof(axismap));
+	axismap[sizeof(axismap)-1] = '\0';
 
-	for (i = 0; i < argc; i++) {
-		//printf("Arg(%i): %s\n", i, argv[i]);
-		if (0 == strcmp (argv[i], "-d") || 0 == strcmp (argv[i], "--device")) {
-			if (i + 1 > argc) {
-				fprintf (stderr, "joy_init: %s requires an argument\n", argv[i]);
-				return -1;
-			}
-			strcpy (device, argv[++i]);
-		} else if (0 == strcmp (argv[i], "-a") || 0 == strcmp (argv[i], "--axes")) {
-			if (i + 1 > argc) {
-				fprintf (stderr, "joy_init: %s requires an argument\n", argv[i]);
-				return -1;
-			}
-			strncpy (axismap, argv[++i], 16);
-		} else if (0 == strcmp (argv[i], "-b") || 0 == strcmp (argv[i], "--buttons")) {
-			if (i + 1 > argc) {
-				fprintf (stderr, "joy_init: %s requires an argument\n", argv[i]);
-				return -1;
-			}
-			strncpy (buttonmap, argv[++i], 16);
-		} else if (0 == strcmp (argv[i], "-h") || 0 == strcmp (argv[i], "--help")) {
-			printf ("LCDproc Joystick input driver\n" "\t-d\t--device\tSelect the input device to use [/dev/js0]\n" "\t-a\t--axes\t\tModify the axis map [%s]\n" "\t-b\t--buttons\tModify the button map [%s]\n" "\t-h\t--help\t\tShow this help information\n", axismap, buttonmap);
-			return -1;
-		} else {
-			printf ("Invalid parameter: %s\n", argv[i]);
-		}
+	/* How does the button map look like */
+	strncpy(buttonmap, drvthis->config_get_string(drvthis->name, "ButtonMap", 0,
+						      JOY_DEFAULT_BUTTONMAP), sizeof(buttonmap));
+	buttonmap[sizeof(buttonmap)-1] = '\0';
 
-	}
-
-	driver->getkey = joy_getkey;
-	driver->close = joy_close;
-
-	if ((fd = open (device, O_RDONLY)) < 0)
-		return -1;
-
-	fcntl (fd, F_SETFL, O_NONBLOCK);
-	ioctl (fd, JSIOCGVERSION, &jsversion);
-	ioctl (fd, JSIOCGAXES, &axes);
-	ioctl (fd, JSIOCGBUTTONS, &buttons);
-	ioctl (fd, JSIOCGNAME (NAME_LENGTH), jsname);
-
-	if (debug_level > 2) {
-		syslog(LOG_DEBUG, "Joystick (%s) has %d axes and %d buttons. Driver version is %d.%d.%d.\n",
-			jsname, axes, buttons,
-			jsversion >> 16, (jsversion >> 8) & 0xff, jsversion & 0xff);
-	}
-
-	if ((axis = calloc (axes, sizeof (int))) == NULL) {
-		syslog(LOG_ERR, "joystick: could not allocate memory for axes");
+	/* End of config file parsing */
+	
+	if ((fd = open(device, O_RDONLY)) < 0) {
+		report(RPT_ERR, "%s: open(%s) failed (%s)", 
+				drvthis->name, device, strerror(errno));
 		return -1;
 	}
 
-	if ((button = calloc (buttons, sizeof (char))) == NULL) {
-		syslog(LOG_ERR, "joystick: could not allocate memory for buttons");
+	fcntl(fd, F_SETFL, O_NONBLOCK);
+	ioctl(fd, JSIOCGVERSION, &jsversion);
+	ioctl(fd, JSIOCGAXES, &axes);
+	ioctl(fd, JSIOCGBUTTONS, &buttons);
+	ioctl(fd, JSIOCGNAME(JOY_NAMELENGTH), jsname);
+
+	report(RPT_NOTICE, "%s: Joystick (%s) has %d axes and %d buttons. Driver version is %d.%d.%d",
+		drvthis->name, jsname, axes, buttons,
+		jsversion >> 16, (jsversion >> 8) & 0xff, jsversion & 0xff);
+
+	if ((axis = calloc(axes, sizeof (int))) == NULL) {
+		report(RPT_ERR, "%s: could not allocate memory for axes", drvthis->name);
 		return -1;
 	}
 
-	return fd;						  // 200 is arbitrary.  (must be 1 or more)
+	if ((button = calloc(buttons, sizeof (char))) == NULL) {
+		report(RPT_ERR, "%s: could not allocate memory for buttons", drvthis->name);
+		return -1;
+	}
+
+	report(RPT_DEBUG, "%s: init() done", drvthis->name);
+
+	return 0;
 }
 
-void
-joy_close ()
+MODULE_EXPORT void
+joy_close (Driver *drvthis)
 {
-	if (joy->framebuf != NULL)
-		free (joy->framebuf);
-
-	close (fd);
-
-	joy->framebuf = NULL;
+	if (fd >= 0)
+		close(fd);
 
 	// Why do I have so much trouble getting memory freed without segfaults??
 	// Use gdb and find out :) In preliminary testing, this seemed to work...
 
-	if (axis) free(axis);
-	if (button) free(button);
+	if (axis != NULL)
+		free(axis);
+	if (button != NULL)
+		free(button);
 
 }
 
@@ -155,21 +146,21 @@ joy_close ()
 //
 // Return 0 for "nothing available".
 //
-char
-joy_getkey ()
+MODULE_EXPORT char
+joy_getkey (Driver *drvthis)
 {
 	int i;
 	int err;
 
-	if ((err = read (fd, &js, sizeof (struct js_event))) <= 0) {
+	if ((err = read(fd, &js, sizeof(struct js_event))) <= 0) {
 		return 0;
 	} else
-		if (err != sizeof (struct js_event)) {
-			syslog(LOG_ERR, "error reading joystick input");
+		if (err != sizeof(struct js_event)) {
+			report(RPT_ERR, "%s: error reading joystick input", drvthis->name);
 			return 0;
 		}
 
-//   if(js.type & JS_EVENT_INIT) return 0;
+//   if (js.type & JS_EVENT_INIT) return 0;
 
 	switch (js.type & ~JS_EVENT_INIT) {
 		case JS_EVENT_BUTTON:
@@ -202,3 +193,4 @@ joy_getkey ()
 
 	return 0;
 }
+

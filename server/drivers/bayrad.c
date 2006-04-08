@@ -30,24 +30,38 @@
 #endif
 #include "lcd.h"
 #include "bayrad.h"
-#include "drv_base.h"
+//#include "drv_base.h"
 #include "shared/str.h"
+#include "report.h"
+#include "lcd_lib.h"
+
+#define NUM_CCs 8 /* number of characters */
+#define CCMODE_STANDARD 0 /* only char 0 is used for heartbeat */
+#define CCMODE_VBAR 1
+#define CCMODE_HBAR 2
+#define CCMODE_BIGNUM 3
+
+#define BAYRAD_DEFAULT_DEVICE	"/dev/lcd"
 
 //////////////////////////////////////////////////////////////////////////
 ////////////////////// Base "class" to derive from ///////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-lcd_logical_driver *bayrad;
-static int fd;
-
+static int fd = -1;
+static int width = 0;
+static int height = 0;
+static int cellwidth = 5;
+static int cellheight = 8;
+static char *framebuf = NULL;
+static char ccmode = CCMODE_STANDARD;
 
   /////////////////////////////////////////////////////////////
  /* Declare a bunch of global, static custom character data */
 /////////////////////////////////////////////////////////////
 
-char bar_up[7][5*8] = {      
+char bar_up[7][5*8] = {
   {
-	 0,0,0,0,0, //  char u1[] = 
+	 0,0,0,0,0, //  char u1[] =
 	 0,0,0,0,0,
 	 0,0,0,0,0,
 	 0,0,0,0,0,
@@ -57,7 +71,7 @@ char bar_up[7][5*8] = {
 	 1,1,1,1,1,
       },
       {
-	 0,0,0,0,0, //  char u2[] = 
+	 0,0,0,0,0, //  char u2[] =
 	 0,0,0,0,0,
 	 0,0,0,0,0,
 	 0,0,0,0,0,
@@ -66,7 +80,7 @@ char bar_up[7][5*8] = {
 	 1,1,1,1,1,
 	 1,1,1,1,1,
       },{
-	 0,0,0,0,0, //  char u3[] = 
+	 0,0,0,0,0, //  char u3[] =
 	 0,0,0,0,0,
 	 0,0,0,0,0,
 	 0,0,0,0,0,
@@ -75,7 +89,7 @@ char bar_up[7][5*8] = {
 	 1,1,1,1,1,
 	 1,1,1,1,1,
       },{
-	 0,0,0,0,0, //  char u4[] = 
+	 0,0,0,0,0, //  char u4[] =
 	 0,0,0,0,0,
 	 0,0,0,0,0,
 	 0,0,0,0,0,
@@ -84,7 +98,7 @@ char bar_up[7][5*8] = {
 	 1,1,1,1,1,
 	 1,1,1,1,1,
       },{
-	 0,0,0,0,0, //  char u5[] = 
+	 0,0,0,0,0, //  char u5[] =
 	 0,0,0,0,0,
 	 0,0,0,0,0,
 	 1,1,1,1,1,
@@ -93,7 +107,7 @@ char bar_up[7][5*8] = {
 	 1,1,1,1,1,
 	 1,1,1,1,1,
       },{
-	 0,0,0,0,0, //  char u6[] = 
+	 0,0,0,0,0, //  char u6[] =
 	 0,0,0,0,0,
 	 1,1,1,1,1,
 	 1,1,1,1,1,
@@ -102,7 +116,7 @@ char bar_up[7][5*8] = {
 	 1,1,1,1,1,
 	 1,1,1,1,1,
       },{
-	 0,0,0,0,0, //  char u7[] = 
+	 0,0,0,0,0, //  char u7[] =
 	 1,1,1,1,1,
 	 1,1,1,1,1,
 	 1,1,1,1,1,
@@ -115,7 +129,7 @@ char bar_up[7][5*8] = {
 
 char bar_down[7][5*8] = {  /* Presently, this is not used */
      {
-	 1,1,1,1,1, //  char d1[] = 
+	 1,1,1,1,1, //  char d1[] =
 	 0,0,0,0,0,
 	 0,0,0,0,0,
 	 0,0,0,0,0,
@@ -124,7 +138,7 @@ char bar_down[7][5*8] = {  /* Presently, this is not used */
 	 0,0,0,0,0,
 	 0,0,0,0,0,
       },{
-	 1,1,1,1,1, //  char d2[] = 
+	 1,1,1,1,1, //  char d2[] =
 	 1,1,1,1,1,
 	 0,0,0,0,0,
 	 0,0,0,0,0,
@@ -133,7 +147,7 @@ char bar_down[7][5*8] = {  /* Presently, this is not used */
 	 0,0,0,0,0,
 	 0,0,0,0,0,
       },{
-	 1,1,1,1,1, //  char d3[] = 
+	 1,1,1,1,1, //  char d3[] =
 	 1,1,1,1,1,
 	 1,1,1,1,1,
 	 0,0,0,0,0,
@@ -142,7 +156,7 @@ char bar_down[7][5*8] = {  /* Presently, this is not used */
 	 0,0,0,0,0,
 	 0,0,0,0,0,
       },{
-	 1,1,1,1,1, //  char d4[] = 
+	 1,1,1,1,1, //  char d4[] =
 	 1,1,1,1,1,
 	 1,1,1,1,1,
 	 1,1,1,1,1,
@@ -151,7 +165,7 @@ char bar_down[7][5*8] = {  /* Presently, this is not used */
 	 0,0,0,0,0,
 	 0,0,0,0,0,
       },{
-	 1,1,1,1,1, //  char d5[] = 
+	 1,1,1,1,1, //  char d5[] =
 	 1,1,1,1,1,
 	 1,1,1,1,1,
 	 1,1,1,1,1,
@@ -160,7 +174,7 @@ char bar_down[7][5*8] = {  /* Presently, this is not used */
 	 0,0,0,0,0,
 	 0,0,0,0,0,
       },{
-	 1,1,1,1,1, //  char d6[] = 
+	 1,1,1,1,1, //  char d6[] =
 	 1,1,1,1,1,
 	 1,1,1,1,1,
 	 1,1,1,1,1,
@@ -169,7 +183,7 @@ char bar_down[7][5*8] = {  /* Presently, this is not used */
 	 0,0,0,0,0,
 	 0,0,0,0,0,
       },{
-	 1,1,1,1,1, //  char d7[] = 
+	 1,1,1,1,1, //  char d7[] =
 	 1,1,1,1,1,
 	 1,1,1,1,1,
 	 1,1,1,1,1,
@@ -179,9 +193,9 @@ char bar_down[7][5*8] = {  /* Presently, this is not used */
 	 0,0,0,0,0,
       },};
 
-char bar_right[4][5*8] = {
+char bar_right[5][5*8] = {
   {
-	 1,0,0,0,0, //  char r1[] = 
+	 1,0,0,0,0, //  char r1[] =
 	 1,0,0,0,0,
 	 1,0,0,0,0,
 	 1,0,0,0,0,
@@ -190,7 +204,7 @@ char bar_right[4][5*8] = {
 	 1,0,0,0,0,
 	 1,0,0,0,0,
       },{
-	 1,1,0,0,0, //  char r2[] = 
+	 1,1,0,0,0, //  char r2[] =
 	 1,1,0,0,0,
 	 1,1,0,0,0,
 	 1,1,0,0,0,
@@ -199,7 +213,7 @@ char bar_right[4][5*8] = {
 	 1,1,0,0,0,
 	 1,1,0,0,0,
       },{
-	 1,1,1,0,0, //  char r3[] = 
+	 1,1,1,0,0, //  char r3[] =
 	 1,1,1,0,0,
 	 1,1,1,0,0,
 	 1,1,1,0,0,
@@ -208,7 +222,7 @@ char bar_right[4][5*8] = {
 	 1,1,1,0,0,
 	 1,1,1,0,0,
       },{
-	 1,1,1,1,0, //  char r4[] = 
+	 1,1,1,1,0, //  char r4[] =
 	 1,1,1,1,0,
 	 1,1,1,1,0,
 	 1,1,1,1,0,
@@ -216,11 +230,20 @@ char bar_right[4][5*8] = {
 	 1,1,1,1,0,
 	 1,1,1,1,0,
 	 1,1,1,1,0,
+      },{
+	 1,1,1,1,1, //  char r5[] =
+	 1,1,1,1,1,
+	 1,1,1,1,1,
+	 1,1,1,1,1,
+	 1,1,1,1,1,
+	 1,1,1,1,1,
+	 1,1,1,1,1,
+	 1,1,1,1,1,
       },};
 
-char bar_left[4][5*8] = {  /* Presently, this is not used. */
+char bar_left[5][5*8] = {  /* Presently, this is not used. */
   {
-	 0,0,0,0,1, //  char l1[] = 
+	 0,0,0,0,1, //  char l1[] =
 	 0,0,0,0,1,
 	 0,0,0,0,1,
 	 0,0,0,0,1,
@@ -229,7 +252,7 @@ char bar_left[4][5*8] = {  /* Presently, this is not used. */
 	 0,0,0,0,1,
 	 0,0,0,0,1,
       },{
-	 0,0,0,1,1, //  char l2[] = 
+	 0,0,0,1,1, //  char l2[] =
 	 0,0,0,1,1,
 	 0,0,0,1,1,
 	 0,0,0,1,1,
@@ -238,7 +261,7 @@ char bar_left[4][5*8] = {  /* Presently, this is not used. */
 	 0,0,0,1,1,
 	 0,0,0,1,1,
       },{
-	 0,0,1,1,1, //  char l3[] = 
+	 0,0,1,1,1, //  char l3[] =
 	 0,0,1,1,1,
 	 0,0,1,1,1,
 	 0,0,1,1,1,
@@ -247,7 +270,7 @@ char bar_left[4][5*8] = {  /* Presently, this is not used. */
 	 0,0,1,1,1,
 	 0,0,1,1,1,
       },{
-	 0,1,1,1,1, //  char l4[] = 
+	 0,1,1,1,1, //  char l4[] =
 	 0,1,1,1,1,
 	 0,1,1,1,1,
 	 0,1,1,1,1,
@@ -255,6 +278,15 @@ char bar_left[4][5*8] = {  /* Presently, this is not used. */
 	 0,1,1,1,1,
 	 0,1,1,1,1,
 	 0,1,1,1,1,
+      },{
+	 1,1,1,1,1, //  char l5[] =
+	 1,1,1,1,1,
+	 1,1,1,1,1,
+	 1,1,1,1,1,
+	 1,1,1,1,1,
+	 1,1,1,1,1,
+	 1,1,1,1,1,
+	 1,1,1,1,1,
       },};
 
 
@@ -268,7 +300,7 @@ char icons[3][5*8] = {
      1,0,0,0,1,
      1,1,0,1,1,
      1,1,1,1,1,
-   },   
+   },
 
    {
      1,1,1,1,1,  // Filled Heart
@@ -280,7 +312,7 @@ char icons[3][5*8] = {
      1,1,0,1,1,
      1,1,1,1,1,
    },
-   
+
    {
      0,0,0,0,0,  // Ellipsis
      0,0,0,0,0,
@@ -291,261 +323,208 @@ char icons[3][5*8] = {
      0,0,0,0,0,
      1,0,1,0,1,
    },
-   
+
   };
 
 
+// Vars for the server core
+MODULE_EXPORT char * api_version = API_VERSION;
+MODULE_EXPORT int stay_in_foreground = 1;
+MODULE_EXPORT int supports_multiple = 0;
+MODULE_EXPORT char *symbol_prefix = "bayrad_";
 
 
 ////////////////////////////////////////////////////////////
 // init() should set up any device-specific stuff, and
 // point all the function pointers.
-int bayrad_init(struct lcd_logical_driver *driver, char *args) 
+MODULE_EXPORT int
+bayrad_init(Driver *drvthis)
 {
 
-   char device[256]; 
-   int speed=B9600;
-   char *argv[64];
-   int argc;
-   int i;
+   char device[256] = BAYRAD_DEFAULT_DEVICE;
+   int speed = B9600;
    struct termios portset;
-   int tmp;
 
-   //printf("bayrad_init()\n");
-   bayrad = driver;
-   strcpy(device, "/dev/lcd");
-   driver->wid = 20;
-   driver->hgt = 2;
+   width = 20;
+   height = 2;
 
-  // You must use driver->framebuf here, but may use lcd.framebuf later.
-  if(!driver->framebuf) 
-    driver->framebuf = malloc(driver->wid * driver->hgt);
+  framebuf = malloc(width * height);
+  if (framebuf == NULL) {
+    bayrad_close(drvthis);
+    report(RPT_ERR, "bayrad_init: Error: unable to create BayRAD framebuffer.");
+    return -1;
+  }
 
-  if(!driver->framebuf)
-    {
-      bayrad_close();
-      fprintf(stderr, "\nError: unable to create BayRAD framebuffer.\n");
-      return -1;
-    }
+  memset(framebuf, ' ', width * height);
 
-  memset(driver->framebuf, ' ', driver->wid*driver->hgt);
+  //cellheight = 5;
+  //cellwidth = 8;
 
-  driver->cellwid = 5;
-  driver->cellhgt = 8;
+  /* Read config file */
 
-  /*-----------------------------------------------------*/
+  /* What device should be used */
+  strncpy(device, drvthis->config_get_string(drvthis->name, "Device", 0,
+						   BAYRAD_DEFAULT_DEVICE), sizeof(device));
+  device[sizeof(device)-1] = '\0';
+  report(RPT_INFO, "%s: using Device %s", drvthis->name, device);
 
-  //fprintf(stderr, "bayrad_init: Args(all): %s\n", args);
-   
-   argc = get_args(argv, args, 64);
+  /* What speed to use */
+  speed = drvthis->config_get_int(drvthis->name, "Speed", 0, 9600);
+  
+  if (speed == 1200)       speed = B1200;
+  else if (speed == 2400)  speed = B2400;
+  else if (speed == 9600)  speed = B9600;
+  else if (speed == 19200) speed = B19200;
+  else {
+    report(RPT_WARNING, "%s: illegal Speed %d; must be one of 1200, 2400, 9600 or 19200; using default %d",
+		    drvthis->name, speed, 9600);
+    speed = B9600;
+  }
 
-   /*
-   for(i=0; i<argc; i++)
-   {
-      printf("Arg(%i): %s\n", i, argv[i]);
-   }
-   */
-   
-   for(i=0; i<argc; i++)
-   {
-      //printf("Arg(%i): %s\n", i, argv[i]);
-      if(0 == strcmp(argv[i], "-d")  || 0 == strcmp(argv[i], "--device"))
-	{
-	  if(i + 1 > argc) {
-	    fprintf(stderr, "bayrad_init: %s requires an argument\n",
-		    argv[i]);
-	    return -1;
-	  }
-	  strcpy(device, argv[++i]);
-	}
-      else if(0 == strcmp(argv[i], "-s")  || 0 == strcmp(argv[i], "--speed"))
-	{
-	  if(i + 1 > argc) 
-	    {
-	      fprintf(stderr, "bayrad_init: %s requires an argument\n", argv[i]);
-	      return -1;
-	    }
-	  tmp = atoi(argv[++i]);
-	  if(tmp==1200) 
-	    speed=B1200;
-	  else if(tmp==2400) 
-	    speed=B2400;
-	  else if(tmp==9600) 
-	    speed=B9600;
-	  else if(tmp==19200) 
-	    speed=B19200;
-	  else 
-	    {
-	      fprintf(stderr, "bayrad_init: %s argument must be 1200, 2400, 9600 or 19200. Using default value.\n",
-		      argv[i]);
-	    }
-      }
-      else if(0 == strcmp(argv[i], "-h")  || 0 == strcmp(argv[i], "--help"))
-	{
-	  printf("LCDproc EMAC BayRAD LCD driver\n"
-		 "\t-d\t--device\tSelect the output device to use [/dev/lcd]\n"
-		 /*"\t-t\t--type\t\tSelect the LCD type (size) [20x2]\n"*/
-		 "\t-s\t--speed\t\tSet the communication speed [19200]\n"
-		 "\t-h\t--help\t\tShow this help information\n");
-	  return -1;
-	}
-      else
-	{
-	  printf("Invalid parameter: %s\n", argv[i]);
-	}
-      
-   }
-   
-   // Set up io port correctly, and open it...
-   fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY); 
-   if (fd == -1) 
-   {
-      fprintf(stderr, "bayrad_init: failed (%s)\n", strerror(errno));
-      return -1;
-   }
+  // Set up io port correctly, and open it...
+  fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY);
+  if (fd == -1) {
+    report(RPT_ERR, "%s: open(%s) failed (%s)", drvthis->name, device, strerror(errno));
+    return -1;
+  }
 
-   //else fprintf(stderr, "bayrad_init: opened device %s\n", device);
+  //else debug(RPT_DEBUG, "bayrad_init: opened device %s", device);
 
-   tcflush(fd, TCIOFLUSH);
+  tcflush(fd, TCIOFLUSH);
 
-   // We use RAW mode
+  // We use RAW mode
 #ifdef HAVE_CFMAKERAW
-   // The easy way
-   cfmakeraw( &portset );
+  // The easy way
+  cfmakeraw(&portset);
 #else
-   // The hard way
-   portset.c_iflag &= ~( IGNBRK | BRKINT | PARMRK | ISTRIP
-                         | INLCR | IGNCR | ICRNL | IXON );
-   portset.c_oflag &= ~OPOST;
-   portset.c_lflag &= ~( ECHO | ECHONL | ICANON | ISIG | IEXTEN );
-   portset.c_cflag &= ~( CSIZE | PARENB | CRTSCTS );
-   portset.c_cflag |= CS8 | CREAD | CLOCAL ;
+  // The hard way
+  portset.c_iflag &= ~( IGNBRK | BRKINT | PARMRK | ISTRIP
+                        | INLCR | IGNCR | ICRNL | IXON );
+  portset.c_oflag &= ~OPOST;
+  portset.c_lflag &= ~( ECHO | ECHONL | ICANON | ISIG | IEXTEN );
+  portset.c_cflag &= ~( CSIZE | PARENB | CRTSCTS );
+  portset.c_cflag |= CS8 | CREAD | CLOCAL ;
 #endif
 
-   portset.c_cc[VTIME] = 0;  // Don't use the timer, no workee
-   portset.c_cc[VMIN] = 1;  // Need at least 1 char
+  portset.c_cc[VTIME] = 0;  // Don't use the timer, no workee
+  portset.c_cc[VMIN] = 1;  // Need at least 1 char
 
-   // Set port speed
-   cfsetospeed(&portset, B9600);
-   cfsetispeed(&portset, B0);
+  // Set port speed
+  cfsetospeed(&portset, B9600);
+  cfsetispeed(&portset, B0);
 
-   // Do it...
-   tcsetattr(fd, TCSANOW, &portset);
-   tcflush(fd, TCIOFLUSH);
+  // Do it...
+  tcsetattr(fd, TCSANOW, &portset);
+  tcflush(fd, TCIOFLUSH);
 
-   /*------------------------------------*/
+  /*------------------------------------*/
 
-   /*** Open the port write-only, then fork off a process that reads chars ?!!? ***/
+  /*** Open the port write-only, then fork off a process that reads chars ?!!? ***/
 
+  /* Reset and clear the BayRAD */
+  write(fd, "\x80\x86\x00\x1a\x1e", 5);  // sync,reset to type 0, clear screen, home
 
-   /* Reset and clear the BayRAD */
-   write(fd, "\x80\x86\x00\x1a\x1e", 5);  // sync,reset to type 0, clear screen, home
+  report(RPT_DEBUG, "%s: init() done", drvthis->name);
 
-
-  driver->clear = bayrad_clear;
-  driver->string = bayrad_string;
-  driver->chr = bayrad_chr;
-  driver->vbar = bayrad_vbar;
-  driver->init_vbar = bayrad_init_vbar;
-  driver->hbar = bayrad_hbar;
-  driver->init_hbar = bayrad_init_hbar;
-  //driver->num = NULL; //bayrad_num;
-  //driver->init_num = NULL; //bayrad_init_num;
-  driver->init = bayrad_init;
-  driver->close = bayrad_close;
-  driver->flush = bayrad_flush;
-  driver->flush_box = bayrad_flush_box;
-  //driver->contrast = NULL;                 
-  driver->backlight = bayrad_backlight;
-  driver->set_char = bayrad_set_char;
-  driver->icon = bayrad_icon;
-  driver->draw_frame = bayrad_draw_frame;
-
-  driver->getkey = bayrad_getkey;
-  
-  
-  return fd;  
+  return 0;
 }
 
 
-// Below here, you may use either lcd.framebuf or driver->framebuf..
+// Below here, you may use either lcd.framebuf or drvthis->framebuf..
 // lcd.framebuf will be set to the appropriate buffer before calling
 // your driver.
 
-void bayrad_close() 
+MODULE_EXPORT void
+bayrad_close(Driver * drvthis)
 {
-  if(bayrad->framebuf != NULL) 
-    free(bayrad->framebuf);
+  //debug(RPT_DEBUG, "Closing BayRAD");
+  if (fd >= 0) {
+    write(fd, "\x8e\x00", 2);  // Backlight OFF
+    close(fd);
+  }  
 
-  bayrad->framebuf = NULL;
-  write(fd, "\x8e\x00", 2);  // Backlight OFF
-
-  //fprintf(stderr, "\nClosing BayRAD.\n");
-
-  close(fd); 
+  if (framebuf != NULL)
+    free(framebuf);
+  framebuf = NULL;
 }
+
+
+/////////////////////////////////////////////////////////////////
+// Returns the display width
+//
+MODULE_EXPORT int
+bayrad_width(Driver * drvthis)
+{
+	return width;
+}
+
+
+/////////////////////////////////////////////////////////////////
+// Returns the display height
+//
+MODULE_EXPORT int
+bayrad_height(Driver * drvthis)
+{
+	return height;
+}
+
 
 /////////////////////////////////////////////////////////////////
 // Clears the LCD screen
 //
-void bayrad_clear() 
+MODULE_EXPORT void
+bayrad_clear(Driver * drvthis)
 {
-  memset(bayrad->framebuf, ' ', bayrad->wid*bayrad->hgt);
-  
+  memset(framebuf, ' ', width * height);
+  ccmode = CCMODE_STANDARD;
 }
 
 
 //////////////////////////////////////////////////////////////////
 // Flushes all output to the lcd...
 //
-void bayrad_flush()
+MODULE_EXPORT void
+bayrad_flush(Driver * drvthis)
 {
-
-  //fprintf(stderr, "\nBayRAD flush"); 
-
+  //debug(RPT_DEBUG, "BayRAD flush");
   write(fd, "\x80\x1e", 2);  //sync, home
-  write(fd, bayrad->framebuf, 20);
+  write(fd, framebuf, 20);
   write(fd, "\x1e\x0a", 2);  //home, LF
-  write(fd, bayrad->framebuf+20, 20);
-
-  return;
+  write(fd, framebuf+20, 20);
 }
 
 /////////////////////////////////////////////////////////////////
 // Prints a string on the lcd display, at position (x,y).  The
 // upper-left is (1,1), and the lower right should be (20,4).
 //
-void bayrad_string(int x, int y, char string[]) 
+MODULE_EXPORT void
+bayrad_string(Driver * drvthis, int x, int y, char string[])
 {
   int i;
-  unsigned char c;
 
-  //fprintf(stderr, "\nPutting string %s at %i, %i", string, x, y);
+  //debug(RPT_DEBUG, "Putting string %s at %i, %i", string, x, y);
 
-  x -= 1;  // Convert 1-based coords to 0-based...
-  y -= 1;
-  
-  for(i=0; string[i]; i++)
-  {
-     // Check for buffer overflows...
-     if((y*bayrad->wid) + x + i  >  (bayrad->wid*bayrad->hgt)) 
-       break;
+  x--;  // Convert 1-based coords to 0-based...
+  y--;
 
-     c = (unsigned char) string[i];
+  for (i = 0; string[i] != '\0'; i++) {
+    unsigned char c = (unsigned char) string[i];
 
-     if(c> 0x7F && c < 0x98)
-       {
-	 //c &= 0x7F;
-	 fprintf(stderr, "\nIllegal char %#x requested in bayrad_string()!\n", c);
-	 c = ' ';
-	 
-       }
+    // Check for buffer overflows...
+    if ((y * width) + x + i > (width * height))
+      break;
 
-     if(c < 8)      /* The custom characters are mapped at 0x98 - 0x9F, */
-       c += 0x98;   /* as 0x07 makes a beep instead of printing a character */
+    if ((c > 0x7F) && (c < 0x98)) {
+      //c &= 0x7F;
+      report(RPT_WARNING, "%s: illegal char 0x%02X requested in bayrad_string()",
+			 drvthis->name, c);
+      c = ' ';
+    }
 
+    if (c < 8)      /* The custom characters are mapped at 0x98 - 0x9F, */
+      c += 0x98;   /* as 0x07 makes a beep instead of printing a character */
 
-     bayrad->framebuf[(y*bayrad->wid) + x + i] = c;
+     framebuf[(y * width) + x + i] = c;
   }
 }
 
@@ -553,240 +532,216 @@ void bayrad_string(int x, int y, char string[])
 // Prints a character on the lcd display, at position (x,y).  The
 // upper-left is (1,1), and the lower right should be (20,2).
 //
-void bayrad_chr(int x, int y, char c) 
-{ 
-  unsigned char ch;
+MODULE_EXPORT void
+bayrad_chr(Driver * drvthis, int x, int y, char c)
+{
+  unsigned char ch = (unsigned char) c;
 
-  //fprintf(stderr, "\nPutting char %c (%#x) at %i, %i", c, c, x, y);
+  //debug(RPT_DEBUG, "Putting char %c (%#x) at %i, %i", c, c, x, y);
 
   y--;
   x--;
-  ch = (unsigned char) c;
 
-  if(ch > 0x7F && ch < 0x98)
-    {
-      fprintf(stderr, "\nIllegal char %#x requested in bayrad_chr()!\n", ch);
-      ch = ' ';
-    }
+  if ((ch > 0x7F) && (ch < 0x98)) {
+    report(RPT_WARNING, "%s: illegal char 0x%02X requested in bayrad_chr()",
+			drvthis->name, c);
+    ch = ' ';
+  }
 
   /* No shifting the custom chars here, so bayrad_chr() can beep */
 
-  bayrad->framebuf[(y*bayrad->wid) + x] = ch;
+  framebuf[(y * width) + x] = ch;
 }
 
 //////////////////////////////////////////////////////////////////////
 // Turns the lcd backlight on or off...
 //
-void bayrad_backlight(int on)
+MODULE_EXPORT void
+bayrad_backlight(Driver * drvthis, int on)
 {
-
   /* This violates the LCDd driver model, but it does leave the
    * backlight control entirely in the hands of the user via
    * BayRAd buttons, which is nice, since the backlights have
    * a finite lifespan... */
 
-  if(on)
-  {;
+  if (on) {
+    ;
     //write(fd, "\x8e\x0f", 2);
-    //fprintf(stderr, "Backlight ON\n");
+    //debug(RPT_DEBUG, "Backlight ON");
   }
-  else
-  {;
+  else {
+    ;
     //write(fd, "\x8e\x00", 2);
-    //fprintf(stderr, "Backlight OFF\n");
+    //debug(RPT_DEBUG, "Backlight OFF");
   }
-
 }
 
 //////////////////////////////////////////////////////////////////////
 // Tells the driver to get ready for vertical bargraphs.
 //
-void bayrad_init_vbar() 
+void
+bayrad_init_vbar(Driver * drvthis)
 {
-  //printf("Init Vertical bars.\n");
+  //debug(RPT_DEBUG,"Init Vertical bars.");
 
-  bayrad_set_char(1, bar_up[0]);
-  bayrad_set_char(2, bar_up[1]);
-  bayrad_set_char(3, bar_up[2]);
-  bayrad_set_char(4, bar_up[3]);
-  bayrad_set_char(5, bar_up[4]);
-  bayrad_set_char(6, bar_up[5]);
-  bayrad_set_char(7, bar_up[6]);
-  
+  if (ccmode == CCMODE_VBAR) {
+    /* Work already done */
+    return;
+  }
 
-  return;
+  if (ccmode != CCMODE_STANDARD) {
+    /* Not supported (yet) */
+    report(RPT_WARNING, "%s: cannot combine two modes using user defined characters",
+		    drvthis->name);
+    return;
+  }
+  ccmode = CCMODE_VBAR;
+
+  bayrad_set_char(drvthis, 1, bar_up[0]);
+  bayrad_set_char(drvthis, 2, bar_up[1]);
+  bayrad_set_char(drvthis, 3, bar_up[2]);
+  bayrad_set_char(drvthis, 4, bar_up[3]);
+  bayrad_set_char(drvthis, 5, bar_up[4]);
+  bayrad_set_char(drvthis, 6, bar_up[5]);
+  bayrad_set_char(drvthis, 7, bar_up[6]);
 }
 
 //////////////////////////////////////////////////////////////////////
 // Tells the driver to get ready for horizontal bargraphs.
 //
-void bayrad_init_hbar() 
+void
+bayrad_init_hbar(Driver * drvthis)
 {
-  //printf("Init Horizontal bars.\n");  
+  //debug(RPT_DEBUG,"Init Horizontal bars.");
 
-  bayrad_set_char(1, bar_right[0]);
-  bayrad_set_char(2, bar_right[1]);
-  bayrad_set_char(3, bar_right[2]);
-  bayrad_set_char(4, bar_right[3]);
+  if (ccmode == CCMODE_HBAR) {
+    /* Work already done */
+    return;
+  }
 
-return;
+  if (ccmode != CCMODE_STANDARD) {
+    /* Not supported (yet) */
+    report(RPT_WARNING, "%s: cannot combine two modes using user defined characters",
+		    drvthis->name);
+    return;
+  }
+  ccmode = CCMODE_HBAR;
+
+  bayrad_set_char(drvthis, 1, bar_right[0]);
+  bayrad_set_char(drvthis, 2, bar_right[1]);
+  bayrad_set_char(drvthis, 3, bar_right[2]);
+  bayrad_set_char(drvthis, 4, bar_right[3]);
+  bayrad_set_char(drvthis, 5, bar_right[4]);
 }
 
 //////////////////////////////////////////////////////////////////////
 // Tells the driver to get ready for big numbers, if possible.
 //
-void bayrad_init_num() 
+void
+bayrad_init_num(Driver * drvthis)
 {
-//  printf("Big Numbers.\n");
+//  debug(RPT_DEBUG,"Big Numbers.");
 }
 
 //////////////////////////////////////////////////////////////////////
 // Draws a big (4-row) number.
 //
-void bayrad_num(int x, int num) 
+MODULE_EXPORT void
+bayrad_num(Driver * drvthis, int x, int num)
 {
-//  printf("BigNum(%i, %i)\n", x, num);
+//  debug(RPT_DEBUG,"BigNum(%i, %i)", x, num);
 }
 
 //////////////////////////////////////////////////////////////////////
 // Changes the font data of character n.
 //
-void bayrad_set_char(int n, char *dat)
+MODULE_EXPORT void
+bayrad_set_char(Driver * drvthis, int n, char *dat)
 {
   char out[4];
   int row, col;
-  char letter;
 
-  //fprintf(stderr, "\nSet char %i", n);
+  //debug(RPT_DEBUG, "Set char %i", n);
 
-  if(n < 0 || n > 7) /* Do we want to the aliased indexes as well (0x98 - 0x9F?) */
+  if ((n < 0) || (n > 7)) /* Do we want to the aliased indexes as well (0x98 - 0x9F?) */
     return;
 
-
-  if(!dat) 
+  if (!dat)
     return;
-
-  n = 0x40 + (n * 8);  /* Set n to the proper location in CG RAM */
 
   /* Set the LCD to accept data for rewrite-able char n */
-  snprintf(out, sizeof(out), "\x88%c", n);
+  snprintf(out, sizeof(out), "\x88%c", 0x40 + (n * 8));
   write(fd, out, 2);
-  
-  for(row=0; row<bayrad->cellhgt; row++)
-  {
-    letter = 0;
-    for(col=0; col<bayrad->cellwid; col++)
-    {
+
+  for (row = 0; row < cellheight; row++) {
+    char letter = 0;
+
+    for (col = 0; col < cellwidth; col++) {
       letter <<= 1;
-      letter |= (dat[(row*bayrad->cellwid) + col] > 0);
+      letter |= (dat[(row*cellwidth) + col] > 0);
     }
     write(fd, &letter, 1);
   }
 
   /* return the LCD to normal operation */
   write(fd, "\x80", 1);
-
-return;
 }
 
 /////////////////////////////////////////////////////////////////
 // Draws a vertical bar, from the bottom of the screen up.
 //
-void bayrad_vbar(int x, int len) 
+MODULE_EXPORT void
+bayrad_vbar(Driver * drvthis, int x, int y, int len, int promille, int options)
 {
-   int y = 2;
+  //debug(RPT_DEBUG, "Vbar at %i, length %i", x, len);
 
-   //fprintf(stderr, "\nVbar at %i, length %i", x, len);
+  /* x and y are the start position of the bar.
+   * The bar by default grows in the 'up' direction
+   * (other direction not yet implemented).
+   * len is the number of characters that the bar is long at 100%
+   * promille is the number of promilles (0..1000) that the bar should be filled.
+   */
 
-   if(len >= bayrad->cellhgt)
-     {
-       bayrad_chr(x, y, 0xFF);
-       len -= bayrad->cellhgt;
-       y = 1;
-     }
-   
-   if(!len)
-     return;
-   
-   if(len > bayrad->cellhgt)
-     {
-       bayrad_chr(x, y, '^');  /* Show we've gone off the chart */
-       return;
-     }
-   
-   /* init_vbar sets custom chars 1 - 7.  Height 8 is char 0xFF. */
-   if(len == 8)
-     bayrad_chr(x, y, 0xFF);
-   else
-     bayrad_chr(x, y, (len+0x98));
-   
-return;
+  bayrad_init_vbar(drvthis);
+
+  lib_vbar_static(drvthis, x, y, len, promille, options, cellheight, 0x98);
 }
 
 /////////////////////////////////////////////////////////////////
 // Draws a horizontal bar to the right.
 //
-void bayrad_hbar(int x, int y, int len) 
+MODULE_EXPORT void
+bayrad_hbar(Driver * drvthis, int x, int y, int len, int promille, int options)
 {
+  //debug(RPT_DEBUG, "Hbar at %i,%i; length %i", x, y, len);
 
-  //fprintf(stderr, "\nHbar at %i,%i; length %i", x, y, len);
+  /* x and y are the start position of the bar.
+   * The bar by default grows in the 'right' direction
+   * (other direction not yet implemented).
+   * len is the number of characters that the bar is long at 100%
+   * promille is the number of promilles (0..1000) that the bar should be filled.
+   */
 
-  while((x <= bayrad->wid) && (len > 0))
-  {
-    if(len < bayrad->cellwid)
-      {
-	bayrad_chr(x, y, 0x98 + len);
-	break;
-      }
+  bayrad_init_hbar(drvthis);
 
-    bayrad_chr(x, y, 0xFF);
-    len -= bayrad->cellwid;
-    x++;
-  }
- 
-  return;
+  lib_hbar_static(drvthis, x, y, len, promille, options, cellwidth, 0x98);
 }
 
 
 /////////////////////////////////////////////////////////////////
-// Sets character 0 to an icon...
+// Places an icon on screen
 //
-void bayrad_icon(int which, char dest)
+MODULE_EXPORT int
+bayrad_icon(Driver * drvthis, int x, int y, int icon)
 {
-
-  //printf("Char %i set to icon %i\n", dest, which);  
-  bayrad_set_char(dest, &icons[which][0]);
-
-  return;
-}
-
-
-//////////////////////////////////////////////////////////////////////
-// Send a rectangular area to the display.
-//
-// I've just called bayrad_flush() because there's not much point yet
-// in flushing less than the entire framebuffer.
-//
-void bayrad_flush_box(int lft, int top, int rgt, int bot)
-{
-   bayrad_flush();
-  
-}
-
-//////////////////////////////////////////////////////////////////////
-// Draws the framebuffer on the display.
-//
-
-void bayrad_draw_frame(char *dat)
-{  
-
-  //fprintf(stderr, "\nBayRAD draw frame");
-
-  write(fd, "\x80\x1e", 2);  // NOP, home
-  write(fd, bayrad->framebuf, 20);
-  write(fd, "\n", 1);
-  write(fd, bayrad->framebuf+20, 20);  
-
+  switch (icon) {
+    case ICON_BLOCK_FILLED:
+      bayrad_chr( drvthis, x, y, 0xFF );
+      break;
+    default:
+      return -1; /* Let the core do other icons */
+  }
+  return 0;
 }
 
 
@@ -795,51 +750,49 @@ void bayrad_draw_frame(char *dat)
 //
 // Return 0 for "nothing available".
 //
-char bayrad_getkey()
-{  
+MODULE_EXPORT const char *
+bayrad_get_key(Driver * drvthis)
+{
   fd_set brfdset;
-  struct timeval twait; 
+  struct timeval twait;
   char readchar;
   int retval;
+  static char ret_val[2] = { 0, 0 };
 
-  //fprintf(stderr, "\nBayRAD getkey...");
+  //debug(RPT_DEBUG, "BayRAD get_key...");
 
   /* Check for incoming data.  Turn backlight ON/OFF as needed */
-  /* This is strictly custom, as LCDd doesn't do anything */
-  /* with received keypad characters. */
+
+  /* TODO: NEEDS TO BE ADAPTED TO RETURN REAL KEY DESCRIPTION STRINGS ! */
+
   FD_ZERO(&brfdset);
   FD_SET(fd, &brfdset);
-  
+
   twait.tv_sec = 0;
   twait.tv_usec = 0;
 
-  if(select(fd+1, &brfdset, NULL, NULL, &twait))
-    {
-      retval = read(fd, &readchar, 1);
-      if(retval > 0)
-	{	      
-	  //fprintf(stderr, "Received char %c", readchar);
-	  
-	  if(readchar == 'Y')
-	    {
-	      write(fd, "\x8e\x0f", 2);
-	    }
-	  else if(readchar == 'N')
-	    {
-	      write(fd, "\x8e\x00", 2);
-	    }
-	
-	}  /* if read returned data */
-      else
-	{  /* Read error */
-	  fprintf(stderr, "\nRead error in BayRAD getchar.");
-	}
-    }  /* if select */
-  else
-    {
-      ;//fprintf(stderr, "No BayRAD data present."); 
-    }
+  if (select(fd+1, &brfdset, NULL, NULL, &twait)) {
+    retval = read(fd, &readchar, 1);
+    if (retval > 0) {
+      debug(RPT_INFO, "bayrad_get_key: Got key: %c", readchar);
 
-return readchar;
+      if (readchar == 'Y') {
+        write(fd, "\x8e\x0f", 2);
+      }
+      else if (readchar == 'N') {
+        write(fd, "\x8e\x00", 2);
+      }
+    }  /* if read returned data */
+    else {
+      /* Read error */
+      report(RPT_ERR, "%s: Read error in BayRAD getchar.", drvthis->name);
+    }
+  }  /* if select */
+  else {
+      ;//debug(RPT_DEBUG, "No BayRAD data present.");
+  }
+
+  ret_val[0] = readchar;
+  return ret_val;
 }
 

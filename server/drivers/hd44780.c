@@ -9,7 +9,7 @@
  *
  * To add support for additional HD44780 connections:
  *  1. Add a connection type and mapping to hd44780-drivers.h
- *  2. Call your initialisation routine
+ *  2. Call your initialisation roUine
  *  3. Create the low-level driver (use hd44780-ext8bit.c as a starting point)
  *  4. Modify the makefile
  *
@@ -27,6 +27,9 @@
  *
  * Modified October 2001 to read the configfile.
  *
+ * Moved the delay timing code by Charles Steinkuehler to timing.h.
+ * Guillaume Filion <gfk@logidac.com>, December 2001
+ *
  * This file is released under the GNU General Public License. Refer to the
  * COPYING file distributed with this package.
  *
@@ -39,33 +42,42 @@
  *		  1997 Matthias Prinke <m.prinke@trashcan.mcnet.de>
  */
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <fcntl.h>
-#include <string.h>
-#include <errno.h>
-#ifdef HAVE_CONFIG_H
-# include "config.h"
-#endif
-#include "port.h"
 
 // Uncomment one of the lines below to select your desired delay generation
 // mechanism.  If both defines are commented, the original I/O read timing
 // loop is used.  Using DELAY_NANOSLEEP  seems to provide the best performance.
 //#define DELAY_GETTIMEOFDAY
 #define DELAY_NANOSLEEP
+//#define DELAY_IOCALLS
 
-# if TIME_WITH_SYS_TIME
-#  include <sys/time.h>
-#  include <time.h>
-# else
-#  if HAVE_SYS_TIME_H
-#   include <sys/time.h>
-#  else
-#   include <time.h>
-#  endif
-# endif
+// Default parallel port address
+#define LPTPORT	 0x378
+
+// Autorepeat values
+#define KEYPAD_AUTOREPEAT_DELAY 500
+#define KEYPAD_AUTOREPEAT_FREQ 15
+
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <string.h>
+#include <errno.h>
+
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
+#include "lcd.h"
+#include "lcd_lib.h"
+#include "hd44780.h"
+#include "report.h"
+
+#include "timing.h"
+#include "hd44780-low.h"
+#include "hd44780-drivers.h"
+#include "hd44780-charmap.h"
 
 // Only one alternate delay method at a time, please ;-)
 #if defined DELAY_GETTIMEOFDAY
@@ -75,262 +87,249 @@
 # include <time.h>
 #endif
 
-#include "shared/str.h"
-#include "render.h"
-#include "lcd.h"
-#include "hd44780.h"
-// #include "drv_base.h"
 
-#include "hd44780-low.h"
-#include "hd44780-drivers.h"
-#include "hd44780-charmap.h"
+static char *defaultKeyMapDirect[KEYPAD_MAXX] = { "A", "B", "C", "D", "E" };
 
-// default parallel port address
-#ifndef LPTPORT
-#define LPTPORT	 0x378
-#endif
-
-unsigned int port = LPTPORT;
-
-lcd_logical_driver *HD44780;
-HD44780_functions *hd44780_functions;
-
-// default value
-static enum connectionType connection = HD_4bit;
-static int connectiontype_index = 0;
-
-// spanList[line number] = display line number is in
-static int *spanList = NULL;
-static int numLines = 0;
-
-// dispVOffset is a cumulative sized array of line numbers for each display.
-// use this to determine the vertical positioning on a given display
-static int *dispVOffset = NULL;
-static int numDisplays = 0;
-
-// dispSizes is the vertical size of each display. This is the same as the
-// input span list but is kept to save some cpu cycles.
-static int *dispSizes = NULL;
-
-// Keypad, backlight extended interface and delay options
-char have_keypad = 0;	 // off by default
-char have_backlight = 0; // off by default
-char extIF = 0;		 // off by default
-int delayMult = 0;	 // Delay multiplier for slow displays
-char delayBus = 0;	 // Delay if the computer can send data too fast over
-			 // its bus to LPT port
-
-			 // These vars is not static, so it's accessable from
-			 // all sub-drivers
-			 // Indeed, this should become cleaner...  later...
-
-// Autorepeat values
-#define KEYPAD_AUTOREPEAT_DELAY 500
-#define KEYPAD_AUTOREPEAT_FREQ 15
-
-// keyMapDirect contains an array of the ascii-codes that should be generated
-// when a directly connected key is pressed (not in matrix).
-static char keyMapDirect[KEYPAD_MAXX] = { 'A', 'B', 'C', 'D', 'E' };
-
-// keyMapMatrix contrains an array with arrays of the ascii-codes that should be generated
-// when a key in the matrix is pressed.
-static char keyMapMatrix[KEYPAD_MAXY][KEYPAD_MAXX] = {
-	{ '1', '2', '3', 'A', 'E' },
-	{ '4', '5', '6', 'B', 'F' },
-	{ '7', '8', '9', 'C', 'G' },
-	{ '*', '0', '#', 'D', 'H' },
-	{ 'I', 'J', 'K', 'L', 'M' },
-	{ 'N', 'O', 'P', 'Q', 'R' },
-	{ 'S', 'T', 'U', 'V', 'W' },
-	{ 'X', 'Y', 'Z', 'a', 'b' },
-	{ 'c', 'd', 'e', 'f', 'g' },
-	{ 'h', 'i', 'j', 'k', 'l' },
-	{ 'm', 'n', 'o', 'p', 'q' }};
-
-static char pressed_key = 0;
-static int pressed_key_repetitions = 0;
-static struct timeval pressed_key_time;
-
-// for incremental updates store last lcd contents
-static char * lcd_contents = (char *) 0;
+static char *defaultKeyMapMatrix[KEYPAD_MAXY][KEYPAD_MAXX] = {
+		{ "1", "2", "3", "A", "E" },
+		{ "4", "5", "6", "B", "F" },
+		{ "7", "8", "9", "C", "G" },
+		{ "*", "0", "#", "D", "H" },
+		{ NULL, NULL, NULL, NULL, NULL },
+		{ NULL, NULL, NULL, NULL, NULL },
+		{ NULL, NULL, NULL, NULL, NULL },
+		{ NULL, NULL, NULL, NULL, NULL },
+		{ NULL, NULL, NULL, NULL, NULL },
+		{ NULL, NULL, NULL, NULL, NULL },
+		{ NULL, NULL, NULL, NULL, NULL }};
 
 // function declarations
-void HD44780_close ();
-void HD44780_flush ();
-void HD44780_clear ();
-void HD44780_chr (int x, int y, char ch);
-void HD44780_string (int x, int y, char *s);
-void HD44780_flush_box (int lft, int top, int rgt, int bot);
-void HD44780_backlight (int on);
-void HD44780_init_vbar ();
-void HD44780_init_hbar ();
-void HD44780_vbar (int x, int len);
-void HD44780_hbar (int x, int y, int len);
-void HD44780_init_num ();
-void HD44780_num (int x, int num);
-void HD44780_heartbeat (int type);
-void HD44780_set_char (int n, char *dat);
-void HD44780_icon (int which, char dest);
-void HD44780_draw_frame (char *dat);
-char HD44780_getkey ();
-
-void HD44780_position (int x, int y);
-static void uPause (int delayCalls);
-unsigned char HD44780_scankeypad();
+void HD44780_position (Driver *drvthis, int x, int y);
+static void uPause (PrivateData *p, int usecs);
+unsigned char HD44780_scankeypad(PrivateData *p);
 static int parse_span_list (int *spanListArray[], int *spLsize, int *dispOffsets[], int *dOffsize, int *dispSizeArray[], char *spanlist);
+
+// Vars for the server core
+MODULE_EXPORT char * api_version = API_VERSION;
+MODULE_EXPORT int stay_in_foreground = 0;
+MODULE_EXPORT int supports_multiple = 1; // yes, we have no global variables (except for constants)
+MODULE_EXPORT char *symbol_prefix = "HD44780_";
+
 
 /////////////////////////////////////////////////////////////////
 // Opens com port and sets baud correctly...
 //
-int
-HD44780_init (lcd_logical_driver * driver, char *args)
+MODULE_EXPORT int
+HD44780_init (Driver * drvthis)
 {
 	// TODO: remove the two magic numbers below
 	// TODO: single point of return
-	//char *argv[64];
-	//int i;
 	char buf[40];
 	char *s;
+	int i;
+	int usb = 0;
+	PrivateData *p;
 
-	HD44780 = driver;
+	// Alocate and store private data
+	p = (PrivateData *) malloc(sizeof(PrivateData));
+	if (p == NULL)
+		return -1;
+	if (drvthis->store_private_ptr( drvthis, p))
+		return -1;
 
-	// TODO: replace DriverName with driver->name when that field exists.
-	#define DriverName "HD44780"
+	// Clear data struct
+	memset( p, 0, sizeof(*p) );
+	p->cellheight = 8; /* Do not change this !!! This is a controller property, not a display property !!! */
+	p->cellwidth = 5;
+	p->ccmode = CCMODE_STANDARD;
 
 
 	//// READ THE CONFIG FILE
 
-	port		= driver->config_get_int( DriverName, "port", 0, 0x278 );
-	extIF		= driver->config_get_bool( DriverName, "extended", 0, 0 );
-	have_keypad	= driver->config_get_bool( DriverName, "keypad", 0, 0 );
-	have_backlight	= driver->config_get_bool( DriverName, "backlight", 0, 0 );
-	delayMult 	= driver->config_get_int( DriverName, "delaymult", 0, 1 );
-	delayBus 	= driver->config_get_bool( DriverName, "delaybus", 0, 1 );
+	p->port			= drvthis->config_get_int( drvthis->name, "port", 0, LPTPORT );
+	p->ext_mode		= drvthis->config_get_bool( drvthis->name, "extendedmode", 0, 0 );
+	p->have_keypad		= drvthis->config_get_bool( drvthis->name, "keypad", 0, 0 );
+	p->have_backlight	= drvthis->config_get_bool( drvthis->name, "backlight", 0, 0 );
+	p->have_output		= drvthis->config_get_bool( drvthis->name, "outputport", 0, 0 );
+	p->delayMult 		= drvthis->config_get_int( drvthis->name, "delaymult", 0, 1 );
+	p->delayBus 		= drvthis->config_get_bool( drvthis->name, "delaybus", 0, 1 );
+	p->lastline 		= drvthis->config_get_bool( drvthis->name, "lastline", 0, 1 );
 
 	// Get and search for the connection type
-	s = driver->config_get_string( DriverName, "connectiontype", 0, "4bit" );
-	for (connectiontype_index = 0; strcmp (s, connectionMapping[connectiontype_index].connectionTypeStr) != 0 && connectionMapping[connectiontype_index].type != HD_unknown; ++connectiontype_index);
-
-	if (connectionMapping[connectiontype_index].type == HD_unknown) {
-		fprintf (stderr, "HD44780_init: Unknown connection type: %s\n", s);
+	s = drvthis->config_get_string( drvthis->name, "ConnectionType", 0, "4bit" );
+	for (i = 0; connectionMapping[i].name != NULL && strcmp (s, connectionMapping[i].name) != 0; i++);
+	if (connectionMapping[i].name == NULL) {
+		report(RPT_ERR, "%s: unknown ConnectionType: %s", drvthis->name, s);
 		return -1; // fatal error
-	} else
-		connection = connectionMapping[connectiontype_index].type;
+	} else {
+		p->connectiontype_index = i;
+		/* check if ConnectionType contains the string "USB" or "usb" */
+		if ((strstr(connectionMapping[i].name, "usb") != NULL) ||
+		    (strstr(connectionMapping[i].name, "USB") != NULL))
+			usb = 1;
+	}
 
 	// Get and parse vspan only when specified
-	s = driver->config_get_string( DriverName, "vspan", 0, "" );
-	if( s[0] != 0 ) {
-		if (parse_span_list (&spanList, &numLines, &dispVOffset, &numDisplays, &dispSizes, s) == -1) {
-			fprintf (stderr, "HD44780_init: invalid vspan value: %s\n", s );
+	s = drvthis->config_get_string( drvthis->name, "vspan", 0, "" );
+	if ( s[0] != 0 ) {
+		if (parse_span_list (&(p->spanList), &(p->numLines), &(p->dispVOffset), &(p->numDisplays), &(p->dispSizes), s) == -1) {
+			report(RPT_ERR, "%s: invalid vspan value: %s", drvthis->name, s);
 			return -1;
 		}
 	}
 
 	// Get and parse size
-	s = driver->config_get_string( DriverName, "size", 0, "20x4" );
-	if( sscanf( s, "%dx%d", &(driver->wid), &(driver->hgt) ) != 2 ) {
-		fprintf( stderr, "HD44780_init: Cannot read size: %s\n", s );
+	s = drvthis->config_get_string( drvthis->name, "size", 0, "20x4" );
+	if ( sscanf( s, "%dx%d", &(p->width), &(p->height) ) != 2
+	|| (p->width <= 0) || (p->width > LCD_MAX_WIDTH)
+	|| (p->height <= 0) || (p->height > LCD_MAX_HEIGHT)) {
+		report(RPT_ERR, "%s: cannot read Size %s", drvthis->name, s);
 	}
 
 	// default case for when spans aren't indicated
-	// - add a sanity check against HD44780->hgt ??
-	if (numLines == 0) {
-		if ((spanList = (int *) malloc (sizeof (int) * HD44780->hgt))) {
+	// - add a sanity check against p->height ??
+	if (p->numLines == 0) {
+		if ((p->spanList = (int *) malloc(sizeof(int) * p->height))) {
 			int i;
-			for (i = 0; i < HD44780->hgt; ++i) {
-				spanList[i] = 1;
-				numLines = HD44780->hgt;
+			for (i = 0; i < p->height; ++i) {
+				p->spanList[i] = 1;
+				p->numLines = p->height;
 			}
 		} else
-			fprintf (stderr, "Error mallocing for span list\n");
+			report(RPT_ERR, "%s: error mallocing", drvthis->name);
 	}
-	if (numDisplays == 0) {
-		if ((dispVOffset = (int *) malloc (sizeof (int))) && (dispSizes = (int *) malloc (sizeof (int)))) {
-			dispVOffset[0] = 0;
-			dispSizes[0] = HD44780->hgt;
-			numDisplays = 1;
+	if (p->numDisplays == 0) {
+		if ((p->dispVOffset = (int *) malloc(sizeof(int))) &&
+	            (p->dispSizes = (int *) malloc(sizeof(int)))) {
+			p->dispVOffset[0] = 0;
+			p->dispSizes[0] = p->height;
+			p->numDisplays = 1;
 		} else
-			fprintf (stderr, "Error mallocing for display sizes list\n");
+			report(RPT_ERR, "%s: error mallocing", drvthis->name);
 	}
 
+	if (timing_init() == -1) {
+		report(RPT_ERR, "%s: timing_init() failed (%s)", drvthis->name, strerror(errno));
+		return -1;
+	}	
 
 #if defined DELAY_NANOSLEEP
 	// Change to Round-Robin scheduling for nanosleep
 	{
 		// Set priority to 1
 		struct sched_param param;
-		param.sched_priority=1;
-		if (( sched_setscheduler(0, SCHED_RR, &param)) == -1) {
-			fprintf (stderr, "HD44780_init: failed (%s)\n", strerror (errno));
+		param.sched_priority = 1;
+		if ((sched_setscheduler(0, SCHED_RR, &param)) == -1) {
+			report(RPT_ERR, "%s: sched_setscheduler() failed (%s)",
+					drvthis->name, strerror(errno));
 			return -1;
 		}
 	}
 #endif
 
-	// Make sure the frame buffer is there...
-	if (!HD44780->framebuf)
-		HD44780->framebuf = (unsigned char *) malloc (HD44780->wid * HD44780->hgt);
-
-	if (!HD44780->framebuf) {
+	// Allocate framebuffer
+	p->framebuf = (unsigned char *) malloc(p->width * p->height);
+	if (p->framebuf == NULL) {
+		report(RPT_ERR, "%s: unable to allocate framebuffer", drvthis->name);
 		//HD44780_close();
 		return -1;
 	}
 
 	// Allocate and clear the buffer for incremental updates
-	lcd_contents = (unsigned char *) malloc (HD44780->wid * HD44780->hgt);
-	if (!lcd_contents) {
+	p->lcd_contents = (unsigned char *) malloc (p->width * p->height);
+	if (p->lcd_contents == NULL) {
+		report(RPT_ERR, "%s: unable to allocate framebuffer backing store", drvthis->name);
 		return -1;
 	}
-	memset(lcd_contents, ' ', HD44780->wid * HD44780->hgt);
+	memset(p->lcd_contents, 0, p->width * p->height);
 
-
-	// Set the functions the driver supports...
-	// These are the default HD44780 functions
-	driver->init = HD44780_init;
-	driver->close = HD44780_close;
-	driver->flush = HD44780_flush;
-	driver->clear = HD44780_clear;
-	driver->chr = HD44780_chr;
-	driver->string = HD44780_string;
-	driver->flush_box = HD44780_flush_box; // TO BE REMOVED
-	//driver->contrast = HD44780_contrast; // contrast is set by potmeter we assume
-
-	//driver->output = HD44780_output; // not implemented
-	driver->init_vbar = HD44780_init_vbar;
-	driver->init_hbar = HD44780_init_hbar;
-	driver->vbar = HD44780_vbar;
-	driver->hbar = HD44780_hbar;
-	driver->init_num = HD44780_init_num;
-	driver->num = HD44780_num;
-	driver->heartbeat = HD44780_heartbeat;
-	driver->set_char = HD44780_set_char;
-	driver->icon = HD44780_icon;
-	driver->draw_frame = HD44780_draw_frame; // TO BE REMOVED
-
-	if ( have_backlight ) {
-		driver->backlight = HD44780_backlight;
-	}
-	if ( have_keypad ) {
-		driver->getkey = HD44780_getkey;
-	}
-
-	if ((hd44780_functions = (HD44780_functions *) malloc (sizeof (HD44780_functions))) == NULL) {
+	// Allocate and clear the buffer for defineable characters
+	p->cc_buf = (unsigned char *) malloc(NUM_CCs * p->cellheight);
+	p->cc_dirty = (unsigned char *) malloc(NUM_CCs);
+	if (!p->cc_buf || !p->cc_dirty) {
+		report(RPT_ERR, "%s: error mallocing", drvthis->name);
 		return -1;
 	}
-	hd44780_functions->uPause = uPause;
-	hd44780_functions->scankeypad = HD44780_scankeypad;
+	memset(p->cc_buf, 0, NUM_CCs * p->cellheight);
+	memset(p->cc_dirty, 1, NUM_CCs); /* all custom chars dirty */
 
-	connectionMapping[connectiontype_index].init_fn (hd44780_functions, driver, args, port);
+	// Keypad ?
+	if (p->have_keypad) {
+		int x, y;
 
-	HD44780_clear ();
-	sprintf (buf, "HD44780 %dx%d", HD44780->wid, HD44780->hgt );
-	HD44780_string (1, 1, buf);
-	sprintf (buf, "LPT 0x%x %s %s", port, (have_backlight?"bl":""), (have_keypad?"key":"") );
-	HD44780_string (1, 2, buf);
-	HD44780_flush ();
-	sleep (1);
+		// Read keymap
+		for ( x=0; x<KEYPAD_MAXX; x++ ) {
+			char buf[40];
 
-	return port;
+			// First fill with default value
+			p->keyMapDirect[x] = defaultKeyMapDirect[x];
+
+			// Read config value
+			sprintf( buf, "keydirect_%1d", x+1 );
+			s = drvthis->config_get_string( drvthis->name, buf, 0, NULL );
+
+			// Was a key specified in the config file ?
+			if ( s ) {
+				p->keyMapDirect[x] = strdup( s );
+				report(RPT_INFO, "HD44780: Direct key %d: \"%s\"", x, s );
+			}
+		}
+
+		for ( x=0; x<KEYPAD_MAXX; x++ ) {
+			for ( y=0; y<KEYPAD_MAXY; y++ ) {
+				char buf[40];
+
+				// First fill with default value
+				p->keyMapMatrix[y][x] = defaultKeyMapMatrix[y][x];
+
+				// Read config value
+				sprintf( buf, "keymatrix_%1d_%d", x+1, y+1 );
+				s = drvthis->config_get_string( drvthis->name, buf, 0, NULL );
+
+				// Was a key specified in the config file ?
+				if ( s ) {
+					p->keyMapMatrix[y][x] = strdup( s );
+					report(RPT_INFO, "HD44780: Matrix key %d %d: \"%s\"", x, y, s );
+				}
+			}
+		}
+	}
+
+	// Output latch state - init to a non-valid value
+	p->output_state = 999999;
+
+	if ((p->hd44780_functions = (HD44780_functions *) malloc(sizeof(HD44780_functions))) == NULL) {
+		report(RPT_ERR, "%s: error mallocing", drvthis->name);
+		return -1;
+	}
+	p->hd44780_functions->uPause = uPause;
+	p->hd44780_functions->scankeypad = HD44780_scankeypad;
+	p->hd44780_functions->output = NULL;
+
+	// Do connection type specific display init
+	connectionMapping[p->connectiontype_index].init_fn (drvthis);
+
+	// Display startup parameters on the LCD
+	HD44780_clear (drvthis);
+	sprintf (buf, "HD44780 %dx%d", p->width, p->height );
+	HD44780_string (drvthis, 1, 1, buf);
+	if (usb) {
+		sprintf(buf, "USB %s%s%s",
+				(p->have_backlight ? " bl" : ""),
+				(p->have_keypad ? " key" : ""),
+				(p->have_output ? " out" : ""));
+	}
+	else {
+		sprintf(buf, "LPT 0x%03X%s%s%s", p->port,
+				(p->have_backlight ? " bl" : ""),
+				(p->have_keypad ? " key" : ""),
+				(p->have_output ? " out" : ""));
+	}
+	HD44780_string (drvthis, 1, 2, buf);
+	HD44780_flush (drvthis);
+	sleep (2);
+
+	return 1;
 }
 
 /////////////////////////////////////////////////////////////////
@@ -340,128 +339,197 @@ HD44780_init (lcd_logical_driver * driver, char *args)
 // the connectiontype should do this.
 //
 void
-common_init ()
+common_init (PrivateData *p, unsigned char if_bit)
 {
-	hd44780_functions->senddata (0, RS_INSTR, ONOFFCTRL | DISPON | CURSOROFF | CURSORNOBLINK);
-	hd44780_functions->uPause (40);
-	hd44780_functions->senddata (0, RS_INSTR, CLEAR);
-	hd44780_functions->uPause (1600);
-	hd44780_functions->senddata (0, RS_INSTR, HOMECURSOR);
-	hd44780_functions->uPause (1600);
+	if (p->ext_mode) {
+		// Set up extended mode */
+		p->hd44780_functions->senddata (p, 0, RS_INSTR, FUNCSET | if_bit | TWOLINE | SMALLCHAR | EXTREG );
+		p->hd44780_functions->uPause (p, 40);
+		p->hd44780_functions->senddata (p, 0, RS_INSTR, EXTMODESET | FOURLINE );
+		p->hd44780_functions->uPause (p, 40);
+	}
+	p->hd44780_functions->senddata (p, 0, RS_INSTR, FUNCSET | if_bit | TWOLINE | SMALLCHAR );
+	p->hd44780_functions->uPause (p, 40);
+	p->hd44780_functions->senddata (p, 0, RS_INSTR, ONOFFCTRL | DISPON | CURSOROFF | CURSORNOBLINK);
+	p->hd44780_functions->uPause (p, 40);
+	p->hd44780_functions->senddata (p, 0, RS_INSTR, CLEAR);
+	p->hd44780_functions->uPause (p, 1600);
+	p->hd44780_functions->senddata (p, 0, RS_INSTR, HOMECURSOR);
+	p->hd44780_functions->uPause (p, 1600);
 }
 
 /////////////////////////////////////////////////////////////////
-// IO delay to avoid a task switch
+// Delay a number of microseconds
 //
 void
-uPause (int usecs)
+uPause (PrivateData *p, int usecs)
 {
-	int delay = usecs * delayMult;  // To correct for slower displays
-
-#if defined DELAY_GETTIMEOFDAY
-	struct timeval current_time,delay_time,wait_time;
-
-	// Get current time first thing
-	gettimeofday(&current_time,NULL);
-
-	// Calculate when delay is over
-	delay_time.tv_sec  = 0;
-	delay_time.tv_usec = delay;
-	timeradd(&current_time,&delay_time,&wait_time);
-
-	do {
-		gettimeofday(&current_time,NULL);
-	} while (timercmp(&current_time,&wait_time,<));
-
-#elif defined DELAY_NANOSLEEP
-	struct timespec delay_time,remaining;
-
-	delay_time.tv_sec = 0;
-	delay_time.tv_nsec = delay * 1000;
-	while ( nanosleep(&delay_time,&remaining) == -1 )
-	{
-		delay_time.tv_sec  = remaining.tv_sec;
-		delay_time.tv_nsec = remaining.tv_nsec;
-	}
-#else // using I/O timing
-      // Assuming every call takes 1us (which can be quite incorrect)
-	int i;
-	for (i = 0; i < delay; ++i)
-		port_in (port);
-#endif
+	timing_uPause( usecs * p->delayMult );
 }
 
 /////////////////////////////////////////////////////////////////
 // Clean-up
 //
-void HD44780_close()
+MODULE_EXPORT void
+HD44780_close(Driver *drvthis)
 {
-	free( HD44780->framebuf );
-	free( lcd_contents );
+	PrivateData *p = (PrivateData *) drvthis->private_data;
+
+	if (p != NULL) {
+		if (p->framebuf)
+			free(p->framebuf);
+		
+		if (p->lcd_contents)
+			free(p->lcd_contents);
+
+		free(p);
+	}	
+	drvthis->store_private_ptr(drvthis, NULL);
+}
+
+/////////////////////////////////////////////////////////////////
+// Returns the display width
+//
+MODULE_EXPORT int
+HD44780_width (Driver *drvthis)
+{
+	PrivateData *p = (PrivateData *) drvthis->private_data;
+	return p->width;
+}
+
+/////////////////////////////////////////////////////////////////
+// Returns the display height
+//
+MODULE_EXPORT int
+HD44780_height (Driver *drvthis)
+{
+	PrivateData *p = (PrivateData *) drvthis->private_data;
+	return p->height;
 }
 
 /////////////////////////////////////////////////////////////////
 // Set position (not part of API)
 //
-// x and y here are for the virtual HD44780->hgt x HD44780->wid display
+// x and y here are for the virtual p->height x p->width display
 void
-HD44780_position (int x, int y)
+HD44780_position (Driver *drvthis, int x, int y)
 {
-	int dispID = spanList[y];
-	int relY = y - dispVOffset[dispID - 1];
+	PrivateData *p = (PrivateData *) drvthis->private_data;
+	int dispID = p->spanList[y];
+	int relY = y - p->dispVOffset[dispID - 1];
 	int DDaddr;
 
-	// 16x1 is a special case
-	if (dispSizes[dispID - 1] == 1 && HD44780->wid == 16) {
-		if (x >= 8) {
-			x -= 8;
-			relY = 1;
+	if (p->ext_mode) {
+		// Linear addressing, each line starts 0x20 higher.
+		DDaddr = x + relY * 0x20;
+	} else {
+		// 16x1 is a special case
+		if (p->dispSizes[dispID - 1] == 1 && p->width == 16) {
+			if (x >= 8) {
+				x -= 8;
+				relY = 1;
+			}
 		}
+	
+		DDaddr = x + (relY % 2) * 0x40;
+		if ((relY % 4) >= 2)
+			DDaddr += p->width;
 	}
-
-	DDaddr = x + (relY % 2) * 0x40;
-	if ((relY % 4) >= 2)
-		DDaddr += HD44780->wid;
-
-	hd44780_functions->senddata (dispID, RS_INSTR, POSITION | DDaddr);
-	hd44780_functions->uPause (40);  // Minimum exec time for all commands
+	p->hd44780_functions->senddata (p, dispID, RS_INSTR, POSITION | DDaddr);
+	p->hd44780_functions->uPause (p, 40);  // Minimum exec time for all commands
 }
 
 /////////////////////////////////////////////////////////////////
 // Flush the framebuffer to the display
 //
-void
-HD44780_flush ()
+MODULE_EXPORT void
+HD44780_flush (Driver *drvthis)
 {
-	HD44780_draw_frame (HD44780->framebuf);
+	PrivateData *p = (PrivateData *) drvthis->private_data;
+	int x, y;
+	int wid = p->width;
+	char ch;
+	char drawing;
+	int row;
+	int i;
+	int count;
+
+	// Update LCD incrementally by comparing with last contents
+	count = 0;
+	for (y=0; y<p->height; y++) {
+		drawing = 0;
+		for (x=0 ; x<wid; x++) {
+			ch = p->framebuf[(y * wid) + x];
+			if ( ch != p->lcd_contents[(y*wid)+x] ) {
+				if ( !drawing || x % 8 == 0 ) { // x%8 is for 16x1 displays !
+					drawing = 1;
+					HD44780_position(drvthis,x,y);
+				}
+				p->hd44780_functions->senddata (p, p->spanList[y], RS_DATA, HD44780_charmap[(unsigned char)ch]);
+				p->hd44780_functions->uPause (p, 40);  // Minimum exec time for all commands
+				p->lcd_contents[(y*wid)+x] = ch;
+				count ++;
+			}
+			else {
+				drawing = 0;
+			}
+		}
+	}
+	debug(RPT_DEBUG, "HD44780: flushed %d chars", count );
+
+	/* Check which defineable chars we need to update */
+	count = 0;
+	for ( i = 0; i < NUM_CCs; i ++ ) {
+		if ( p->cc_dirty[i] ) {
+
+			/* Tell the HD44780 we will redefine char number i */
+			p->hd44780_functions->senddata (p, 0, RS_INSTR, SETCHAR | i * 8);
+			p->hd44780_functions->uPause (p, 40);  // Minimum exec time for all commands
+
+			/* Send the subsequent rows */
+			for (row = 0; row < p->cellheight; row++) {
+				p->hd44780_functions->senddata (p, 0, RS_DATA, p->cc_buf[i*p->cellheight+row]);
+				p->hd44780_functions->uPause (p, 40);  /* Minimum exec time for all commands */
+			}
+			/* Mark as not dirty anymore */
+			p->cc_dirty[i] = 0;
+			count ++;
+		}
+	}
+	debug(RPT_DEBUG, "HD44780: flushed %d custom chars's", count );
 }
 
 /////////////////////////////////////////////////////////////////
 // Clear the framebuffer
 //
-void HD44780_clear ()
+MODULE_EXPORT void
+HD44780_clear (Driver *drvthis)
 {
-	memset(HD44780->framebuf, ' ', HD44780->wid * HD44780->hgt);
+	PrivateData *p = (PrivateData *) drvthis->private_data;
+	memset(p->framebuf, ' ', p->width * p->height);
+	p->ccmode = CCMODE_STANDARD;
 }
 
 /////////////////////////////////////////////////////////////////
 // Place a character in the framebuffer
 //
-void
-HD44780_chr (int x, int y, char ch)
+MODULE_EXPORT void
+HD44780_chr (Driver *drvthis, int x, int y, char ch)
 {
+	PrivateData *p = (PrivateData *) drvthis->private_data;
 	y--;
 	x--;
 
-	HD44780->framebuf[ (y * HD44780->wid) + x] = ch;
+	p->framebuf[ (y * p->width) + x] = ch;
 }
 
 /////////////////////////////////////////////////////////////////
 // Place a string in the framebuffer
 //
-void
-HD44780_string (int x, int y, char *s)
+MODULE_EXPORT void
+HD44780_string (Driver *drvthis, int x, int y, char *s)
 {
+	PrivateData *p = (PrivateData *) drvthis->private_data;
 	int i;
 
 	x --;  // Convert 1-based coords to 0-based
@@ -469,52 +537,30 @@ HD44780_string (int x, int y, char *s)
 
 	for (i = 0; s[i]; i++) {
 		// Check for buffer overflows...
-		if ((y * HD44780->wid) + x + i > (HD44780->wid * HD44780->hgt))
+		if ((y * p->width) + x + i > (p->width * p->height))
 			break;
-		HD44780->framebuf[(y*HD44780->wid) + x + i] = s[i];
+		p->framebuf[(y*p->width) + x + i] = s[i];
 	}
-}
-
-/////////////////////////////////////////////////////////////////
-// Flush box
-//
-// TO BE REMOVED
-//
-void
-HD44780_flush_box (int lft, int top, int rgt, int bot)
-{
-	int x, y;
-
-	//  printf("Flush (%i,%i)-(%i,%i)\n", lft, top, rgt, bot);
-
-	for (y = top; y <= bot; y++) {
-		HD44780_position (lft, y);
-		//printf("\n%d,%d :",lft,y);
-		for (x = lft; x <= rgt; x++) {
-
-			hd44780_functions->senddata (spanList[y], RS_DATA, HD44780->framebuf[(y * HD44780->wid) + x]);
-			hd44780_functions->uPause (40);  // Minimum exec time for all commands
-		}
-		//write(fd, HD44780->framebuf[(y*HD44780->wid)+lft, rgt-lft+1]);
-	}
-
 }
 
 /////////////////////////////////////////////////////////////////
 // Sets the backlight on or off
 //
-void
-HD44780_backlight (int on)
+MODULE_EXPORT void
+HD44780_backlight (Driver *drvthis, int on)
 {
-	hd44780_functions->backlight (on);
+	PrivateData *p = (PrivateData *) drvthis->private_data;
+	p->hd44780_functions->backlight (p, on);
 }
 
 /////////////////////////////////////////////////////////////////
 // Sets up for vertical bars.  Call before HD44780->vbar()
 //
-void
-HD44780_init_vbar ()
+static void
+HD44780_init_vbar (Driver *drvthis)
 {
+	PrivateData *p = (PrivateData *) drvthis->private_data;
+
 	char a[] = {
 		0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
@@ -586,21 +632,34 @@ HD44780_init_vbar ()
 		1, 1, 1, 1, 1,
 	};
 
-	HD44780_set_char (1, a);
-	HD44780_set_char (2, b);
-	HD44780_set_char (3, c);
-	HD44780_set_char (4, d);
-	HD44780_set_char (5, e);
-	HD44780_set_char (6, f);
-	HD44780_set_char (7, g);
+	if ( p->ccmode == CCMODE_VBAR ) {
+		/* Work already done */
+		return;
+	}
+
+	if ( p->ccmode != CCMODE_STANDARD ) {
+		/* Not supported (yet) */
+		report(RPT_WARNING, "HD44780_init_vbar: Cannot combine two modes using user defined characters" );
+		return;
+	}
+	p->ccmode = CCMODE_VBAR;
+
+	HD44780_set_char (drvthis, 1, a);
+	HD44780_set_char (drvthis, 2, b);
+	HD44780_set_char (drvthis, 3, c);
+	HD44780_set_char (drvthis, 4, d);
+	HD44780_set_char (drvthis, 5, e);
+	HD44780_set_char (drvthis, 6, f);
+	HD44780_set_char (drvthis, 7, g);
 }
 
 /////////////////////////////////////////////////////////////////
 // Inits horizontal bars...
 //
-void
-HD44780_init_hbar ()
+static void
+HD44780_init_hbar (Driver *drvthis)
 {
+	PrivateData *p = (PrivateData *) drvthis->private_data;
 
 	char a[] = {
 		1, 0, 0, 0, 0,
@@ -642,102 +701,260 @@ HD44780_init_hbar ()
 		1, 1, 1, 1, 0,
 		1, 1, 1, 1, 0,
 	};
+	char e[] = {
+		1, 1, 1, 1, 0,
+		1, 1, 1, 1, 0,
+		1, 1, 1, 1, 0,
+		1, 1, 1, 1, 0,
+		1, 1, 1, 1, 0,
+		1, 1, 1, 1, 0,
+		1, 1, 1, 1, 0,
+		1, 1, 1, 1, 0,
+	};
 
-	HD44780_set_char (1, a);
-	HD44780_set_char (2, b);
-	HD44780_set_char (3, c);
-	HD44780_set_char (4, d);
+	if ( p->ccmode == CCMODE_HBAR ) {
+		/* Work already done */
+		return;
+	}
+
+	if ( p->ccmode != CCMODE_STANDARD ) {
+		/* Not supported (yet) */
+		report(RPT_WARNING, "HD44780_init_hbar: Cannot combine two modes using user defined characters" );
+		return;
+	}
+	p->ccmode = CCMODE_HBAR;
+
+	HD44780_set_char (drvthis, 1, a);
+	HD44780_set_char (drvthis, 2, b);
+	HD44780_set_char (drvthis, 3, c);
+	HD44780_set_char (drvthis, 4, d);
+	HD44780_set_char (drvthis, 5, e);
 
 }
 
 /////////////////////////////////////////////////////////////////
 // Draws a vertical bar...
 //
-void
-HD44780_vbar (int x, int len)
+MODULE_EXPORT void
+HD44780_vbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 {
-	char map[9] = { 32, 1, 2, 3, 4, 5, 6, 7, 255 };
+	PrivateData *p = (PrivateData *) drvthis->private_data;
 
-	int y;
-	for (y = HD44780->hgt; y > 0 && len > 0; y--) {
-		if (len >= HD44780->cellhgt)
-			HD44780_chr (x, y, 255);
-		else
-			HD44780_chr (x, y, map[len]);
+	/* x and y are the start position of the bar.
+	 * The bar by default grows in the 'up' direction
+	 * (other direction not yet implemented).
+	 * len is the number of characters that the bar is long at 100%
+	 * promille is the number of promilles (0..1000) that the bar should be filled.
+	 */
 
-		len -= HD44780->cellhgt;
-	}
+	HD44780_init_vbar(drvthis);
 
+	lib_vbar_static(drvthis, x, y, len, promille, options, p->cellheight, 0);
 }
 
 /////////////////////////////////////////////////////////////////
 // Draws a horizontal bar to the right.
 //
-void
-HD44780_hbar (int x, int y, int len)
+MODULE_EXPORT void
+HD44780_hbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 {
-	char map[6] = { 32, 1, 2, 3, 4, 255 };
+	PrivateData *p = (PrivateData *) drvthis->private_data;
 
-	for (; x <= HD44780->wid && len > 0; x++) {
-		if (len >= HD44780->cellwid)
-			HD44780_chr (x, y, 255);
-		else
-			HD44780_chr (x, y, map[len]);
+	/* x and y are the start position of the bar.
+	 * The bar by default grows in the 'right' direction
+	 * (other direction not yet implemented).
+	 * len is the number of characters that the bar is long at 100%
+	 * promille is the number of promilles (0..1000) that the bar should be filled.
+	 */
 
-		len -= HD44780->cellwid;
+	HD44780_init_hbar(drvthis);
 
-	}
+	lib_hbar_static(drvthis, x, y, len, promille, options, p->cellwidth, 0);
 }
 
 /////////////////////////////////////////////////////////////////
 // Sets up for big numbers.
 //
-void
-HD44780_init_num ()
+MODULE_EXPORT void
+HD44780_init_num (Driver *drvthis)
 {
+	PrivateData *p = (PrivateData *) drvthis->private_data;
 
+	char bignum_ccs[8][5*8] = {{
+		1, 1, 0, 0, 0,
+		1, 1, 0, 0, 0,
+		1, 1, 0, 0, 0,
+		0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0
+	}, {
+		0, 0, 0, 1, 1,
+		0, 0, 0, 1, 1,
+		0, 0, 0, 1, 1,
+		0, 0, 0, 0, 0,
+		1, 1, 0, 0, 0,
+		1, 1, 0, 0, 0,
+		1, 1, 0, 0, 0,
+		0, 0, 0, 0, 0
+	}, {
+		1, 1, 0, 1, 1,
+		1, 1, 0, 1, 1,
+		1, 1, 0, 1, 1,
+		0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0
+	}, {
+		0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0,
+		1, 1, 0, 0, 0,
+		1, 1, 0, 0, 0,
+		1, 1, 0, 0, 0,
+		0, 0, 0, 0, 0
+	}, {
+		1, 1, 0, 0, 0,
+		1, 1, 0, 0, 0,
+		1, 1, 0, 0, 0,
+		0, 0, 0, 0, 0,
+		0, 0, 0, 1, 1,
+		0, 0, 0, 1, 1,
+		0, 0, 0, 1, 1,
+		0, 0, 0, 0, 0
+	}, {
+		0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0,
+		1, 1, 0, 1, 1,
+		1, 1, 0, 1, 1,
+		1, 1, 0, 1, 1,
+		0, 0, 0, 0, 0
+	}, {
+		1, 1, 0, 0, 0,
+		1, 1, 0, 0, 0,
+		1, 1, 0, 0, 0,
+		0, 0, 0, 0, 0,
+		1, 1, 0, 0, 0,
+		1, 1, 0, 0, 0,
+		1, 1, 0, 0, 0,
+		0, 0, 0, 0, 0
+	}, {
+		0, 0, 0, 1, 1,
+		0, 0, 0, 1, 1,
+		0, 0, 0, 1, 1,
+		0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0,
+		0, 0, 0, 0, 0
+	}};
+
+	if (p->ccmode != CCMODE_BIGNUM) {
+		int i;
+
+		if ( p->ccmode != CCMODE_STANDARD ) {
+			/* Not supported (yet) */
+			report(RPT_WARNING, "HD44780_init_num: Cannot combine two modes using user defined characters" );
+			return;
+		}
+		p->ccmode = CCMODE_BIGNUM;
+
+		for (i = 0; i < 8; i++)
+			HD44780_set_char (drvthis, i, bignum_ccs[i]);
+	}
 }
 
 /////////////////////////////////////////////////////////////////
 // Writes a big number.
 //
-void
-HD44780_num (int x, int num)
+MODULE_EXPORT void
+HD44780_num (Driver *drvthis, int x, int num)
 {
-	int offset = HD44780->wid * ( HD44780->hgt / 2 );
-	HD44780->framebuf[x+offset] = num + '0';
-}
+	PrivateData *p = (PrivateData *) drvthis->private_data;
 
-/////////////////////////////////////////////////////////////
-// Does the heartbeat...
-//
-void
-HD44780_heartbeat (int type)
-{
-	static int timer = 0;
-	int whichIcon;
-	static int saved_type = HEARTBEAT_ON;
+	char bignum_map[11][4][3] = {
+	{ /* 0: */
+		{  1,  2,  3 }, 
+		{  6, 32,  6 }, 
+		{  6, 32,  6 }, 
+		{  7,  2, 32 } }, 
+	{ /* 1: */
+		{  7,  6, 32 }, 
+		{ 32,  6, 32 }, 
+		{ 32,  6, 32 }, 
+		{  7,  2, 32 } }, 
+	{ /* 2: */
+		{  1,  2,  3 }, 
+		{ 32,  5,  0 }, 
+		{  1, 32, 32 }, 
+		{  2,  2,  0 } }, 
+	{ /* 3: */
+		{  1,  2,  3 }, 
+		{ 32,  5,  0 }, 
+		{  3, 32,  6 }, 
+		{  7,  2, 32 } }, 
+	{ /* 4: */
+		{ 32,  3, 6 }, 
+		{  1, 32, 6 }, 
+		{  2,  2, 6 }, 
+		{ 32, 32, 0 } }, 
+	{ /* 5: */
+		{  1,  2,  0 }, 
+		{  2,  2,  3 }, 
+		{  3, 32,  6 }, 
+		{  7,  2, 32 } }, 
+	{ /* 6: */
+		{  1,  2, 32 }, 
+		{  6,  5, 32 }, 
+		{  6, 32,  6 }, 
+		{  7,  2, 32 } }, 
+	{ /* 7: */
+		{  2,  2,  6 }, 
+		{ 32,  1, 32 }, 
+		{ 32,  6, 32 }, 
+		{ 32,  0, 32 } }, 
+	{ /* 8: */
+		{  1,  2,  3 }, 
+		{  4,  5,  0 }, 
+		{  6, 32,  6 }, 
+		{  7,  2, 32 } }, 
+	{ /* 9: */
+		{  1,  2,  3 }, 
+		{  4,  3,  6 }, 
+		{ 32,  1, 32 }, 
+		{  7, 32, 32 } }, 
+	{ /* colon: (only 1st column used) */
+		{ 32, 32, 32 },
+		{  7, 32, 32 },
+		{  7, 32, 32 },
+		{ 32, 32, 32 } }
+	};
 
-	if (type)
-		saved_type = type;
+	if ((num < 0) || (num > 10))
+		return;
 
-	if (type == HEARTBEAT_ON) {
-		// Set this to pulsate like a real heart beat...
-		whichIcon = (! ((timer + 4) & 5));
+	if ((p->width >= 20) && (p->height >= 4)) {
+		int y = (p->height - 2) / 2;
+		int x2, y2;
 
-		// This defines a custom character EVERY time...
-		// not efficient... is this necessary?
-		HD44780_icon (whichIcon, 0);
+		HD44780_init_num(drvthis);
 
-		// Put character on screen...
-		HD44780_chr (HD44780->wid, 1, 0);
-
-		// change display...
-		HD44780_flush ();
+		for (x2 = 0; x2 < 3; x2++) {
+			for (y2 = 0; y2 < 4; y2++) {
+				HD44780_chr( drvthis, x+x2, y+y2, bignum_map[num][y2][x2] );
+			}
+			if (num == 10)
+				x2 = 2; /* =break, for colon only */
+		}
 	}
-
-	timer++;
-	timer &= 0x0f;
+	else
+		HD44780_chr(drvthis, x, 1 + (p->height - 1) / 2,
+			    (num == 10) ? ':' : (num + '0'));
 }
 
 /////////////////////////////////////////////////////////////////
@@ -747,9 +964,10 @@ HD44780_heartbeat (int type)
 //
 // The input is just an array of characters...
 //
-void
-HD44780_set_char (int n, char *dat)
+MODULE_EXPORT void
+HD44780_set_char (Driver *drvthis, int n, char *dat)
 {
+	PrivateData *p = (PrivateData *) drvthis->private_data;
 	int row, col;
 	int letter;
 
@@ -758,167 +976,214 @@ HD44780_set_char (int n, char *dat)
 	if (!dat)
 		return;
 
-	hd44780_functions->senddata (0, RS_INSTR, SETCHAR | n * 8);
-	hd44780_functions->uPause (40);  // Minimum exec time for all commands
-
-	for (row = 0; row < HD44780->cellhgt; row++) {
+	for (row = 0; row < p->cellheight; row++) {
 		letter = 0;
-		for (col = 0; col < HD44780->cellwid; col++) {
-			letter <<= 1;
-			letter |= (dat[(row * HD44780->cellwid) + col] > 0);
+		if (p->lastline || (row < p->cellheight - 1)) {
+			for (col = 0; col < p->cellwidth; col++) {
+				letter <<= 1;
+				letter |= (dat[(row * p->cellwidth) + col] > 0) ? 1 : 0;
+			}
+		}	
+		if ( p->cc_buf[n*p->cellheight+row] != letter ) {
+			p->cc_dirty[n] = 1; /* only mark as dirty if really different */
 		}
-		hd44780_functions->senddata (0, RS_DATA, letter);
-		hd44780_functions->uPause (40);  // Minimum exec time for all commands
+		p->cc_buf[n*p->cellheight+row] = letter;
 	}
 }
 
 /////////////////////////////////////////////////////////////
 // Set default icon into a userdef char
 //
-void
-HD44780_icon (int which, char dest)
+MODULE_EXPORT int
+HD44780_icon (Driver *drvthis, int x, int y, int icon)
 {
-	char icons[3][5 * 8] = {
-		{
-		 1, 1, 1, 1, 1,		   // Empty Heart
+	char heart_open[] = {
+		 1, 1, 1, 1, 1,
 		 1, 0, 1, 0, 1,
 		 0, 0, 0, 0, 0,
 		 0, 0, 0, 0, 0,
 		 0, 0, 0, 0, 0,
 		 1, 0, 0, 0, 1,
 		 1, 1, 0, 1, 1,
+		 1, 1, 1, 1, 1 };
+	char heart_filled[] = {
 		 1, 1, 1, 1, 1,
-		 },
-
-		{
-		 1, 1, 1, 1, 1,		   // Filled Heart
 		 1, 0, 1, 0, 1,
 		 0, 1, 0, 1, 0,
 		 0, 1, 1, 1, 0,
 		 0, 1, 1, 1, 0,
 		 1, 0, 1, 0, 1,
 		 1, 1, 0, 1, 1,
-		 1, 1, 1, 1, 1,
-		 },
-
-		{
-		 0, 0, 0, 0, 0,		   // Ellipsis
-		 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0,
+		 1, 1, 1, 1, 1 };
+	char arrow_up[] = {
+		 0, 0, 1, 0, 0,
+		 0, 1, 1, 1, 0,
 		 1, 0, 1, 0, 1,
-		 },
+		 0, 0, 1, 0, 0,
+		 0, 0, 1, 0, 0,
+		 0, 0, 1, 0, 0,
+		 0, 0, 1, 0, 0,
+		 0, 0, 0, 0, 0 };
+	char arrow_down[] = {
+		 0, 0, 1, 0, 0,
+		 0, 0, 1, 0, 0,
+		 0, 0, 1, 0, 0,
+		 0, 0, 1, 0, 0,
+		 1, 0, 1, 0, 1,
+		 0, 1, 1, 1, 0,
+		 0, 0, 1, 0, 0,
+		 0, 0, 0, 0, 0 };
+	char checkbox_off[] = {
+		 0, 0, 0, 0, 0,
+		 0, 0, 0, 0, 0,
+		 1, 1, 1, 1, 1,
+		 1, 0, 0, 0, 1,
+		 1, 0, 0, 0, 1,
+		 1, 0, 0, 0, 1,
+		 1, 1, 1, 1, 1,
+		 0, 0, 0, 0, 0 };
+	char checkbox_on[] = {
+		 0, 0, 1, 0, 0,
+		 0, 0, 1, 0, 0,
+		 1, 1, 1, 0, 1,
+		 1, 0, 1, 1, 0,
+		 1, 0, 1, 0, 1,
+		 1, 0, 0, 0, 1,
+		 1, 1, 1, 1, 1,
+		 0, 0, 0, 0, 0 };
+	char checkbox_gray[] = {
+		 0, 0, 0, 0, 0,
+		 0, 0, 0, 0, 0,
+		 1, 1, 1, 1, 1,
+		 1, 0, 1, 0, 1,
+		 1, 1, 0, 1, 1,
+		 1, 0, 1, 0, 1,
+		 1, 1, 1, 1, 1,
+		 0, 0, 0, 0, 0 };
+	char block_filled[] = {
+		 1, 1, 1, 1, 1,
+		 1, 1, 1, 1, 1,
+		 1, 1, 1, 1, 1,
+		 1, 1, 1, 1, 1,
+		 1, 1, 1, 1, 1,
+		 1, 1, 1, 1, 1,
+		 1, 1, 1, 1, 1,
+		 1, 1, 1, 1, 1 };
 
-	};
-
-	HD44780_set_char (dest, &icons[which][0]);
-}
-
-/////////////////////////////////////////////////////////////
-// Blasts a single frame onscreen, to the lcd...
-//
-// Input is a character array, sized HD44780->wid*hgt
-//
-// TO BE REMOVED (move it into flush())
-void
-HD44780_draw_frame (char *dat)
-{
-	int x, y;
-	int wid = HD44780->wid;
-	char drawing;
-
-	if (!dat)
-		return;
-
-	// Update LCD incrementally by comparing with last contents
-	for (y=0; y<HD44780->hgt; y++) {
-		drawing = 0;
-		for (x=0 ; x<wid; x++) {
-			if( dat[(y*wid)+x] != lcd_contents[(y*wid)+x] ) {
-				if( !drawing || x % 8 == 0 ) { // x%8 for 16x1 displays
-					drawing = 1;
-					HD44780_position(x,y);
-				}
-				hd44780_functions->senddata( spanList[y], RS_DATA, HD44780_charmap[(unsigned char)dat[(y * wid) + x]]);
-				hd44780_functions->uPause (40);  // Minimum exec time for all commands
-				lcd_contents[(y*wid)+x] = dat[(y*wid)+x];
-			}
-			else {
-				drawing = 0;
-			}
-		}
+	/* Yes I know, this is a VERY BAD implementation */
+	switch ( icon ) {
+		case ICON_BLOCK_FILLED:
+			HD44780_set_char( drvthis, 6, block_filled );
+			HD44780_chr( drvthis, x, y, 6);
+			break;
+		case ICON_HEART_FILLED:
+			HD44780_set_char( drvthis, 0, heart_filled );
+			HD44780_chr( drvthis, x, y, 0 );
+			break;
+		case ICON_HEART_OPEN:
+			HD44780_set_char( drvthis, 0, heart_open );
+			HD44780_chr( drvthis, x, y, 0 );
+			break;
+		case ICON_ARROW_UP:
+			HD44780_set_char( drvthis, 1, arrow_up );
+			HD44780_chr( drvthis, x, y, 1 );
+			break;
+		case ICON_ARROW_DOWN:
+			HD44780_set_char( drvthis, 2, arrow_down );
+			HD44780_chr( drvthis, x, y, 2 );
+			break;
+		case ICON_ARROW_LEFT:
+			HD44780_chr( drvthis, x, y, 0x7F );
+			break;
+		case ICON_ARROW_RIGHT:
+			HD44780_chr( drvthis, x, y, 0x7E );
+			break;
+		case ICON_CHECKBOX_OFF:
+			HD44780_set_char( drvthis, 3, checkbox_off );
+			HD44780_chr( drvthis, x, y, 3 );
+			break;
+		case ICON_CHECKBOX_ON:
+			HD44780_set_char( drvthis, 4, checkbox_on );
+			HD44780_chr( drvthis, x, y, 4 );
+			break;
+		case ICON_CHECKBOX_GRAY:
+			HD44780_set_char( drvthis, 5, checkbox_gray );
+			HD44780_chr( drvthis, x, y, 5 );
+			break;
+		default:
+			return -1; /* Let the core do other icons */
 	}
+	return 0;
 }
 
 /////////////////////////////////////////////////////////////
 // Get a key from the keypad (if there is one)
 //
-char HD44780_getkey()
+MODULE_EXPORT const char *
+HD44780_get_key(Driver *drvthis)
 {
+	PrivateData *p = (PrivateData *) drvthis->private_data;
 	unsigned char scancode;
-	char ch;
+	char * keystr = NULL;
 	struct timeval curr_time, time_diff;
+
+	if ( ! p->have_keypad ) return NULL;
 
 	gettimeofday(&curr_time,NULL);
 
-	scancode = hd44780_functions->scankeypad();
-	if( scancode ) {
-		if( scancode & 0xF0 ) {
-			ch = keyMapMatrix[((scancode&0xF0)>>4)-1][(scancode&0x0F)-1];
+	scancode = p->hd44780_functions->scankeypad(p);
+	if ( scancode ) {
+		if ( scancode & 0xF0 ) {
+			keystr = p->keyMapMatrix[((scancode&0xF0)>>4)-1][(scancode&0x0F)-1];
 		}
 		else {
-			ch = keyMapDirect[scancode - 1];
+			keystr = p->keyMapDirect[scancode - 1];
 		}
 	}
-	else {
-		ch = 0;
-	}
 
-	if (ch) {
-		if (ch == pressed_key) {
-			timersub (&curr_time, &pressed_key_time, &time_diff);
-			if (((time_diff.tv_usec / 1000 + time_diff.tv_sec * 1000) - KEYPAD_AUTOREPEAT_DELAY) < 1000 * pressed_key_repetitions / KEYPAD_AUTOREPEAT_FREQ ) {
+	if ( keystr != NULL ) {
+		if (keystr == p->pressed_key) {
+			timersub (&curr_time, &(p->pressed_key_time), &time_diff);
+			if (((time_diff.tv_usec / 1000 + time_diff.tv_sec * 1000) - KEYPAD_AUTOREPEAT_DELAY) < 1000 * p->pressed_key_repetitions / KEYPAD_AUTOREPEAT_FREQ ) {
 				// The key is already pressed quite some time
 				// but it's not yet time to return a repeated keypress
-				return 0;
+				return NULL;
 			}
 			// Otherwise a keypress will be returned
-			pressed_key_repetitions ++;
+			p->pressed_key_repetitions ++;
 		}
 		else {
 			// It's a new keypress
-			pressed_key_time = curr_time;
-			pressed_key_repetitions = 0;
-			printf( "Key: %c  (%d,%d)\n", ch, scancode&0x0F, (scancode&0xF0)>>4 );
+			p->pressed_key_time = curr_time;
+			p->pressed_key_repetitions = 0;
+			report(RPT_INFO, "HD44780_get_key: Key pressed: %s (%d,%d)",
+					keystr, scancode&0x0F, (scancode&0xF0)>>4 );
 		}
 	}
 
 	// Store the key for the next round
-	pressed_key = ch;
+	p->pressed_key = keystr;
 
-	return ch;
+	return keystr;
 }
 
 /////////////////////////////////////////////////////////////
 // Scan the keypad
 //
-unsigned char HD44780_scankeypad()
+unsigned char HD44780_scankeypad(PrivateData *p)
 {
 	unsigned int keybits;
 	unsigned int shiftcount;
 	unsigned int shiftingbit;
 	unsigned int Ypattern;
 	unsigned int Yval;
-	char exp;
+	signed char exp;
 
 	unsigned char scancode = 0;
 
 	// First check if a directly connected key is pressed
 	// Put all zeros on Y of keypad
-	keybits = hd44780_functions->readkeypad (0);
+	keybits = p->hd44780_functions->readkeypad (p, 0);
 
 	if (keybits) {
 		// A directly connected key was pressed
@@ -936,7 +1201,7 @@ unsigned char HD44780_scankeypad()
 		// Now check the matrix
 		// First check with all 1's
 		Ypattern = (1 << KEYPAD_MAXY) - 1;
-		if( hd44780_functions->readkeypad (Ypattern)) {
+		if ( p->hd44780_functions->readkeypad (p, Ypattern)) {
 			// Yes, a key on the matrix is pressed
 
 			// OK, now we know a key is pressed.
@@ -948,14 +1213,14 @@ unsigned char HD44780_scankeypad()
 			Yval = 0;
 			for (exp=3; exp>=0; exp--) {
 				Ypattern = ((1 << (1 << exp)) - 1) << Yval;
-				keybits = hd44780_functions->readkeypad (Ypattern);
+				keybits = p->hd44780_functions->readkeypad (p, Ypattern);
 				if (!keybits) {
 					Yval += (1 << exp);
 				}
 			}
 
 			// Which key is pressed in that row ?
-			keybits = hd44780_functions->readkeypad (1<<Yval);
+			keybits = p->hd44780_functions->readkeypad (p, 1<<Yval);
 			shiftingbit=1;
 			for (shiftcount=0; shiftcount<KEYPAD_MAXX && !scancode; shiftcount++) {
 				if ( keybits & shiftingbit) {
@@ -967,6 +1232,27 @@ unsigned char HD44780_scankeypad()
 		}
 	}
 	return scancode;
+}
+
+
+/////////////////////////////////////////////////////////////
+// Output to the optional output latch(es)
+//
+MODULE_EXPORT void
+HD44780_output (Driver *drvthis, int on)
+{
+	PrivateData *p = drvthis->private_data;
+
+	if (!p->have_output) return; /* output disabled */
+	if (!p->hd44780_functions->output) return; /* unsupported for selected connectiontype */
+
+	// perhaps it is better just to do this every time in case of a glitch
+	// but leaving this in does make sure that any latch-enable line glitches
+	// are more easily seen
+	if (p->output_state == on) return;
+
+	p->output_state = on;
+	p->hd44780_functions->output(p, on);
 }
 
 
@@ -1011,11 +1297,9 @@ parse_span_list (int *spanListArray[], int *spLsize, int *dispOffsets[], int *dO
 				// find the next number (\0 is also outside this range)
 				for (++j; spanlist[j] < '1' || spanlist[j] > '9'; ++j);
 			} else {
-				fprintf (stderr, "Error reallocing for span list\n");
 				retVal = -1;
 			}
 		} else {
-			fprintf (stderr, "Error reading spansize\n");
 			retVal = -1;
 		}
 	}

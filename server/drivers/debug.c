@@ -5,10 +5,29 @@
 #include <fcntl.h>
 #include <string.h>
 #include <sys/errno.h>
-#include <syslog.h>
+
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include "lcd.h"
 #include "debug.h"
+#include "report.h"
+
+
+// Variables
+static char *framebuf = NULL;
+static int width = LCD_DEFAULT_WIDTH;
+static int height = LCD_DEFAULT_HEIGHT;
+
+
+// Vars for the server core
+MODULE_EXPORT char *api_version = API_VERSION;
+MODULE_EXPORT int stay_in_foreground = 1;
+MODULE_EXPORT int supports_multiple = 0;
+MODULE_EXPORT char *symbol_prefix = "debug_";
+
+
 
 //////////////////////////////////////////////////////////////////////////
 ////////////////////// For Debugging Output //////////////////////////////
@@ -17,98 +36,121 @@
 // TODO: somehow allow access to the driver->framebuffer to each
 // function...
 
-static lcd_logical_driver *debug_drv;
-
-int
-debug_init (struct lcd_logical_driver *driver, char *args)
+MODULE_EXPORT int
+debug_init (Driver *drvthis)
 {
-	syslog(LOG_DEBUG, "debug_init");
+	report(RPT_INFO, "%s()", __FUNCTION__);
 
-	debug_drv = driver;
+	framebuf = malloc(width * height);
+	if (framebuf == NULL) {
+		report(RPT_INFO, "%s: unable to allocate framebuffer", drvthis->name);
+		return -1;
+	}	
 
-	debug_clear ();
+	debug_clear(drvthis);
 
-	driver->daemonize = 0;
-
-	driver->clear = debug_clear;
-	driver->string = debug_string;
-	driver->chr = debug_chr;
-	driver->vbar = debug_vbar;
-	driver->hbar = debug_hbar;
-	driver->init_num = debug_init_num;
-	driver->num = debug_num;
-
-	driver->init = debug_init;
-	driver->close = debug_close;
-	driver->flush = debug_flush;
-	driver->flush_box = debug_flush_box;
-	driver->contrast = debug_contrast;
-	driver->backlight = debug_backlight;
-	driver->set_char = debug_set_char;
-	driver->icon = debug_icon;
-	driver->init_vbar = debug_init_vbar;
-	driver->init_hbar = debug_init_hbar;
-	driver->draw_frame = debug_draw_frame;
-
-	driver->getkey = debug_getkey;
-
-	return 200;						  // 200 is arbitrary.  (must be 1 or more)
+	return 0;
 }
 
-void
-debug_close ()
+/////////////////////////////////////////////////////////////////
+// Closes the driver
+//
+MODULE_EXPORT void
+debug_close (Driver *drvthis)
 {
-	syslog(LOG_DEBUG, "debug_close()");
+	report(RPT_INFO, "%s()", __FUNCTION__);
 
-	if (debug_drv->framebuf) {
-		printf ("frame buffer: %010X", (int) debug_drv->framebuf);
-		free (debug_drv->framebuf);
-		}
+	if (framebuf != NULL)
+		free(framebuf);
+	framebuf = NULL;
+}
 
-	debug_drv->framebuf = NULL;
+/////////////////////////////////////////////////////////////////
+// Returns the display width
+//
+MODULE_EXPORT int
+debug_width (Driver *drvthis)
+{
+	report(RPT_INFO, "%s()", __FUNCTION__);
+	
+	return width;
+}
+
+/////////////////////////////////////////////////////////////////
+// Returns the display height
+//
+MODULE_EXPORT int
+debug_height (Driver *drvthis)
+{
+	report(RPT_INFO, "%s()", __FUNCTION__);
+	
+	return height;
 }
 
 /////////////////////////////////////////////////////////////////
 // Clears the LCD screen
 //
-void
-debug_clear ()
+MODULE_EXPORT void
+debug_clear (Driver *drvthis)
 {
-	syslog(LOG_DEBUG, "clear()");
+	report(RPT_INFO, "%s()", __FUNCTION__);
 
-	memset (debug_drv->framebuf, ' ', debug_drv->wid * debug_drv->hgt);
+	memset (framebuf, ' ', width * height);
 
 }
 
 //////////////////////////////////////////////////////////////////
 // Flushes all output to the lcd...
 //
-void
-debug_flush ()
+MODULE_EXPORT void
+debug_flush (Driver *drvthis)
 {
-	syslog(LOG_DEBUG, "flush()");
+	int i, j;
+	char out[LCD_MAX_WIDTH];
 
-	debug_drv->draw_frame ();
+	report(RPT_INFO, "%s()", __FUNCTION__);
+
+	for (i = 0; i < width; i++) {
+		out[i] = '-';
+	}
+	out[width] = 0;
+	//report(RPT_DEBUG, "+%s+", out);
+
+	for (i = 0; i < height; i++) {
+		for (j = 0; j < width; j++) {
+			out[j] = framebuf[j + (i * width)];
+		}
+		out[width] = 0;
+		//report(RPT_DEBUG, "|%s|", out);
+
+	}
+
+	for (i = 0; i < width; i++) {
+		out[i] = '-';
+	}
+	out[width] = 0;
+	//report(RPT_DEBUG, "+%s+", out);
 }
 
 /////////////////////////////////////////////////////////////////
 // Prints a string on the lcd display, at position (x,y).  The
 // upper-left is (1,1), and the lower right should be (20,4).
 //
-void
-debug_string (int x, int y, char string[])
+MODULE_EXPORT void
+debug_string (Driver *drvthis, int x, int y, char string[])
 {
-
 	int i;
-	char buf[64];
 
-	snprintf(buf, sizeof(buf), "string(%i,%i): %s", x, y, string);
-	syslog (LOG_DEBUG, buf);
+	report(RPT_INFO, "%s(%i,%i,%.40s)", __FUNCTION__, x, y, string);
 
 	y --; x --;  // Convert 1-based coords to 0-based...
 
-	for (i = 0; string[i]; i++) {
-		debug_drv->framebuf[(y * debug_drv->wid) + x + i] = string[i];
+	if ((y < 0) || (y >= height))
+		return;
+		
+	for (i = 0; (string[i] != '\0') && (x < width); i++, x++) {
+		if (x >= 0)	// no write left of left border
+			framebuf[(y * width) + x] = string[i];
 	}
 }
 
@@ -116,158 +158,115 @@ debug_string (int x, int y, char string[])
 // Prints a character on the lcd display, at position (x,y).  The
 // upper-left is (1,1), and the lower right should be (20,4).
 //
-void
-debug_chr (int x, int y, char c)
+MODULE_EXPORT void
+debug_chr (Driver *drvthis, int x, int y, char c)
 {
-	char buf[64];
-
-	snprintf(buf, sizeof(buf), "character(%i,%i): %c", x, y, c);
-	syslog (LOG_DEBUG, buf);
+	report(RPT_DEBUG, "%s(%i,%i,%c)", __FUNCTION__, x, y, c);
 
 	x--; y--;
-	debug_drv->framebuf[(y * debug_drv->wid) + x] = c;
+	
+	if ((x >= 0) && (y >= 0) && (x < width) && (y < height))
+		framebuf[(y * width) + x] = c;
 }
 
-int
-debug_contrast (int contrast)
+MODULE_EXPORT void
+debug_set_contrast (Driver *drvthis, int promille)
 {
-	syslog(LOG_DEBUG, "contrast: %i", contrast);
-	return 0;
+	report(RPT_INFO, "%s(%i)", __FUNCTION__, promille);
 }
 
-void
-debug_backlight (int on)
+MODULE_EXPORT void
+debug_backlight (Driver *drvthis, int on)
 {
-	if (on)
-		syslog(LOG_DEBUG, "backlight turned on");
-	else
-		syslog(LOG_DEBUG, "backlight turned off");
+	report(RPT_INFO, "%s(%i)", __FUNCTION__, on);
 }
 
-void
-debug_init_vbar ()
+MODULE_EXPORT void
+debug_init_vbar (Driver *drvthis)
 {
-	syslog(LOG_DEBUG, "Init vertical bars");
+	report(RPT_INFO, "%s()", __FUNCTION__);
 }
 
-void
-debug_init_hbar ()
+MODULE_EXPORT void
+debug_init_hbar (Driver *drvthis)
 {
-	syslog(LOG_DEBUG, "Init horizontal bars");
+	report(RPT_INFO, "%s()", __FUNCTION__);
 }
 
-void
-debug_init_num ()
+MODULE_EXPORT void
+debug_init_num (Driver *drvthis)
 {
-	syslog(LOG_DEBUG, "Big numbers");
+	report(RPT_INFO, "%s()", __FUNCTION__);
 }
 
-void
-debug_num (int x, int num)
+MODULE_EXPORT void
+debug_num (Driver *drvthis, int x, int num)
 {
-	char buf[64];
-
-	snprintf(buf, sizeof(buf), "big number(%i): %i", x, num);
-	syslog (LOG_DEBUG, buf);
+	report(RPT_INFO, "%s(%i,%i)", __FUNCTION__, x, num);
 }
 
-void
-debug_set_char (int n, char *dat)
+MODULE_EXPORT void
+debug_set_char (Driver *drvthis, int n, char *dat)
 {
-	syslog(LOG_DEBUG, "set character %i", n);
+	report(RPT_INFO, "%s(%i,data)", __FUNCTION__, n);
 }
 
 /////////////////////////////////////////////////////////////////
 // Draws a vertical bar; erases entire column onscreen.
 //
-void
-debug_vbar (int x, int len)
+MODULE_EXPORT void
+debug_vbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 {
-	int y;
+	int pos;
 
-	syslog (LOG_DEBUG, "vbar(%i): len = %i", x, len);
+	report(RPT_INFO, "%s(%i,%i,%i,%i,%i)", __FUNCTION__, x, y, len, promille, options);
 
-	for (y = debug_drv->hgt; y > 0 && len > 0; y--) {
-		debug_chr (x, y, '|');
-
-		len -= debug_drv->cellhgt;
+	for (pos = 0; pos < len; pos++) {
+		if (2 * pos < ((long) promille * len / 500 + 1)) {
+			debug_chr(drvthis, x, y-pos, '|');
+		} else {
+			; /* print nothing */
+		}
 	}
-
 }
 
 /////////////////////////////////////////////////////////////////
 // Draws a horizontal bar to the right.
 //
-void
-debug_hbar (int x, int y, int len)
+MODULE_EXPORT void
+debug_hbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 {
-	syslog(LOG_DEBUG, "hbar(%i,%i): len = %i", x, y, len);
+	int pos;
 
-	for (; x < debug_drv->wid && len > 0; x++) {
-		debug_chr (x, y, '-');
+	report(RPT_INFO, "%s(%i,%i,%i,%i,%i)", __FUNCTION__, x, y, len, promille, options);
 
-		len -= debug_drv->cellwid;
+	for (pos = 0; pos < len; pos++) {
+		if (2 * pos < ((long) promille * len / 500 + 1)) {
+			debug_chr (drvthis, x+pos, y, '-');
+		} else {
+			; /* print nothing */
+		}
 	}
-
 }
 
 /////////////////////////////////////////////////////////////////
 // Sets character 0 to an icon...
 //
-void
-debug_icon (int which, char dest)
+MODULE_EXPORT int
+debug_icon (Driver *drvthis, int x, int y, int icon)
 {
-	syslog (LOG_DEBUG, "char %i = icon %i", dest, which);
+	report(RPT_INFO, "%s(%i,%i,%i)", __FUNCTION__, x, y, icon);
+
+	return -1;	/* let the core do all the icon stuff */
 }
 
-void
-debug_flush_box (int lft, int top, int rgt, int bot)
+/////////////////////////////////////////////////////////////////
+// Return a keypress
+//
+MODULE_EXPORT const char *
+debug_get_key (Driver *drvthis)
 {
-	syslog (LOG_DEBUG, "flush_box(%i,%i) - (%i,%i)", lft, top, rgt, bot);
-
-	debug_flush ();
+	report(RPT_INFO, "%s()", __FUNCTION__);
+	return NULL;
 }
 
-void
-debug_draw_frame (char *dat)
-{
-	int i, j;
-
-	char out[LCD_MAX_WIDTH];
-
-	syslog (LOG_DEBUG, "draw_frame()");
-
-	if (!dat)
-		return;
-
-//  printf("Frame (%ix%i): \n%s\n", debug_drv->wid, debug_drv->hgt, dat);
-
-	for (i = 0; i < debug_drv->wid; i++) {
-		out[i] = '-';
-	}
-	out[debug_drv->wid] = 0;
-	//printf ("+%s+\n", out);
-
-	for (i = 0; i < debug_drv->hgt; i++) {
-		for (j = 0; j < debug_drv->wid; j++) {
-			out[j] = dat[j + (i * debug_drv->wid)];
-		}
-		out[debug_drv->wid] = 0;
-		//printf ("|%s|\n", out);
-
-	}
-
-	for (i = 0; i < debug_drv->wid; i++) {
-		out[i] = '-';
-	}
-	out[debug_drv->wid] = 0;
-	//printf ("+%s+\n", out);
-
-}
-
-char
-debug_getkey ()
-{
-	syslog(LOG_DEBUG, "getkey");
-	return 0;
-}
