@@ -830,7 +830,7 @@ MtxOrb_cursorblink (Driver *drvthis, int on)
 /******************************
  * Returns string with general information about the display
  */
-MODULE_EXPORT char *
+MODULE_EXPORT const char *
 MtxOrb_get_info (Driver *drvthis)
 {
 	char in = 0;
@@ -1126,6 +1126,9 @@ MtxOrb_num (Driver *drvthis, int pos, int val)
 {
 	int x, y;
 	int c;
+
+	if ((val < 0) || (val > 10))
+		return;
 
 	debug(RPT_DEBUG, "MtxOrb: write big number %d at %d", val, pos);
 

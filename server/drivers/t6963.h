@@ -1,5 +1,6 @@
 /*
- * Base driver module for Toshiba T6963 based LCD displays ver 1.0.
+ * Base driver module for Toshiba T6963 based LCD displays ver 2.2
+ *    ( ver 2.* is not at all compatible to 1.* versions!)
  *
  * Parts of this file are based on the kernel driver by Alexander Frink <Alexander.Frink@Uni-Mainz.DE>
  *
@@ -7,10 +8,36 @@
  * COPYING file distributed with this package.
  *
  * Copyright (c)  2001 Manuel Stahl <mythos@xmythos.de>
+ *
+ * Wiring:
+ *  Parallel:              LCD:
+ *  1 (Strobe) ----------- 5 (WR)
+ *  2-9 (Data) ----------- 11-18 (Data)
+ *  14 (Autofeed) -------- 7 (CE)
+ *  16 (Init) ------------ 8 (C/D)
+ *  17 (Slct) ------------ 6 (RD)
+ *  18 (GND) ------------- 3 (GND)
+ *  +5V ------------------ 3(LCD +)
+ *
  */
 
 #ifndef T6963_H
 #define T6963_H
+
+#include "lcd.h"
+
+#define DEFAULT_CELL_WIDTH 6
+#define DEFAULT_CELL_HEIGHT 8
+#define DEFAULT_SIZE "20x6"
+#define DEFAULT_PORT 0x378
+#define DEFAULT_WRHI 0x04
+#define DEFAULT_WRLO 0xfb
+#define DEFAULT_CEHI 0xfe
+#define DEFAULT_CELO 0x01
+#define DEFAULT_CDHI 0xf7
+#define DEFAULT_CDLO 0x08
+#define DEFAULT_RDHI 0xfd
+#define DEFAULT_RDLO 0x02
 
 #define SM_UP (1)
 #define SM_DOWN (2)
@@ -21,35 +48,14 @@
 #define CUR_BLOCK 6
 #define CUR_NONE 1
 
-// take PC 1 HI
-#define T6963_CEHI    outb_p(inb_p(T6963_CONTROL_PORT) & 0xfe, T6963_CONTROL_PORT)
-// take PC 1 LO
-#define T6963_CELO    outb_p(inb_p(T6963_CONTROL_PORT) | 0x01, T6963_CONTROL_PORT)
-
-// take PC 14 HI
-#define T6963_RDHI    outb_p(inb_p(T6963_CONTROL_PORT) & 0xfd, T6963_CONTROL_PORT)
-// take PC 14 LO
-#define T6963_RDLO    outb_p(inb_p(T6963_CONTROL_PORT) | 0x02, T6963_CONTROL_PORT)
-
-// take PC 16 HI
-#define T6963_WRHI    outb_p(inb_p(T6963_CONTROL_PORT) | 0x04, T6963_CONTROL_PORT)
-// take PC 16 LO
-#define T6963_WRLO    outb_p(inb_p(T6963_CONTROL_PORT) & 0xfb, T6963_CONTROL_PORT)
-
-// take PC 17 HI
-#define T6963_CDHI    outb_p(inb_p(T6963_CONTROL_PORT) & 0xf7, T6963_CONTROL_PORT)
-// take PC 17 LO
-#define T6963_CDLO    outb_p(inb_p(T6963_CONTROL_PORT) | 0x08, T6963_CONTROL_PORT)
-
 // 8bit Data input
-#define T6963_DATAIN  outb_p(inb_p(T6963_CONTROL_PORT) | 0x20, T6963_CONTROL_PORT)
+#define T6963_DATAIN(p)  port_out(T6963_CONTROL_PORT(p), port_in(T6963_CONTROL_PORT(p)) | 0x20)
 // 8bit Data output
-#define T6963_DATAOUT outb_p(inb_p(T6963_CONTROL_PORT) & 0xdf, T6963_CONTROL_PORT)
+#define T6963_DATAOUT(p) port_out(T6963_CONTROL_PORT(p), port_in(T6963_CONTROL_PORT(p)) & 0xdf)
 
-#define CHARGEN_BASE 0x0000
-#define TEXT_BASE 0x0800
-#define ATTRIB_BASE 0x1000
-#define ATTRIB_AREA 0x03BF
+#define TEXT_BASE 0x0000
+#define ATTRIB_BASE 0x7000
+#define CHARGEN_BASE 0xF000
 
 #define SET_CURSOR_POINTER 0x21
 #define SET_OFFSET_REGISTER 0x22
@@ -89,9 +95,9 @@
 
 #define POSITION(x,y)  ((y)*lcd.wid + (x))
 
-#define T6963_DATA_PORT (t6963_out_port)
-#define T6963_STATUS_PORT (t6963_out_port+1)
-#define T6963_CONTROL_PORT (t6963_out_port+2)
+#define T6963_DATA_PORT(p) (p)
+#define T6963_STATUS_PORT(p) ((p)+1)
+#define T6963_CONTROL_PORT(p) ((p)+2)
 
 
 // ****************************************************************************************
@@ -105,38 +111,40 @@ typedef unsigned char u8;
 // *                  F U N C T I O N S                                                   *
 // ****************************************************************************************
 
-extern lcd_logical_driver *t6963;
 
-int  t6963_init (struct lcd_logical_driver *driver, char *args);
-void t6963_close ();
-void t6963_clear ();
-void t6963_graphic_clear ();
-void t6963_flush ();
-void t6963_string (int x, int y, char string[]);
-void t6963_chr (int x, int y, char c);
-int  t6963_contrast (int contrast);
-void t6963_backlight (int on);
-void t6963_vbar (int x, int len);
-void t6963_hbar (int x, int y, int len);
-void t6963_num (int x, int num);
-void t6963_init_num ();
-void t6963_set_nchar (int n, char *dat, int num);
-void t6963_set_char (int n, char *dat);
-void t6963_icon (int which, char dest);
-void t6963_flush_box (int lft, int top, int rgt, int bot);
-void t6963_draw_frame (char *dat);
-char t6963_getkey ();
+MODULE_EXPORT int  t6963_init (Driver *drvthis);
+MODULE_EXPORT void t6963_close (Driver *drvthis);
+MODULE_EXPORT int  t6963_width (Driver *drvthis);
+MODULE_EXPORT int  t6963_height (Driver *drvthis);
+MODULE_EXPORT void t6963_clear (Driver *drvthis);
+MODULE_EXPORT void t6963_flush (Driver *drvthis);
+MODULE_EXPORT void t6963_string (Driver *drvthis, int x, int y, char string[]);
+MODULE_EXPORT void t6963_chr (Driver *drvthis, int x, int y, char c);
 
-void t6963_low_data(u8 byte);
-void t6963_low_command (u8 byte);
+MODULE_EXPORT void t6963_vbar (Driver *drvthis, int x, int y, int len, int promille, int options);
+MODULE_EXPORT void t6963_hbar (Driver *drvthis, int x, int y, int len, int promille, int options);
+MODULE_EXPORT void t6963_num (Driver *drvthis, int x, int num);
+MODULE_EXPORT int  t6963_icon (Driver *drvthis, int x, int y, int icon);
 
-void t6963_low_command_byte(u8 cmd, u8 byte);
-void t6963_low_command_2_bytes(u8 cmd, u8 byte1, u8 byte2);
-void t6963_low_command_word(u8 cmd, u16 word);
+MODULE_EXPORT void t6963_set_char (Driver *drvthis, int n, char *dat);
 
-void t6963_low_enable_mode (u8 mode);
-void t6963_low_disable_mode (u8 mode);
 
-void t6963_swap_buffers();
+void t6963_graphic_clear (Driver *drvthis, int x1, int y1, int x2, int y2);
+void t6963_set_nchar (Driver *drvthis, int n, char *dat, int num);
+
+void t6963_low_set_control(Driver *drvthis, char wr, char ce, char cd, char rd);
+void t6963_low_dsp_ready(Driver *drvthis);
+
+void t6963_low_data(Driver *drvthis, u8 byte);
+void t6963_low_command (Driver *drvthis, u8 byte);
+
+void t6963_low_command_byte(Driver *drvthis, u8 cmd, u8 byte);
+void t6963_low_command_2_bytes(Driver *drvthis, u8 cmd, u8 byte1, u8 byte2);
+void t6963_low_command_word(Driver *drvthis, u8 cmd, u16 word);
+
+void t6963_low_enable_mode (Driver *drvthis, u8 mode);
+void t6963_low_disable_mode (Driver *drvthis, u8 mode);
+
+void t6963_swap_buffers(Driver *drvthis);
 
 #endif

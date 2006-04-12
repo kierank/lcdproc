@@ -1,10 +1,11 @@
 #ifndef LCD_JOY_H
 #define LCD_JOY_H
 
-extern lcd_logical_driver *joy;
+#include "lcd.h"
 
-int joy_init (struct lcd_logical_driver *driver, char *args);
-void joy_close ();
-char joy_getkey ();
+MODULE_EXPORT int  joy_init (Driver *drvthis);
+MODULE_EXPORT void joy_close (Driver *drvthis);
+
+MODULE_EXPORT const char *joy_get_key (Driver *drvthis);
 
 #endif

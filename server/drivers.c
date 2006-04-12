@@ -1,184 +1,371 @@
 /*
- * Driver loader
+ * drivers.c
+ * This file is part of LCDd, the lcdproc server.
  *
- * This code does all driver handling, loading, initializing, unloading.
+ * This file is released under the GNU General Public License. Refer to the
+ * COPYING file distributed with this package.
+ *
+ * Copyright (c) 2001, Joris Robijn
+ *
+ *
+ * This code manages the lists of loaded drivers and does actions on all drivers.
  *
  */
 
-#include <malloc.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
 #include <sys/errno.h>
-#include <syslog.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
 #include "shared/LL.h"
-#include "shared/debug.h"
-#include "configfile.h"
+#include "shared/report.h"
+#include "shared/configfile.h"
 
+#include "drivers.h"
+#include "driver.h"
 #include "drivers/lcd.h"
-// lcd.h is used for the driver API definition
+#include "widget.h"
+/* lcd.h is used for the driver API definition */
 
 
 LinkedList * loaded_drivers = NULL;
+DisplayProps * display_props = NULL;
 
-long int empty_function() { return 0; }
+#define ForAllDrivers(drv) for( drv = LL_GetFirst(loaded_drivers); drv; drv = LL_GetNext(loaded_drivers) )
 
-static int fill_driver_functions( lcd_logical_driver * driver );
-
-static int store_private_ptr(struct lcd_logical_driver * driver, void * private_data);
 
 int
-load_driver ( char * name, char * filename, char * args )
+drivers_load_driver( char * name )
 {
-	int res;
-	void (*driver_init)();
-	lcd_logical_driver * driver;
+	Driver * driver;
+	char * s;
+	char * driverpath;
+	char * filename;
 
-	debug ("load_driver(%s,%s,%s)\n", name,filename,args);
+	debug( RPT_DEBUG, "%s( name=\"%.40s\")", __FUNCTION__, name );
 
-	// First driver ?
+	/* First driver ? */
 	if( !loaded_drivers ) {
-		// Create linked list
+		/* Create linked list */
 		loaded_drivers = LL_new ();
 		if( !loaded_drivers ) {
-			fprintf( stderr, "Error allocating driver list.\n" );
+			report( RPT_ERR, "Error allocating driver list." );
 			return -1;
 		}
 	}
 
+	/* Retrieve data from config file */
+	s = config_get_string( "server", "driverpath", 0, "" );
+	driverpath = malloc( strlen(s) + 1 );
+	strcpy( driverpath, s );
 
-	// Find the driver in the array of driver types
-	if ((driver_init = (void *) lcd_find_init(name)) == NULL) {
-		// Driver not found
-		fprintf( stderr, "invalid driver: %s\n", name);
+	s = config_get_string( name, "file", 0, NULL );
+	if( s ) {
+		filename = malloc( strlen(driverpath) + strlen(s) + 1 );
+		strcpy( filename, driverpath );
+		strcat( filename, s );
+	} else {
+		filename = malloc( strlen(driverpath) + strlen(name) + strlen(MODULE_EXTENSION) + 1 );
+		strcpy( filename, driverpath );
+		strcat( filename, name  );
+		strcat( filename, MODULE_EXTENSION );
+	}
+
+	/* Load the module */
+	driver = driver_load( name, filename );
+	if( driver == NULL ) {
+		/* It failed. The message has already been given by driver_load() */
+		report( RPT_INFO, "Module %.40s could not be loaded", filename );
+		free( driverpath );
+		free( filename );
 		return -1;
 	}
 
-
-	// Allocate memory for new driver struct
-	driver = malloc( sizeof( lcd_logical_driver ));
-	//memset( driver, 0, sizeof (lcd_logical_driver ));
-
-	lcd_ptr = driver;
-
-	fill_driver_functions( driver );
-
-
-	// Rebind the init function and call it
-	driver->init = driver_init;
-
-	res = driver->init( driver, args );
-	if( res < 0 ) {
-		fprintf( stderr, "res<0\n" );
-		// driver load failed, don't add driver to list
-		return -1;
-	}
-
-	// Add driver to list
+	/* Add driver to list */
 	LL_Push( loaded_drivers, driver );
 
-	// Check the driver type
-	if( driver->daemonize ) {
-		return 2;
+	free( driverpath );
+	free( filename );
+
+	/* If first driver, store display properties */
+	if( driver_does_output(driver) && !display_props ) {
+		if( driver->width(driver) <= 0 || driver->width(driver) > LCD_MAX_WIDTH
+		|| driver->height(driver) <= 0 || driver->height(driver) > LCD_MAX_HEIGHT ) {
+			report( RPT_ERR, "Driver [%.40s] has invalid display size", driver->name );
+		}
+
+		/* Allocate new DisplayProps structure */
+		display_props = malloc( sizeof( DisplayProps ));
+		display_props->width      = driver->width(driver);
+		display_props->height     = driver->height(driver);
+
+		if( driver->cellwidth != NULL && display_props->cellwidth > 0 )
+			display_props->cellwidth  = driver->cellwidth(driver);
+		else
+			display_props->cellwidth  = LCD_DEFAULT_CELLWIDTH;
+
+		if( driver->cellheight != NULL && driver->cellheight(driver) > 0 )
+			display_props->cellheight = driver->cellheight(driver);
+		else
+			display_props->cellheight = LCD_DEFAULT_CELLHEIGHT;
 	}
 
-	return 1; // We can't see if it's an input driver only...
+	/* Return the driver type */
+	if( driver_does_output(driver) ) {
+		if( driver_stay_in_foreground(driver) )
+			return 2;
+		else
+			return 1;
+	}
+	return 0;
 }
 
 
 int
-unload_all_drivers ()
+drivers_unload_all()
 {
-	lcd_logical_driver * driver;
+	Driver * driver;
 
-	debug ("unload_all_driver()\n");
+	debug( RPT_DEBUG, "%s()", __FUNCTION__);
 
 	while( (driver = LL_Pop( loaded_drivers )) != NULL ) {
-		debug ("driver->close %p\n", driver );
-		driver->close();
+		driver_unload( driver );
 	}
 
 	return 0;
 }
 
 
-static int
-fill_driver_functions( lcd_logical_driver * driver )
+const char *
+drivers_get_info()
 {
-	driver->wid = LCD_STD_WIDTH;
-	driver->hgt = LCD_STD_HEIGHT;
+	Driver *drv;
 
-	driver->cellwid = LCD_STD_CELL_WIDTH;
-	driver->cellhgt = LCD_STD_CELL_HEIGHT;
+	debug( RPT_DEBUG, "%s()", __FUNCTION__ );
 
-	driver->framebuf = NULL;
-	driver->nextkey = NULL;
-
-	driver->daemonize = 1;
-
-	// Set pointers to empty function
-
-	// Basic functions
-	driver->init = empty_function;
-	driver->close = empty_function;
-
-	driver->getinfo = empty_function;
-	// and don't forget other get_* functions later...
-
-	driver->clear = empty_function;
-	driver->flush = empty_function;
-	driver->string = empty_function;
-	driver->chr = empty_function;
-
-	// Extended functions
-	driver->init_vbar = empty_function;
-	driver->vbar = empty_function;
-	driver->init_hbar = empty_function;
-	driver->hbar = empty_function;
-	driver->init_num = empty_function;
-	driver->num = empty_function;
-	driver->heartbeat = empty_function;
-
-	// Hardware functions
-	driver->contrast = empty_function;
-	driver->backlight = empty_function;
-	driver->output = empty_function;
-
-	// Uesrdef character functions
-	driver->set_char = empty_function;
-	driver->icon = empty_function;
-
-	// Key functions
-	driver->getkey = empty_function;
-
-	// Ancient functions
-	driver->flush_box = empty_function;
-	driver->draw_frame = empty_function;
-
-	// Config file functions
-	driver->config_get_bool		= config_get_bool;
-	driver->config_get_int		= config_get_int;
-	driver->config_get_float	= config_get_float;
-	driver->config_get_string	= config_get_string;
-	driver->config_has_section	= config_has_section;
-	driver->config_has_key		= config_has_key;
-
-	// Driver private data
-	driver->store_private_ptr	= store_private_ptr;
-
-	return 0;
+	ForAllDrivers(drv) {
+		if( drv->get_info ) {
+			return drv->get_info( drv );
+		}
+	}
+	return "";
 }
 
 
-static int
-store_private_ptr(struct lcd_logical_driver * driver, void * private_data)
+void
+drivers_clear()
 {
-	driver->private_data = private_data;
-	return 0;
+	Driver *drv;
+
+	debug( RPT_DEBUG, "%s()", __FUNCTION__ );
+
+	ForAllDrivers(drv) {
+		if( drv->clear )
+			drv->clear( drv );
+	}
 }
+
+
+void
+drivers_flush()
+{
+	Driver *drv;
+
+	debug( RPT_DEBUG, "%s()", __FUNCTION__ );
+
+	ForAllDrivers(drv) {
+		if( drv->flush )
+			drv->flush( drv );
+	}
+}
+
+
+void
+drivers_string( int x, int y, char * string )
+{
+	Driver *drv;
+
+	debug( RPT_DEBUG, "%s( x=%d, y=%d, string=\"%.40s\" )", __FUNCTION__, x, y, string );
+
+	ForAllDrivers(drv) {
+		if( drv->string )
+			drv->string( drv, x, y, string );
+	}
+}
+
+
+void
+drivers_chr( int x, int y, char c )
+{
+	Driver *drv;
+
+	debug( RPT_DEBUG, "%s( x=%d, y=%d, c='%c' )", __FUNCTION__, x, y, c );
+
+	ForAllDrivers(drv) {
+		if( drv->chr )
+			drv->chr( drv, x, y, c );
+	}
+}
+
+
+void
+drivers_vbar( int x, int y, int len, int promille, int pattern )
+{
+	Driver *drv;
+
+	debug( RPT_DEBUG, "%s( x=%d, y=%d, len=%d, promille=%d, pattern=%d )", __FUNCTION__, x, y, len, promille, pattern );
+
+	/* NEW FUNCTIONS
+	 *
+	 * We need more data in the widget. Requires language update...
+	 */
+
+
+	ForAllDrivers(drv) {
+		if( drv->vbar )
+			drv->vbar( drv, x, y, len, promille, pattern );
+		else
+			driver_alt_vbar( drv, x, y, len, promille, pattern );
+	}
+}
+
+
+void
+drivers_hbar( int x, int y, int len, int promille, int pattern )
+{
+	Driver *drv;
+
+	debug( RPT_DEBUG, "%s( x=%d, y=%d, len=%d, promille=%d, pattern=%d )", __FUNCTION__, x, y, len, promille, pattern );
+
+	ForAllDrivers(drv) {
+		if( drv->hbar )
+			drv->hbar( drv, x, y, len, promille, pattern );
+		else
+			driver_alt_hbar( drv, x, y, len, promille, pattern );
+	}
+}
+
+
+void
+drivers_num( int x, int num )
+{
+	Driver *drv;
+
+	debug( RPT_DEBUG, "%s( x=%d, num=%d )", __FUNCTION__, x, num );
+
+	ForAllDrivers(drv) {
+		if( drv->num )
+			drv->num( drv, x, num );
+		else
+			driver_alt_num( drv, x, num );
+	}
+}
+
+
+void
+drivers_heartbeat( int state )
+{
+	Driver *drv;
+
+	debug( RPT_DEBUG, "%s( state=%d )", __FUNCTION__, state );
+
+	ForAllDrivers(drv) {
+		if( drv->heartbeat )
+			drv->heartbeat( drv, state );
+		else
+			driver_alt_heartbeat( drv, state );
+	}
+}
+
+
+void
+drivers_icon( int x, int y, int icon )
+{
+	Driver *drv;
+
+	debug( RPT_DEBUG, "%s( x=%d, y=%d, icon=ICON_%s )", __FUNCTION__, x, y, widget_icon_to_iconname (icon) );
+
+	ForAllDrivers(drv) {
+		/* Does the driver have the icon function ? */
+		if( drv->icon ) {
+			/* Try driver call */
+			if (drv->icon( drv, x, y, icon ) == -1) {
+				/* do alternative call if driver's function does not know the icon */
+				driver_alt_icon( drv, x, y, icon );
+			}
+		} else {
+			/* Also do alternative call if the driver does not have icon function */
+			driver_alt_icon( drv, x, y, icon );
+		}
+	}
+}
+
+void
+drivers_cursor( int x, int y, int state )
+{
+	Driver *drv;
+
+	debug( RPT_DEBUG, "%s( x=%d, y=%d, state=%d )", __FUNCTION__, x, y, state );
+
+	ForAllDrivers(drv) {
+		if( drv->cursor )
+			drv->cursor( drv, x, y, state );
+		else
+			driver_alt_cursor( drv, x, y, state );
+	}
+}
+
+void
+drivers_backlight( int brightness )
+{
+	Driver *drv;
+
+	debug( RPT_DEBUG, "%s( brightness=%d )", __FUNCTION__, brightness );
+
+	ForAllDrivers(drv) {
+		if( drv->backlight )
+			drv->backlight( drv, brightness );
+	}
+}
+
+
+void
+drivers_output( int state )
+{
+	Driver *drv;
+
+	debug( RPT_DEBUG, "%s( state=%d )", __FUNCTION__, state );
+
+	ForAllDrivers(drv) {
+		if( drv->output )
+			drv->output( drv, state );
+	}
+}
+
+
+const char *
+drivers_get_key()
+{
+	/* Find the first input keystroke, if any */
+	Driver *drv;
+	const char * keystroke;
+
+	debug( RPT_DEBUG, "%s()", __FUNCTION__ );
+
+	ForAllDrivers(drv) {
+		if( drv->get_key ) {
+			keystroke = drv->get_key( drv );
+			if( keystroke != NULL ) {
+				report( RPT_INFO, "Driver [%.40s] generated keystroke %.40s", drv->name, keystroke );
+				return keystroke;
+			}
+		}
+	}
+	return NULL;
+}
+
