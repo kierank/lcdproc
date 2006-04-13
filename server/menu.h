@@ -1,135 +1,130 @@
+/*
+ * menu.h
+ * This file is part of LCDd, the lcdproc server.
+ *
+ * This file is released under the GNU General Public License. Refer to the
+ * COPYING file distributed with this package.
+ *
+ * Copyright (c) 1999, William Ferrell, Scott Scriven
+ *               2004, F5 Networks, Inc. - IP-address input
+ *               2005, Peter Marschall - error checks, ...
+ *
+ * Defines all the menu data and actions.
+ *
+ */
+
+#include "menuitem.h"
+/* These headers are placed here on purpose ! (circular references) */
+
 #ifndef MENU_H
 #define MENU_H
 
-#if 0
-/*************************************************************************
-				Menus!
-
-This is how the LCDproc menu stuff works...
-
-Each item has three values:
-
-        Title           -- Text
-        Type            -- menu,  function, checkbox,  slider,   mover
-        Data            -- Child, ExecFunc, CheckFunc, SlidFunc, ???
-
-When an item is picked, do_menu() decides what to do based on type.
---"Menus" will recurse into the "data", assuming it is a child menu.
---"Function"-type items will have their function called.  
---CheckBox-type items will have their function called with a "read"
-  parameter to get an on/off signal, and called with a "set" signal when
-  picked.
---Sliders will have the same "read" thing, and the "set" function will
-  take a plus or minus parameter.
---The Movers will act like a label until picked, and then the +/- keys
-  will both rearrange the menu, and send the item a signal of some sort
-  to indicate what happened.  It will act like a label again after the
-  user presses Enter again.
-
-The "Data" field will really be a "void *", which is the "generic"
-data type in C...
-
-Anyway, this sort of thing would be declared this way:
-
-========================================================================
-
-menu_item MainMenu[] = {
-        "MENU",         0,              0,   // Title
-        "Options",      TYPE_MENU,      (void *)OptionsMenu,
-        "Kill LCDproc", TYPE_FUNC,      (void *)Shutdown_func,
-        0,              0,              0,
-};
-
-menu_item OptionsMenu[] = {
-        "OPTIONS",      TYPE_TITL,       0,   // Title
-        "24-hour Time", TYPE_CHEK,      (void *)Time24_func,
-        "Contrast...",  TYPE_SLID,      (void *)Contrast_func,
-        0,              0,              0,
-};
-
-///////////////// Elsewhere, we declare these...
-
-void Shutdown_func()
-{
-  // Do something here...
-  return MENU_KILL;     // or MENU_CLOSE, or MENU_OK, or MENU_ERROR
-}
-
-int Time24_func(int input)
-{
-  if(input == MENU_READ) return status;
-  if(input == MENU_CHECK) toggle_status();  // does something.
-  return (status | MENU_OK);
-        // The status is "or"-ed with the MENU value to let do_menu()
-        // know what to do after selecting the item.  (two return
-        // values in one.  :)
-
-        // Also, "MENU_OK" happens to be zero, so it does not matter
-        // unless you want something else (like MENU_CLOSE)
-}
-
-int Contrast_func(int input)
-{
-  if(input == MENU_READ) return status;
-  if(input == MENU_PLUS) increment_status(); // does something.
-  if(input == MENU_MINUS) decrement_status();// does something.
-  return (status | MENU_OK); 
-}
-
-=====================================================================
-
-Function return values:
-    MENU_OK        Keeps menu open.
-    MENU_CLOSE     Closes menu after item is picked.
-                   Leaves the parent menus open.
-    MENU_QUIT      Closes all menus after item is picked.
-                   Like a normal pulldown menu.
-    MENU_KILL      Same as MENU_QUIT, so far.
-    MENU_ERROR     Um, for errors?  :)
-
-Also, functions for sliders and checkboxes should return a status value
-binary OR-ed with the MENU_ return value.  Checkboxes should return 0 or 1,
-and sliders should return 0-255.
-
-**************************************************************************/
+#ifndef bool
+# define bool short
+# define true 1
+# define false 0
 #endif
 
-// Return codes from selected menu items...
-#define MENU_ERROR -0x7FFF0000
-#define MENU_OK 0
-#define MENU_CLOSE 0x10000
-#define MENU_QUIT 0x20000
-#define MENU_KILL 0x20000
+#define min(a,b) (((a) < (b)) ? (a) : (b))
+#define max(a,b) (((a) > (b)) ? (a) : (b))
 
-// Menu item Types...
-#define TYPE_TITL 0
-#define TYPE_MENU 1
-#define TYPE_FUNC 2
-#define TYPE_CHEK 3
-#define TYPE_SLID 4
-#define TYPE_MOVE 5
+#include "shared/LL.h"
 
-#define CLIENT_MENU 0x100
-#define CLIENT_FUNC 0x101
-#define CLIENT_CHEK 0x102
-#define CLIENT_SLID 0x103
-#define CLIENT_MOVE 0x104
+/** A Menu is a MenuItem too.
+ * This definition is only for better understanding of this code.
+ */
+typedef MenuItem Menu;
 
-// User actions, sent to item-handling functions as input.
-#define MENU_SELECT 1
-#define MENU_CHECK 2
-#define MENU_PLUS 3
-#define MENU_MINUS 4
-#define MENU_READ 5
+#include "screen.h"
 
-typedef struct menu_item {
-	char *text;
-	int type;
-	void *data;
-} menu_item;
+/** Creates a new menu. */
+Menu *menu_create (char *id, MenuEventFunc(*event_func),
+	char *text, Client *client);
 
-#define Menu menu_item *
+/** Deletes menu from memory.
+ * Destructors will be called for all subitems.
+ * DO NOT CALL THIS FUNCTION, CALL menuitem_destroy INSTEAD !
+ */
+void menu_destroy (Menu *menu);
 
-int do_menu (Menu menu);
+void menu_add_item (Menu *menu, MenuItem *item);
+/** Adds an item to the menu */
 
+/** Removes an item from the menu (does not destroy it) */
+void menu_remove_item (Menu *menu, MenuItem *item);
+
+/** Destroys and removes all items from the menu */
+void menu_destroy_all_items (Menu *menu);
+
+/** Enumeration function.
+ * Retrieves the first item from the list of items in the menu.
+ */
+static inline MenuItem *menu_getfirst_item (Menu *menu)
+{
+	return (MenuItem*) ((menu != NULL)
+			    ? LL_GetFirst(menu->data.menu.contents)
+			    : NULL);
+}
+
+/** Enumeration function.
+ * Retrieves the next item from the list of items in the menu.
+ * No other menu calls should be made between menu_first_item() and
+ * this function, to keep the list-cursor where it is.
+ */
+static inline MenuItem *menu_getnext_item (Menu *menu)
+{
+	return (MenuItem*) ((menu != NULL)
+			    ? LL_GetNext(menu->data.menu.contents)
+			    : NULL);
+}
+
+/** Retrieves the current (non-hidden) item from the list of items in the
+ * menu. */
+MenuItem *menu_get_current_item (Menu *menu);
+
+/** Finds an item in the menu by the given id. */
+MenuItem *menu_find_item (Menu *menu, char *id, bool recursive);
+
+/** sets the association member of a Menu. */
+void menu_set_association(Menu *menu, void *assoc);
+
+/** Resets it to initial state.
+ * DO NOT CALL THIS FUNCTION, CALL menuitem_reset_screen INSTEAD !
+ */
+void menu_reset (Menu *menu);
+
+/** Builds the selected menuitem on screen using widgets.
+ * DO NOT CALL THIS FUNCTION, CALL menuitem_rebuild_screen INSTEAD !
+ */
+void menu_build_screen (Menu *menu, Screen *s);
+
+/** Updates the widgets of the selected menuitem
+ * DO NOT CALL THIS FUNCTION, CALL menuitem_update_screen INSTEAD !
+ */
+void menu_update_screen (Menu *menu, Screen *s);
+
+/**
+ * For predecessor-Check: returns selected subitem of menu if this subitem
+ * has no own screen (action, checkbox, ...) and this subitem has a
+ * predecessor and menu otherwise.
+ *
+ * @return NULL on error. */
+MenuItem * menu_get_item_for_predecessor_check(Menu *menu);
+
+/**
+ * For successor-Check: returns selected subitem of menu if
+ * this subitem has no own screen (action, checkbox, ...) or menu
+ * otherwise.
+ *
+ * @return NULL on error. */
+MenuItem * menu_get_item_for_successor_check(Menu *menu);
+
+/** Does something with the given input.
+ * key is only used if token is MENUTOKEN_OTHER.
+ * DO NOT CALL THIS FUNCTION, CALL menuitem_process_input INSTEAD !
+ */
+MenuResult menu_process_input (Menu *menu, MenuToken token, const char * key, bool extended);
+
+/** positions current item pointer on subitem subitem_id. */
+void menu_select_subitem(Menu *menu, char * subitem_id);
 #endif
