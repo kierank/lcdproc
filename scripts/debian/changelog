@@ -28,7 +28,7 @@ lcdproc (0.5.0-1) unstable; urgency=low
       + i2c: to conned LCDs using the I2C bus
       + lis2: for the LIS2 serial-to-USB converter
 
- -- Peter Marschall <peter@adpm.de>  Fri, 31 Dec 2004 23:21:28 +0100
+ -- Peter Marschall <peter@adpm.de>  Sat, 15 Apr 2006 13:00:00 +0200
 
 lcdproc (0.4.5-1) unstable; urgency=high
 
