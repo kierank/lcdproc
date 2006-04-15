@@ -1,6 +1,20 @@
+CAUTION:
+This file may contain outdated information.
+In order to find current information about the LCDproc client-server
+protocol see the LCDproc Administrator's Guide in docs/lcdproc-dev/
+
+
+
+========================================================================
+
+
 LCDproc client/server protocol, V0.2
 ---------------------------------------------
 
+fixme: most of this stuff is described better in
+       ./docs/lcdproc-dev/language.docbook so this file should
+       probably be removed after extracting the information that is
+       not anywhere else; see also ./docs/menustuff.txt (Volker)
 
 QUICKSTART
 ----------
@@ -159,8 +173,8 @@ screen_set #id [-priority integer] [-name "my_name"] [-duration integer]
 widget_add #screen #id type [-in #id]
 	Add something onscreen
 	Widget types can be any of the following:  "string", "hbar",
-	"vbar", "title", "icon", "scroller", "frame", ... more later?
-	Widgets are drawn in the order you create them.
+	"vbar", "title", "icon", "num"  "scroller", "frame", ... more
+	later? Widgets are drawn in the order you create them.
 
 	You can put a widget inside a frame by adding "-in #id", where
 	#id is the name of a frame.
@@ -182,6 +196,8 @@ widget_set #screen #id data
 
 		icon		x y binary_data
 
+		num		x number_between_0_and_9
+
 		title		text
 
 		scroller	left top right bottom direction speed text
@@ -192,7 +208,9 @@ widget_set #screen #id data
 			The speed is how many display frames to delay
 			between scrolling.  Each display frame is
 			1/8th of a second, by default.
-			Direction must be "h" or "v".
+			Direction must be "h" for horizontal, "m" for
+			marquee style horizontal or "v" for vertical
+			scrolling..
 			Positive speeds indicate frames per movement.
 			Negative speeds indicate movements per frame.
 
@@ -225,17 +243,11 @@ key #id
 	Sends a keypress to the client.
 
 
-
-
---- Not implemented yet ---
-The functions below are planned but not completed.
-
-
 client->server functions
 -------------------------
 client_add_key #id
 	Tells the server the client can handle keypresses of type #id.
-	#id is probably just "A", "B", and so on...
+	#id is just "Up", "Down", "Left", "Right", "Enter", "Escape", ...
 	All keypresses are disabled by default, so you'll have to tell
 	the server which ones you want to accept...
 
@@ -294,11 +306,8 @@ driver_del #id? (or type)
 
 server->client functions
 -------------------------
-menu #menu #item #action
+menuevent #menu #item #action
 	Tells the client that a menu item was selected/used/etc...
-	The action can be "click", "up", or "down".  The client should
-	handle this according to what type of menu item has been
-	activated, and should probably send the server a new item
-	definition if the item was a checkbox or slider.
-
-
+	The client should handle this according to what type of menu
+	item has been activated, and should probably send the server a
+	new item definition if the item was a checkbox or slider.
