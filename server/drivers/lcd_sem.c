@@ -18,7 +18,6 @@
  * GNU's GPL. In particular, this program is free software and comes WITHOUT
  * ANY WARRANTY.
  * 
- * $Id: lcd_sem.c,v 1.5.4.1 2006/04/13 21:24:21 marschap Exp $
  */
 
 #include <config.h>
