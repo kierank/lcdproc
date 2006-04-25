@@ -445,6 +445,7 @@ PrivateData *p = drvthis->private_data;
   debug(RPT_DEBUG, "%s: closed", drvthis->name);
 }
 
+
 /******************************************************
  * API: Returns the display's width
  */
@@ -458,6 +459,7 @@ PrivateData *p = drvthis->private_data;
   return p->width;
 }
 
+
 /******************************************************
  * API: Returns the display's height
  */
@@ -469,6 +471,34 @@ PrivateData *p = drvthis->private_data;
   debug(RPT_DEBUG, "%s: returning height", drvthis->name);
 
   return p->height;
+}
+
+
+/******************************************************
+ * API: Returns the display's charactr cell width
+ */
+MODULE_EXPORT int 
+IOWarrior_cellwidth(Driver *drvthis)
+{
+PrivateData *p = drvthis->private_data;
+
+  debug(RPT_DEBUG, "%s: returning cellwidth", drvthis->name);
+
+  return p->cellwidth;
+}
+
+
+/******************************************************
+ * API: Returns the display's charactr cell height
+ */
+MODULE_EXPORT int 
+IOWarrior_cellheight(Driver *drvthis)
+{
+PrivateData *p = drvthis->private_data;
+
+  debug(RPT_DEBUG, "%s: returning cellheight", drvthis->name);
+
+  return p->cellheight;
 }
 
 
