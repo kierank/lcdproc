@@ -1,21 +1,37 @@
+#include "getopt.h"
+
 #include <stdio.h>
 #include <unistd.h>
+#include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
 #include <termios.h>
 #include <errno.h>
-#include <stdlib.h>
 #include <signal.h>
+#include <netdb.h>
 #include <ctype.h>
+#include <sys/utsname.h>
+#include <sys/param.h>
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include "main.h"
 #include "mode.h"
 #include "shared/sockets.h"
 #include "shared/debug.h"
+#include "shared/report.h"
+#include "shared/configfile.h"
+
+#include "batt.h"
+#include "chrono.h"
+#include "cpu.h"
+#include "cpu_smp.h"
+#include "disk.h"
+#include "load.h"
+#include "mem.h"
+#include "machine.h"
 
 // TODO: Commenting...  Everything!
 
@@ -25,139 +41,175 @@ int sock;
 char *version = VERSION;
 char *build_date = __DATE__;
 
-int lcd_wid;
-int lcd_hgt;
-int lcd_cellwid;
-int lcd_cellhgt;
+int lcd_wid = 0;
+int lcd_hgt = 0;
+int lcd_cellwid = 0;
+int lcd_cellhgt = 0;
+static struct utsname unamebuf;
 
 /*
   Mode List:
     See below...  (default_sequence[])
 */
 
-void HelpScreen ();
-void exit_program (int val);
-void main_loop (mode * sequence);
+static void HelpScreen(int exit_state);
+static void exit_program(int val);
+static void main_loop();
+static int process_command_line(int argc, char **argv);
+static int process_configfile(char *cfgfile);
 
-#define MAX_SEQUENCE 256
+
+#define CHAIN(e,f) { if (e>=0 ) { e=(f); }}
+#define CHAIN_END(e,msg) { if (e<0 ) { report( RPT_CRIT,(msg)); exit(e); }}
+
 // 1/8th second is a single time unit...
 #define TIME_UNIT 125000
 
-// Contains a list of modes to run
-mode default_sequence[] = {
-// which on  off  inv  timer/visible  
-	{'C', 1, 2, 0, 0xffff, 0,},  // [C]PU
-	{'M', 4, 16, 0, 0xffff, 0,}, // [M]emory
-	{'X', 64, 128, 1, 0xffff, 0,},	// [X]-load (load histogram)
-	{'T', 4, 64, 0, 0xffff, 0,}, // [T]ime/Date
-	{'A', 999, 9999, 0, 0xffff, 0,},	// [A]bout (credits)
+#if !defined(SYSCONFDIR)
+# define SYSCONFDIR "/etc"
+#endif
 
-	{1, 0, 0, 0, 0, 0,},			  // Modes after this line will not be run by default...
-	// ... all non-default modes must be in here!
-	// ... they will not show up otherwise.
-	{'P', 1, 2, 0, 0xffff, 0,},  // [O]ld Timescreen
-	{'O', 4, 64, 0, 0xffff, 0,}, // [O]ld Timescreen
-	{'K', 4, 64, 0, 0xffff, 0,}, // big cloc[K] 
-	{'U', 4, 128, 0, 0xffff, 0,},	// Old [U]ptime Screen
-	{'B', 32, 256, 1, 0xffff, 0,},	// [B]attery Status
-	{'G', 1, 2, 0, 0xffff, 0,},  // Cpu histogram [G]raph
-	{'S', 16, 256, 1, 0xffff, 0,},	// [S]ize of biggest programs
-	{'D', 256, 256, 1, 0xffff, 0,},	// [D]isk stats
-	{0, 0, 0, 0, 0,},				  // No more..  all done.
+#define UNSET_INT -1	 
+#define UNSET_STR "\01"
+#define DEFAULT_SERVER		"127.0.0.1"
+#define DEFAULT_CONFIGFILE	SYSCONFDIR "/lcdproc.conf"
+#define DEFAULT_REPORTDEST	RPT_DEST_STDERR
+#define DEFAULT_REPORTLEVEL	RPT_WARNING
+
+/* list of modes to run */
+mode sequence[] =
+{
+	// flags default ACTIVE will run by default
+	// longname    which on  off inv  timer   flags  
+	{ "CPU",       'C',   1,    2, 0, 0xffff, ACTIVE, cpu_screen        },	// [C]PU
+	{ "Memory",    'M',   4,   16, 0, 0xffff, ACTIVE, mem_screen        },	// [M]emory
+	{ "Load",      'L',  64,  128, 1, 0xffff, ACTIVE, xload_screen      },	// [L]oad (load histogram)
+	{ "TimeDate",  'T',   4,   64, 0, 0xffff, ACTIVE, time_screen       },	// [T]ime/Date
+	{ "About",     'A', 999, 9999, 0, 0xffff, ACTIVE, credit_screen     },	// [A]bout (credits)
+	{ "SMP-CPU",   'P',   1,    2, 0, 0xffff, 0,      cpu_smp_screen    },	// CPU_SM[P]
+	{ "OldTime",   'O',   4,   64, 0, 0xffff, 0,      clock_screen      },	// [O]ld Timescreen
+	{ "BigClock",  'K',   4,   64, 0, 0xffff, 0,      big_clock_screen  },	// big cloc[K] 
+	{ "Uptime",    'U',   4,  128, 0, 0xffff, 0,      uptime_screen     },	// Old [U]ptime Screen
+	{ "Battery",   'B',  32,  256, 1, 0xffff, 0,      battery_screen    },	// [B]attery Status
+	{ "CPUGraph",  'G',   1,    2, 0, 0xffff, 0,      cpu_graph_screen  },	// CPU histogram [G]raph
+	{ "ProcSize",  'S',  16,  256, 1, 0xffff, 0,      mem_top_screen    },	// [S]ize of biggest processes
+	{ "Disk",      'D', 256,  256, 1, 0xffff, 0,      disk_screen       },	// [D]isk stats
+	{ "MiniClock", 'N',   4,   64, 0, 0xffff, 0,      mini_clock_screen },	// Mi[n]i clock 
+	{  NULL, 0, 0, 0, 0, 0, 0, NULL},			  	// No more..  all done.
 };
 
-// TODO: Clean up main()...  It is still way too big.
 
-// TODO: Config file; not just command line
 
-int
-main (int argc, char **argv)
+/* All variables are set to 'unset' values*/
+static int islow = -1;
+char * progname = "lcdproc";
+char * server 	= NULL;
+int port	= LCDPORT;
+int daemonize 	= UNSET_INT;
+static int report_level = UNSET_INT;
+static int report_dest 	= UNSET_INT;
+char configfile[256];		/* a lot of space in the executable. */
+
+
+const char *get_hostname()
 {
-	mode sequence[MAX_SEQUENCE];
-	char cfgfile[256] = "/etc/lcdproc.cf";
-	char server[256] = "localhost";
-	int port = LCDPORT;
-	int i, j, k;
-	int tmp;
+	return(unamebuf.nodename);
+}
 
-	memset (sequence, 0, sizeof (mode) * MAX_SEQUENCE);
+const char *get_sysname()
+{
+	return(unamebuf.sysname);
+}
 
-	// Ctrl-C will cause a clean exit...
-	signal (SIGINT, exit_program);
-	// and "kill"...
-	signal (SIGTERM, exit_program);
-	// and "kill -HUP" (hangup)...
-	signal (SIGHUP, exit_program);
-	// and just in case, "kill -KILL" (which cannot be trapped; but oh well)
-	signal (SIGKILL, exit_program);
+const char *get_sysrelease()
+{
+	return(unamebuf.release);
+}
 
-	// Command line
-	memcpy (sequence, default_sequence, sizeof (default_sequence));
-	for (i = 1, j = 0; i < argc; i++) {
-		if (argv[i][0] == '-')
-			switch (argv[i][1]) {
-				// s is for server
-			case 'S':
-			case 's':
-				if (argc < i + 1)
-					HelpScreen ();
-				strcpy (server, argv[++i]);
-				break;
-				// p is for port
-			case 'P':
-			case 'p':
-				if (argc < i + 1)
-					HelpScreen ();
-				port = atoi (argv[++i]);
-				if (port < 1 && port > 0xffff)
-					fprintf (stderr, "Warning:  Port %i outside of standard range\n", port);
-				break;
+int set_mode(int shortname, char *longname, int state)
+{
+	int k;
 
-				// otherwise...  Get help!
-			default:
-				HelpScreen ();
-				break;
-			}
-		// Parse command line here...  read the man page.
-		else if (strlen (argv[i]) == 1) {
-			// Grab the mode letter...
-			sequence[j].which = argv[i][0];
-
-			// If we have just a letter with no numbers...
-			// Set the defaults...
-			for (tmp = 0, k = 0; default_sequence[k].which; k++) {
-				if (toupper (sequence[j].which) == default_sequence[k].which) {
-					memcpy (&sequence[j], &default_sequence[k], sizeof (mode));
-					tmp = 1;
-					break;
-				}
-			}
-			if (!tmp) {
-				printf ("Invalid Mode: %c\n", argv[i][0]);
-				exit (0);
-			}
-
-			j++;
-			// Set the last element to 0...
-			memset (sequence + j, 0, sizeof (mode));
-		}								  // End if(strlen(argv == 1))
-		else {
-			// A multicharacter parameter by itself
-			//  is assumed to be a config file..
-			strcpy (cfgfile, argv[i]);
-			printf ("Ignoring config file: %s\n", cfgfile);
+	/* ignore already selected modes */
+	for (k = 0; sequence[k].which != 0; k++) {
+		if (((sequence[k].longname != NULL) &&
+		     (0 == strcasecmp(longname, sequence[k].longname))) || 
+		    (toupper(shortname) == sequence[k].which)) {
+			if (!state) {
+				/* clean both the active and inititialized bits since we delete the screen */
+				sequence[k].flags &= (~ACTIVE & ~INITIALIZED);
+				sprintf (buffer, "screen_del %c\n", shortname );
+				sock_send_string (sock, buffer);
+			} else
+				sequence[k].flags |= ACTIVE;
+			return 1; //found
 		}
 	}
+	return 0; //not found
+}
+
+void clear_modes()
+{
+	int k;
+	/* ignore already selected modes */
+	for (k = 0; sequence[k].which != 0; k++) {
+		sequence[k].flags &= (~ACTIVE);
+	}
+}
+
+int
+main(int argc, char **argv)
+{
+	int error = 0;
+
+	/* get uname information */
+	if (uname(&unamebuf) == -1) {
+		perror("uname");
+		return(EXIT_FAILURE);
+	}
+
+	/* setup error handlers */
+	signal(SIGINT, exit_program);	// Ctrl-C
+	signal(SIGTERM, exit_program);	// "regular" kill
+	signal(SIGHUP, exit_program);	// kill -HUP
+	signal(SIGKILL, exit_program);	// kill -9 [cannot be trapped; but ...]
+
+	/* Set default config file, command line may overwrite */
+	strncpy(configfile, DEFAULT_CONFIGFILE, sizeof(configfile));
+
+	/* Read command line*/
+	CHAIN( error, process_command_line(argc, argv) );
+
+	/* Read config file*/
+	if (strcmp(configfile, UNSET_STR) != 0)
+		CHAIN( error, process_configfile(configfile) );
+
+	/* Set default options */
+	if (report_dest == UNSET_INT )
+		report_dest = DEFAULT_REPORTDEST;
+	if( report_level == UNSET_INT )
+		report_level = DEFAULT_REPORTLEVEL;
+
+	/* Set reporting settings */
+	set_reporting("lcdproc", report_level, report_dest);
+
+	CHAIN_END( error, "Error in config file or command line\n" );
+
+	if (server == NULL)
+		server = DEFAULT_SERVER;
 
 	// Connect to the server...
-	usleep (500000);				  // wait for the server to start up
-	sock = sock_connect (server, port);
+	usleep(500000);		// wait for the server to start up
+	sock = sock_connect(server, port);
 	if (sock <= 0) {
-		printf ("Error connecting to LCD server %s on port %i.\nCheck to see that the server is running and operating normally.\n", server, port);
-		return 0;
+		fprintf(stderr, "Error connecting to LCD server %s on port %d.\n"
+		                "Check to see that the server is running and operating normally.\n",
+				server, port);
+		return(EXIT_FAILURE);
 	}
-	sock_send_string (sock, "hello\n");
-	usleep (500000);				  // wait for the server to say hi.
+
+	sock_send_string(sock, "hello\n");
+	usleep(500000);			// wait for the server to say hi.
 
 	// We grab the real values below, from the "connect" line.
 	lcd_wid = 20;
@@ -165,53 +217,263 @@ main (int argc, char **argv)
 	lcd_cellwid = 5;
 	lcd_cellhgt = 8;
 
+	if (daemonize) {
+		if (daemon(1,0) != 0) {
+			fprintf(stderr, "Error: daemonize failed");
+			return(EXIT_FAILURE);
+		}
+	}	
+
 	// Init the status gatherers...
-	mode_init (sequence);
+	mode_init();
 
 	// And spew stuff!
-	main_loop (sequence);
+	main_loop();
 
 	// Clean up
-	exit_program (0);
+	exit_program(EXIT_SUCCESS);
+
+	return(0);
+}
+
+/* parses arguments given on command line */
+static int
+process_command_line(int argc, char **argv)
+{
+	int i;
+	int c;
+
+	/* No error output from getopt */
+	opterr = 0;
+
+	/* get options */
+	while ((c = getopt( argc, argv, "s:p:e:c:dhv")) > 0) {
+		switch (c) {
+			// c is for config file
+			case 'c':
+				strncpy(configfile, optarg, sizeof(configfile));
+				configfile[sizeof(configfile)-1] = 0; /* Terminate string */
+				break;
+			// s is for server
+			case 's':
+				if (server == NULL)
+					server = optarg;
+				else
+					fprintf(stderr, "Ignoring additional server: %s\n", optarg);
+				break;
+			// p is for port
+			case 'p':
+				port = atoi(optarg);
+				if ((port < 1) && (port > 0xFFFF)) {
+					fprintf(stderr, "Warning:  Port %d outside of legal range\n", port);
+					return(EXIT_FAILURE);
+				}	
+				break;
+			case 'e':
+				islow = atoi(optarg);
+				break;
+			case 'd':
+				daemonize = TRUE;
+				break;
+			case 'h':
+				HelpScreen(EXIT_SUCCESS);
+				break;
+			case 'v':
+				fprintf(stderr, "LCDproc %s\n", version);
+				exit(EXIT_SUCCESS);
+				break;
+			// otherwise...  Get help!
+			case '?':	// unknown option or missing argument	
+			default:
+				HelpScreen(EXIT_FAILURE);
+				break;
+		}
+	}	
+
+	/* parse arguments */
+	if (argc > optind)		//user specified some modes, so clear all defaults
+		clear_modes();
+	
+	for (i = max(optind, 1); i < argc; i++) {
+		int shortname = (strlen(argv[i]) == 1) ? toupper(argv[i][0]) : '\0';
+		int found = set_mode(shortname, argv[i], 1);
+		
+		if (!found) {
+			fprintf(stderr, "Invalid Mode: %c\n", argv[i][0]);
+			return(EXIT_FAILURE);
+		}
+	}
+	return 0;
+}
+
+/* reads and parses configuration file */
+static int
+process_configfile(char *configfile)
+{
+	int k;
+
+	debug(RPT_DEBUG, "%s(%s)", __FUNCTION__, configfile);
+
+	/* Read server settings*/
+
+	if (strcmp(configfile, UNSET_STR) == 0) {
+		configfile = DEFAULT_CONFIGFILE;
+	}
+	if (config_read_file(configfile) != 0 ) {
+		report(RPT_CRIT, "Could not read config file: %s", configfile);
+		return -1;
+		//report(RPT_WARNING, "Could not read config file: %s", configfile);
+	}
+
+	if (server == NULL) {
+		server = strdup(config_get_string(progname, "Server", 0, DEFAULT_SERVER));
+	}
+	if (port == UNSET_INT) {
+		port = config_get_int(progname, "Port", 0, LCDPORT);
+	}
+	if(report_level == UNSET_INT) {
+		report_level = config_get_int(progname, "ReportLevel", 0, RPT_WARNING);
+	}
+	if(report_dest == UNSET_INT) {
+		if (config_get_bool(progname, "ReportToSyslog", 0, 0)) {
+			report_dest = RPT_DEST_SYSLOG;
+		} else {
+			report_dest = RPT_DEST_STDERR;
+		}
+	}
+	if (daemonize == UNSET_INT) {
+		daemonize = config_get_bool(progname, "Daemonize", 0, 1);
+	}
+	if (islow < 0) {
+		islow = config_get_int(progname, "delay", 0, -1);
+	}
+
+	/*
+	 * check for config file variables to override all the sequence defaults
+	 */
+	for (k = 0; sequence[k].which  != 0; k++) {
+		if (sequence[k].longname != NULL) {
+			sequence[k].on_time = config_get_int(sequence[k].longname, "OnTime", 0, sequence[k].on_time);
+			sequence[k].off_time = config_get_int(sequence[k].longname, "OffTime", 0, sequence[k].off_time);
+			sequence[k].show_invisible = config_get_bool(sequence[k].longname, "ShowInvisible", 0, sequence[k].show_invisible);
+			if (config_get_bool( sequence[k].longname, "Active", 0, sequence[k].flags & ACTIVE))
+				sequence[k].flags |= ACTIVE;
+			else
+				sequence[k].flags &= (~ACTIVE);
+		}
+	}
+
 	return 0;
 }
 
 void
-HelpScreen ()
+HelpScreen (int exit_state)
 {
-	printf ("LCDproc, %s\n", version);
-	printf ("Usage: lcdproc [-s server] [-p port] [modelist]\n");
-	printf ("\tOptions in []'s are optional.\n");
-	printf ("\tmodelist is \"mode [mode mode ...]\"\n");
-	printf ("\tMode letters: \t[C]pu [G]raph [T]ime [M]emory [X]load [D]isk [B]attery\n\t\t\tproc_[S]izes [O]ld_time big_cloc[K] [U]ptime CPU_SM[P]\n\t\t\t[A]bout\n");
-	printf ("\n");
-	printf ("\tUse \"man lcdproc\" for more info.\n");
-	printf ("Example:\n");
-	printf ("\tlcdproc -s my.lcdproc.server.com C M X -p 13666\n");
-	printf ("\n");
-	exit (0);
+	fprintf(stderr,
+		"Usage: lcdproc [<options>] [<modes> ...]\n"
+		"  where <options> are\n"
+		"    -s <host>               connect to LCDd daemon on <host>\n"
+		"    -p <port>               connect to LCDd daemon using <port>\n"
+		"    -d                      daemonize\n"
+		"    -e <delay>              slow down initial announcement of modes (in 1/100s)\n"
+		"    -c <config>             use a configuration file other than %s\n"
+		"    -h                      show this help screen\n"
+		"    -v                      display program version\n"
+		"  and <modes> are\n"
+		"    C CPU                   detailed CPU usage\n"
+		"    P SMP-CPU               CPU usage overview (one line per CPU)\n"
+		"    G CPUGraph              CPU usage histogram\n"
+		"    L Load                  load histogram\n"
+		"    M Memory                memory & swap usage\n"
+		"    S ProcSize              biggest processes size\n"
+		"    D Disk                  disk usage\n"
+		"    B Battery               battery status\n"
+		"    T TimeDate              time & date information\n"
+		"    O OldTime               old time screen\n"
+		"    U Uptime                uptime screen\n"
+		"    K BigClock              big clock\n"
+		"    N MiniClock             minimal clock\n"
+		"    A About                 credits page\n"
+		"\n"
+		"Example:\n"
+		"    lcdproc -s my.lcdproc.server.com -p 13666 C M X\n"
+		, DEFAULT_CONFIGFILE);
+
+	exit(exit_state);
 }
 
 ///////////////////////////////////////////////////////////////////
 // Called upon TERM and INTR signals...
 //
 void
-exit_program (int val)
+exit_program(int val)
 {
+	//printf("exit program\n");
 	Quit = 1;
-	sock_close (sock);
-	mode_close ();
-	exit (0);
+	sock_close(sock);
+	mode_close();
+	exit(val);
 }
+
+#ifdef LCDPROC_MENUS
+int
+menus_init ()
+{
+	int k;	
+
+	for (k = 0; sequence[k].which ; k++) {
+		if (sequence[k].longname) {
+			sprintf (buffer, "menu_add_item {} %c checkbox {%s} -value %s\n",
+				 	 sequence[k].which, sequence[k].longname,
+					 (sequence[k].flags & ACTIVE) ? "on" : "off");
+			sock_send_string (sock, buffer);
+		}
+	}
+
+#ifdef LCDPROC_CLIENT_TESTMENUS
+//	  # to be entered on escape from test_menu (but overwritten
+//	  # for test_{checkbox,ring}
+	sock_send_string (sock,  "menu_add_item {} ask menu {Leave menus?} -is_hidden true\n");
+	sock_send_string (sock, "menu_add_item {ask} ask_yes action {Yes} -next _quit_\n");
+	sock_send_string (sock, "menu_add_item {ask} ask_no action {No} -next _close_\n");
+	sock_send_string (sock, "menu_add_item {} test menu {Test}\n");
+	sock_send_string (sock, "menu_add_item {test} test_action action {Action}\n");
+	sock_send_string (sock, "menu_add_item {test} test_checkbox checkbox {Checkbox}\n");
+	sock_send_string (sock, "menu_add_item {test} test_ring ring {Ring} -strings {one\ttwo\tthree}\n");
+	sock_send_string (sock, "menu_add_item {test} test_slider slider {Slider} -mintext < -maxtext > -value 50\n");
+	sock_send_string (sock, "menu_add_item {test} test_numeric numeric {Numeric} -value 42\n");
+	sock_send_string (sock, "menu_add_item {test} test_alpha alpha {Alpha} -value abc\n");
+	sock_send_string (sock, "menu_add_item {test} test_ip ip {IP} -v6 false -value 192.168.1.1\n");
+	sock_send_string (sock, "menu_add_item {test} test_menu menu {Menu}\n");
+	sock_send_string (sock, "menu_add_item {test_menu} test_menu_action action {Submenu's action}\n");
+
+//	  # no successor for menus. Since test_checkbox and test_ring have their
+//	  # own predecessors defined the "ask" rule will not work for them
+	sock_send_string (sock, "menu_set_item {} test -prev {ask}\n");
+
+	sock_send_string (sock, "menu_set_item {test} test_action -next {test_checkbox}\n");
+	sock_send_string (sock, "menu_set_item {test} test_checkbox -next {test_ring} -prev test_action\n");
+	sock_send_string (sock, "menu_set_item {test} test_ring -next {test_slider} -prev {test_checkbox}\n");
+	sock_send_string (sock, "menu_set_item {test} test_slider -next {test_numeric} -prev {test_ring}\n");
+	sock_send_string (sock, "menu_set_item {test} test_numeric -next {test_alpha} -prev {test_slider}\n");
+	sock_send_string (sock, "menu_set_item {test} test_alpha -next {test_ip} -prev {test_numeric}\n");
+	sock_send_string (sock, "menu_set_item {test} test_ip -next {test_menu} -prev {test_alpha}\n");
+	sock_send_string (sock, "menu_set_item {test} test_menu_action -next {_close_}\n");
+#endif //LCDPROC_CLIENT_TESTMENUS
+
+	return 0;
+}
+#endif //LCDPROC_MENUS
+
 
 ///////////////////////////////////////////////////////////////////
 // Main program loop...
 //
 void
-main_loop (mode * sequence)
+main_loop()
 {
 	int i = 0, j;
-	//int status=0;
+	int connected = 0;
 	char buf[8192];
 	char *argv[256];
 	int argc, newtoken;
@@ -221,180 +483,133 @@ main_loop (mode * sequence)
 	// Run whatever screen we want, then wait.  Woo-hoo!
 	while (!Quit) {
 		// Check for server input...
-		len = sock_recv (sock, buf, 8000);
+		len = sock_recv(sock, buf, 8000);
 
 		// Handle server input...
 		while (len > 0) {
 			// Now split the string into tokens...
-			//for(i=0; i<argc; i++) argv[i]=NULL; // Get rid of old tokens
+			//for (i=0; i<argc; i++) argv[i]=NULL; // Get rid of old tokens
 			argc = 0;
 			newtoken = 1;
+			
 			for (i = 0; i < len; i++) {
 				switch (buf[i]) {
-				case ' ':
-					newtoken = 1;
-					buf[i] = 0;
+					case ' ':
+						newtoken = 1;
+						buf[i] = 0;
 					break;
-				default:	// regular chars, keep tokenizing
-					if (newtoken) {
-						argv[argc] = buf + i;
-						argc++;
-					}
-					newtoken = 0;
+					default:	// regular chars, keep tokenizing
+						if (newtoken)
+							argv[argc++] = buf + i;
+						newtoken = 0;
 					break;
-				case '\0':
-				case '\n':
-					buf[i] = 0;
-					if (argc > 0) {
-						//printf("%s %s\n", argv[0], argv[1]);
-						if (0 == strcmp (argv[0], "listen")) {
-							for (j = 0; sequence[j].which; j++) {
-								if (sequence[j].which == argv[1][0]) {
-									sequence[j].visible = 1;
-									//debug("Listen %s\n", argv[1]);
+					case '\0':
+					case '\n':
+						buf[i] = 0;
+						if (argc > 0) {
+							//printf("%s %s\n", argv[0], argv[1]);
+							if (0 == strcmp(argv[0], "listen")) {
+								for (j = 0; sequence[j].which; j++) {
+									if (sequence[j].which == argv[1][0]) {
+										sequence[j].flags |= VISIBLE;
+										//debug(RPT_DEBUG, "Listen %s\n", argv[1]);
+									}
 								}
 							}
-						} else if (0 == strcmp (argv[0], "ignore")) {
-							for (j = 0; sequence[j].which; j++) {
-								if (sequence[j].which == argv[1][0]) {
-									sequence[j].visible = 0;
-									//debug("Ignore %s\n", argv[1]);
+							else if (0 == strcmp(argv[0], "ignore")) {
+								for (j = 0; sequence[j].which; j++) {
+									if (sequence[j].which == argv[1][0]) {
+										sequence[j].flags &= ~VISIBLE;
+										//debug(RPT_DEBUG, "Ignore %s\n", argv[1]);
+									}
 								}
 							}
-						} else if (0 == strcmp (argv[0], "key")) {
-							debug ("Key %s\n", argv[1]);
-						} else if (0 == strcmp (argv[0], "menu")) {
-						} else if (0 == strcmp (argv[0], "connect")) {
-							int a;
-							for (a = 1; a < argc; a++) {
-								if (0 == strcmp (argv[a], "wid"))
-									lcd_wid = atoi (argv[++a]);
-								else if (0 == strcmp (argv[a], "hgt"))
-									lcd_hgt = atoi (argv[++a]);
-								else if (0 == strcmp (argv[a], "cellwid"))
-									lcd_cellwid = atoi (argv[++a]);
-								else if (0 == strcmp (argv[a], "cellhgt"))
-									lcd_cellhgt = atoi (argv[++a]);
+							else if (0 == strcmp(argv[0], "key")) {
+								debug(RPT_DEBUG, "Key %s\n", argv[1]);
 							}
-							sock_send_string (sock, "client_set -name LCDproc\n");
-						} else if (0 == strcmp (argv[0], "bye")) {
-							//printf("Exiting LCDproc\n");
-							exit_program (0);
-						} else if (0 == strcmp (argv[0], "success")) {
-						} else {
-							int j;
-							for (j = 0; j < argc; j++)
-								printf ("%s ", argv[j]);
-							printf ("\n");
+#ifdef LCDPROC_MENUS
+							else if (0 == strcmp(argv[0], "menuevent")) {
+								if (argc == 4 && (0 == strcmp(argv[1], "update"))) {
+									set_mode(argv[2][0],"", strcmp(argv[3],"off"));
+								}
+							}
+#else
+							else if (0 == strcmp(argv[0], "menu")) {
+							}
+#endif
+							else if (0 == strcmp(argv[0], "connect")) {
+								int a;
+								for (a = 1; a < argc; a++) {
+									if (0 == strcmp(argv[a], "wid"))
+										lcd_wid = atoi(argv[++a]);
+									else if (0 == strcmp(argv[a], "hgt"))
+										lcd_hgt = atoi(argv[++a]);
+									else if (0 == strcmp(argv[a], "cellwid"))
+										lcd_cellwid = atoi(argv[++a]);
+									else if (0 == strcmp(argv[a], "cellhgt"))
+										lcd_cellhgt = atoi(argv[++a]);
+								}
+								connected = 1;
+								sock_printf(sock, "client_set -name {LCDproc %s}\n", get_hostname());
+#ifdef LCDPROC_MENUS
+								menus_init();
+#endif
+							}
+							else if (0 == strcmp(argv[0], "bye")) {
+								//printf("Exiting LCDproc\n");
+								exit_program(EXIT_SUCCESS);
+							}
+							else if (0 == strcmp(argv[0], "success")) {
+							}
+							else {
+								//int j;
+								//for (j = 0; j < argc; j++)
+								//	printf("%s ", argv[j]);
+								//printf("\n");
+							}
 						}
-					}
 
-					// Restart tokenizing
-					argc = 0;
-					newtoken = 1;
-					break ;
+						// Restart tokenizing
+						argc = 0;
+						newtoken = 1;
+					break;
 				} // switch( buf[i] )
 			}
 
-			len = sock_recv (sock, buf, 8000);
+			len = sock_recv(sock, buf, 8000);
 			//debug("\n");
 		}
 
 		// Gather stats...
 		// Update screens...
-		for (i = 0; sequence[i].which > 1; i++) {
-			sequence[i].timer++;
-			if (sequence[i].visible) {
-				if (sequence[i].timer >= sequence[i].on_time) {
-					sequence[i].timer = 0;
-					// Now, update the screen...
-					update_screen (sequence + i, 1);
+		if (connected) {
+			for (i = 0; sequence[i].which > 0; i++) {
+				sequence[i].timer++;
+
+				if (!(sequence[i].flags & ACTIVE))
+					continue;
+
+				if (sequence[i].flags & VISIBLE) {
+					if (sequence[i].timer >= sequence[i].on_time) {
+						sequence[i].timer = 0;
+						// Now, update the screen...
+						update_screen(&sequence[i], 1);
+					}
 				}
-			} else {
-				if (sequence[i].show_invisible) {
+				else {
 					if (sequence[i].timer >= sequence[i].off_time) {
 						sequence[i].timer = 0;
 						// Now, update the screen...
-						update_screen (sequence + i, 1);
-					}
-				} else {
-					if (sequence[i].timer >= sequence[i].off_time) {
-						sequence[i].timer = 0;
-						// Now, update the screen...
-						update_screen (sequence + i, 0);
+						update_screen(&sequence[i], sequence[i].show_invisible);
 					}
 				}
+				if (islow > 0)
+					usleep(islow * 10000);
 			}
 		}
 
 		// Now sleep...
-		usleep (TIME_UNIT);
-
-/* Old stuff      
-      timer=0;
-      for(j=0; hold || (j<sequence[i].num_times && !Quit); j++)
-      {
-	 switch(sequence[i].which)
-	 {
-	    case 'g':
-	    case 'G': status = cpu_graph_screen(j); break;
-	    case 'c':
-	    case 'C': status = cpu_screen(j); break;
-	    case 'o':
-	    case 'O': status = clock_screen(j); break;
-	    case 'k':
-	    case 'K': status = big_clock_screen(j); break;
-	    case 'm':
-	    case 'M': status = mem_screen(j); break;
-	    case 'u':
-	    case 'U': status = uptime_screen(j); break;
-	    case 't':
-	    case 'T': status = time_screen(j); break;
-	    case 'd':
-	    case 'D': status = disk_screen(j); break;
-	    case 'x':
-	    case 'X': status = xload_screen(j); break;
-	    case 'b':
-	    case 'B': status = battery_screen(j); break;
-	    case 'a':
-	    case 'A': status = credit_screen(j); break;
-	    default: status = dumbass_screen(j); break;
-	 }
-	 
-	 
-	 
-	 
-	 for(k=0; k<sequence[i].delay_time; k++)
-	 {
-	    usleep(TIME_UNIT);  timer++;
-	    // Modify lcd status here...  (blinking, for example)
-	    switch(status)
-	    {
-	       case BLINK_ON : blink=1; break;
-	       case BLINK_OFF: blink=0; lcd.backlight(1); break;
-	       case BACKLIGHT_OFF: blink=0; lcd.backlight(0); break;
-	       case BACKLIGHT_ON : blink=0; lcd.backlight(1); break;
-	       case CONTINUE    : hold=0; break;
-	    }
-	    status=0;
-	    
-	    if(blink) lcd.backlight(! ((timer&15) == 15));
-	    
-	    if(heartbeat)
-	    {
-	       // Set this to pulsate like a real heart beat...
-	       // (binary is fun...  :)
-	       lcd.icon(!((timer+4)&5), 0);
-	       lcd.chr(lcd.wid, 1, 0);
-	    }
-	    
-	    lcd.flush();
-	    
-	    PollSockets();
-	 }
-      }
-      i++;
-      if(sequence[i].which < 2) i=0;
-*/
+		usleep(TIME_UNIT);
 	}
 }
+

@@ -1,6 +1,6 @@
 /*  This is the LCDproc driver for IO-Warrior devices (http://www.codemercs.de)
 
-      Copyright(C) 2004,2005 Peter Marschall <peter@adpm.de>
+      Copyright(C) 2004-2006 Peter Marschall <peter@adpm.de>
 
    based on GPL'ed code:
 
@@ -1017,6 +1017,46 @@ char bignum_map[11][4][3] = {
   else
     IOWarrior_chr(drvthis, x, 1 + (p->height - 1)/ 2,
 		  (num == 10) ? ':' : (num + '0'));
+}
+
+
+/*********************************************************************
+ * API: set cursor position and state
+ */
+/* not yet tested (needs input)
+ * maybe better: set only variables here and update when flushing
+MODULE_EXPORT void
+IOWarrior_cursor (Driver *drvthis, int x, int y, int state)
+{
+PrivateData *p = drvthis->private_data;
+
+  iowlcd_set_pos(p->udh, x, y);
+
+  switch (state) {
+    case CURSOR_OFF:
+      iowlcd_display_on_off(p->udh, 1, 0, 0);
+      break;
+    case CURSOR_UNDER:
+      iowlcd_display_on_off(p->udh, 1, 1, 0);
+      break;
+    case CURSOR_BLOCK:
+    case CURSOR_DEFAULT_ON:
+    default:
+      iowlcd_display_on_off(p->udh, 1, 1, 1);
+      break;
+  }    
+}
+*/
+
+/*********************************************************************
+ * API: get number of custom chars (always NUM_CCs)
+ */
+MODULE_EXPORT int
+IOWarrior_get_free_chars (Driver *drvthis)
+{
+//PrivateData *p = drvthis->private_data;
+
+  return NUM_CCs;
 }
 
 

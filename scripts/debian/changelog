@@ -1,3 +1,9 @@
+lcdproc (0.5.0+cvs20060412) unstable; urgency=low
+
+  * New snapshot from upstream CVS (stable branch)
+
+ -- Peter Marschall <peter@adpm.de>  Sat, 15 Apr 2006 15:00:00 +0200
+
 lcdproc (0.5.0-1) unstable; urgency=low
 
   * new upstream release
