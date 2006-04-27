@@ -22,8 +22,8 @@
 *  ---
 * 
 *  $Source: /cvsroot/lcdproc/lcdproc/clients/lcdproc/util.c,v $
-*  $Revision: 1.2 $
-*  Checked in by: $Author: boercher $
+*  $Revision: 1.3 $
+*  Checked in by: $Author: marschap $
 *
 *******************************************************************************/
 
@@ -52,7 +52,7 @@ sprintf_memory(char *dst, double value, double roundlimit)
 			format = "%.2f%s";
 		if (value < 10)
 			format = "%.3f%s";
-		
+
 		sprintf(dst, format, value, units[offs]);
 	}	
 	return dst;	
