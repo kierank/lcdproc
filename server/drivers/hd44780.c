@@ -379,7 +379,7 @@ HD44780_close(Driver *drvthis)
 	if (p != NULL) {
 		if (p->framebuf)
 			free(p->framebuf);
-		
+
 		if (p->lcd_contents)
 			free(p->lcd_contents);
 
@@ -431,7 +431,7 @@ HD44780_position (Driver *drvthis, int x, int y)
 				relY = 1;
 			}
 		}
-	
+
 		DDaddr = x + (relY % 2) * 0x40;
 		if ((relY % 4) >= 2)
 			DDaddr += p->width;

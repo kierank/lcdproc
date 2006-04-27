@@ -163,7 +163,7 @@ v0.4-pre10:
 V0.4-pre9:
  * small fixes for irix
  * Added flag in LCDd to shut off server screen:
- 	"-i off" or "--serverinfo off"
+	"-i off" or "--serverinfo off"
  + Wirz SLI driver
  + 16x2 support (server only)
  + MtxOrb generic output support in driver

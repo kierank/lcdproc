@@ -11,6 +11,7 @@ parallel port:
  - 8-bit (winamp style)
  - extended 8-bit (LCD + LED bargraph)
  - serial LPT
+And supports a PIC-an-LCD connected to a serial port.
 
 The driver also lets you use multiple displays as a single virtual
 display.  For example, a 4, 2 and 1 line display can be used to form a
@@ -72,6 +73,7 @@ Connecting the contrast adjusting pin (Vadj.):
 You can connect a keypad with all connection types. The maximum supported
 number of keys differs per type. There are several ways to connect the keys
 to the input pins.
+
 
 1.1.2.1  Direct keys
 --------------------
@@ -168,10 +170,29 @@ You can buy arrays of keys that are connected like this in the electronics
 shop. They usually call it a matrix keypad. To hook it to lcdproc, you
 would only need to add the resistors and diodes.
 
-If the driver generates keypresses without that you actually press a key,
+If you want to use just one return line, for example with the serialLpt
+wiring, it looks (completely drawn) like this:
+
+                  O 5V
+                  |
+                 .-.
+                 | | 4k7 or 22k
+     diodes      | |
+     1N4148      '-'
+            ___   |
+Y0 o---|<---o o---+
+            ___   |
+Y1 o---|<---o o---+
+            ___   |
+Y2 o---|<---o o---+
+            ___   |
+Y3 o---|<---o o---+----o return line
+
+
+If the driver generates keypresses without you actually pressing a key,
 it might be that the unconnected input lines are picking up
-electromagnetic waves from the air. In that case connect the unconnected 
-input lines (pin 10, 11, 12, 13 and 15 of the LPT) to VCC.
+electromagnetic waves from the air. In that case connect the unconnected
+input lines (pin 10, 11, 12, 13 and 15 of the LPT) to VCC = 5V.
 
 
 1.1.3 Backlight
@@ -183,13 +204,13 @@ this. The extension uses one output pin, you cannot use that pin for other
 functions anymore. The wiring looks like this:
 
                                              O 5V
-                                 ___         |
-                            +---|___|--------+
-LPT Sub-D connector         |   4k7          |
-                            |                |e
-                            |    ___     b |/
-     BL pin o---------------+---|___|------|
-                                330E       |\
+                                      ___    |
+                                 +---|___|---+
+LPT Sub-D connector              |   4k7     |
+                                 |           |e
+                          ___    |       b |/
+     BL pin o------------|___|---+---------|
+                          1k               |\
                                        bc327 |c
                                              |        LCD connector
                                              |
@@ -199,8 +220,8 @@ LPT Sub-D connector         |   4k7          |
                                              |
                                             === GND
 
-Note: 4k7 means 4,7 kohm and 330E means 330 ohm.
-The BC327 has the following connections:
+Note: 4k7 means 4,7 kohm.
+The BC327 transistor has the following connections:
 
      _____
     |     |
@@ -213,8 +234,13 @@ The BC327 has the following connections:
 
 Sometimes the backlight connections are not on the 'main' connector, but on
 the side. If that is the case, there is usually NO RESISTOR present to limit
-the current through the LEDs. Therefor you should add a resistor after
-the transistor of 10 ohm.
+the current through the LEDs. Therefor you should then add a resistor after
+the transistor of about 10 ohm (see display documentation).
+
+If you want the backlight to light a bit while it's switched 'off', you can
+add a resistor bypassing the transistor from e to c, with a value of, say
+47ohm or 22ohm. (My 4x20 has an internal resistor of 6ohm, so with 47 ohm
+extra it lights at only 1/9th. I like this. Joris.)
 
 
 1.2  4-bit
@@ -387,11 +413,11 @@ cannot use the backlight control together with the bargraph.
 This interface uses a handful of wires to interface to the
 HD44780. Suitable for high noise, long connections. Designed by
 Andrew McMeikan <andrewm@engineer.com>. The original wiring and
-driver can be found at: 
+driver can be found at:
 http://members.xoom.com/andrewmuck
 
 I (Joris) have extended this driver and the wiring a bit. It now supports
-keys again (it had earlier supported keys, but some time did not). 
+keys again (it had earlier supported keys, but some time did not).
 
 Further I have extended the driver and the wiring to be able to run
 using 2 instead of 3 output pins. That's even one less pin ! :)
@@ -400,7 +426,7 @@ Of course the use of fewer lines than the other wirings can not stay
 without drawbacks. In this case the simplicity of the long feeding wires
 is compensated by some intelligence in the decoding of the data. If you
 have no experience with the soldering iron, I do not recommend to build
-this wiring. 
+this wiring.
 
 OK, so here is the wiring. First of the 'simple' 3 wires version. IC1 is
 the shift register, a 4094. Do not forget to connect the 5V to pin 16 and
@@ -508,7 +534,95 @@ complex. If you do not understand the schematic, do not build it.
                                                          |
                                                         === GND
 
-Also the serialLpt wiring supports a keypad. The 3 wires version supports
+
+1.6  PIC-an-LCD serial device "picanlcd"
+----------------------------------------
+
+The PIC-an-LCD module is also supported. It is not connected to the LPT port
+but to a serial port, which saves you from a lot of potential problems.
+To use it, specify the device to which you have connected the module in the
+config file with the Device= setting. The default is /dev/lcd.
+It does not support a keypad nor backlight switching.
+
+1.7 LIS2 Usb device
+===================
+
+LIS2 from VLSystem (http://www.vlsys.co.kr) is a full featured usb vfd module 
+with four channel fan controls. This device can be access as a serial device with
+help of the kernel modules ftdi_sio wich map the usb port to a serial port (/dev/ttyUSBx).
+
+To use LIS2 with LCDproc, you will need a few settings in the config file :
+
+[server]
+        Driver=hd44780
+
+[hd44780]
+        size=20x2
+        ConnectionType=lis2
+        #Device=/dev/ttyUSB0
+        extendedmode=false
+
+Size of the display (size=20x2), driver to use in ConnectionType: lis2, the serial Usb 
+device as device settings (default is /dev/ttyUSB0), and extendedmode should be left to false,
+as this device don't seems to support hd44780 extended mode.
+
+The device support only a subset of the hd44780 specification. For now, I find this function:
+
+Function #1 : Clear Screen
+
+Send char(0)
+Send char(160)
+Send char(0)
+Send char(167)
+
+Function #2 : Cursors move: (x,y)
+
+Send char(0)
+Send char(160 + y)
+Send char(x)
+Send char(167)
+
+Function #3 : Write a char 
+
+Send char(asciiCode) : asciiCode 0 to 7 can be redefine to user charset (see below).
+
+Function #4 : Redefine a char
+
+Send char(0)
+Send char(171)
+Send char(matriceNum) : Ascii code of char to refine, from 0 to 7
+Send char(line) : the line to change
+Send char(pixel) : define wich pixel of the line is on or off. 
+There's 5 pixels by line, adresse by power of 2, from right to left (16, 8, 4, 2, 1).
+
+Function #5 : Fan Control
+
+Send char(0)
+Send char(174)
+Send char(0)
+Send char(0)
+Send char(fan1)
+Send char(0)
+Send char(fan2)
+Send char(0)
+Send char(fan3)
+Send char(0)
+Send char(fan4)
+Send char(0)
+Send char(0)
+
+fanX is a value from 0 to 255, 0 is fan off, 255 is fan full speed.
+
+
+
+
+1.5.1 Keypad
+------------
+
+To understand this part of the serialLpt documentation, you also need to
+read the keypad section in this document.
+
+serialLpt wiring supports a keypad. The 3 wires version supports
 8 keys, or if you use multiple return lines up to 8 x 5 = 40 lines. The
 2 wires version supports 7 keys, or with multiple return lines
 7 x 5 = 35 keys.
@@ -521,8 +635,30 @@ The return lines are the following:
   SELIN (13)    X3
   nFAULT (15)   X4
 
-To understand some of this keypad documentation, do also read the keypad
-section in this document.
+On lines longer than, say a meter, you should buffer the return line(s).
+If you only have 1 return line, you can buffer it with two remaining
+buffers from the 74HCT14:
+
+               1|\ 2    13|\ 12   ___
+   keypad o-----| >o------| >o---|___|---+---o input pin on LPT port
+   return       |/        |/      220E   |
+                IC1       IC1           ---
+                                        --- 1nF
+                                         |
+                                        ===
+
+Also a backlight is suported. You will also need a port from the 74HCT14 for
+that. The BL output below should be connected to the BL input in paragraph
+1.1.3.
+
+                 ___       3|\ 4
+     Data o-----|___|--+----| >o----o BL output
+   LPT-D3       470k   |    |/
+                      ---   IC1
+                      ---
+                       |100nF
+                       |
+                      ===
 
 
 2. Compiling
@@ -544,7 +680,7 @@ Then as usual, start LCDd with the correct config file:
 for example.
 
 If you want to override the driver selection in LCDd.conf then use:
-      LCDd -c ./LCDd.conf -d HD44780 
+      LCDd -c ./LCDd.conf -d HD44780
 If you use this, the HD44780 driver will read the options from the config
 file.
 

@@ -2,6 +2,19 @@ Stuff planned for future releases...  (in no particular order)
 
 Feel free to help out with any of this stuff!  :)
 
+Please send a message to the mailing list if you have any question.
+
+Things for the short term:
+- The menu_goto command: A given menu should come up
+  (if the menu accepts that).
+- Rotation and priorities
+- Have server also use Left and Right key 
+- Entire server menu working properly
+- Fix rendering of subframes
+- Fix rendering anyway ;)
+- (?) Use centralized command message parsing engine (more secure)
+
+Things for the longer term:
 
 ----------------------------------------
 Client driver
@@ -16,12 +29,46 @@ restart LCDproc...
 Another bonus is that LCDproc will come with a client which can, for
 example, start up a "client" driver to send "keypresses" from the
 command line.  Or, 
-	
+
 	lcdtool -key A
 
 would have the same result as pressing a key on the keypad.
 
+STATUS: Loadable drivers are working in 0.5 but not loggin in remotely nor key
+----------------------------------------
+Port the lcdproc client screens to *BSD.
 
+Thomas Runge ported the 4.0-pre9 client to *BSD but we forgot to merge it
+in the CVS tree back them.
+The patch is available at: http://core.de/~coto/misc/lcdproc_bsd.diff.gz
+A backup copy is available at: http://lcdproc.sf.net/lcdproc_bsd.diff.gz
+
+The main problem in applying this patch is to make it work with
+autoconf/automake.
+
+I estimate the time to do this to between 1 and 4 hours per screen. The
+person applying to port should have access to at least one BSD account
+(sourceforge compile farm provide a BSD box, ask the mailing list if you
+don't know how to access it).
+
+The port should be tested on FreeBSD, OpenBSD and NetBSD before applying
+it to the CVS tree. Just ask the mailing list for testing.
+
+STATUS: chrono.c, cpu.c, disk.c have been ported.
+----------------------------------------
+Add LibGTop support to the lcdproc client
+
+LibGTop is a library that fetches information about the running system
+such as cpu, memory usage and active processes, and make it available to
+the requesting program.
+
+Adding LibGTop support to the lcdproc client would enable it to work on
+more platforms, including MacOS X.
+
+LibGTop is available at:
+http://ftp.gnome.org/pub/GNOME/stable/sources/libgtop/
+
+STATUS: No work done yet.
 ----------------------------------------
 Menus / Client menus
 
@@ -31,6 +78,8 @@ add/remove drivers, change screen priorities, kick off clients, etc...
 
 You can also access client menus to configure options in each client.
 
+STATUS: This is currently being worked on. Client supplied menus work.
+Check 0.5 to see it.
 ----------------------------------------
 Config Files...
 
@@ -47,6 +96,7 @@ about screen priorities, etc...
 Code will be made generic, so that other programs can use it for their
 own config files.  Clients may want to use this..
 
+STATUS: We have a config file only for LCDd but we don't save config.
 ----------------------------------------
 Scheduling modes
 
@@ -57,6 +107,8 @@ algorithms for screen-ordering.
 One example: High-priority screens will be shown more often than
 low-priority screens, simply by showing up more often.
 
+STATUS: Currently high priority screens will only be shown _first_ after
+a resorting of the screenlist. The time that it's visible is unaltered.
 ----------------------------------------
 Shell Commands
 
@@ -64,6 +116,7 @@ The server will also be able to run arbitrary shell commands from the
 config file.  This will allow you to, for example, shut down the
 machine, get online, or other system tasks.
 
+STATUS: These commands can now be run by the lcdexec client.
 ----------------------------------------
 Improved display driver API
 
@@ -76,11 +129,5 @@ So, I'll be working on a new driver spec which is more flexible and
 more powerful.  In addition, I'm looking for ways to better handle
 multiple driver devices.
 
-----------------------------------------
-Anonymous CVS
-
-I want to *really* open up LCDproc development, by giving everyone
-access to the CVS repository.  But, alas, I've got to figure out how
-to set up a CVS server first...  (or convince Gareth to do it..  :)
-
+STATUS: This is API and version 0.5
 ----------------------------------------
