@@ -10,6 +10,7 @@
 #include <signal.h>
 #include <netdb.h>
 #include <ctype.h>
+#include <sys/stat.h>
 #include <sys/utsname.h>
 #include <sys/param.h>
 
@@ -32,11 +33,12 @@
 #include "load.h"
 #include "mem.h"
 #include "machine.h"
+#include "iface.h"
 
 // TODO: Commenting...  Everything!
 
 int Quit = 0;
-int sock;
+int sock = -1;
 
 char *version = VERSION;
 char *build_date = __DATE__;
@@ -55,12 +57,8 @@ static struct utsname unamebuf;
 static void HelpScreen(int exit_state);
 static void exit_program(int val);
 static void main_loop();
-static int process_command_line(int argc, char **argv);
 static int process_configfile(char *cfgfile);
 
-
-#define CHAIN(e,f) { if (e>=0 ) { e=(f); }}
-#define CHAIN_END(e,msg) { if (e<0 ) { report( RPT_CRIT,(msg)); exit(e); }}
 
 // 1/8th second is a single time unit...
 #define TIME_UNIT 125000
@@ -82,6 +80,7 @@ mode sequence[] =
 	// flags default ACTIVE will run by default
 	// longname    which on  off inv  timer   flags  
 	{ "CPU",       'C',   1,    2, 0, 0xffff, ACTIVE, cpu_screen        },	// [C]PU
+	{ "Iface",     'I',   1,    2, 0, 0xffff, 0,      iface_screen      }, 	// [I]face
 	{ "Memory",    'M',   4,   16, 0, 0xffff, ACTIVE, mem_screen        },	// [M]emory
 	{ "Load",      'L',  64,  128, 1, 0xffff, ACTIVE, xload_screen      },	// [L]oad (load histogram)
 	{ "TimeDate",  'T',   4,   64, 0, 0xffff, ACTIVE, time_screen       },	// [T]ime/Date
@@ -102,13 +101,14 @@ mode sequence[] =
 
 /* All variables are set to 'unset' values*/
 static int islow = -1;
-char * progname = "lcdproc";
-char * server 	= NULL;
+char *progname = "lcdproc";
+char *server 	= NULL;
 int port	= LCDPORT;
-int daemonize 	= UNSET_INT;
+int foreground 	= UNSET_INT;
 static int report_level = UNSET_INT;
 static int report_dest 	= UNSET_INT;
-char configfile[256];		/* a lot of space in the executable. */
+char *configfile = NULL;
+char *displayname = NULL;
 
 
 const char *get_hostname()
@@ -116,15 +116,18 @@ const char *get_hostname()
 	return(unamebuf.nodename);
 }
 
+
 const char *get_sysname()
 {
 	return(unamebuf.sysname);
 }
 
+
 const char *get_sysrelease()
 {
 	return(unamebuf.release);
 }
+
 
 int set_mode(int shortname, char *longname, int state)
 {
@@ -138,8 +141,10 @@ int set_mode(int shortname, char *longname, int state)
 			if (!state) {
 				/* clean both the active and inititialized bits since we delete the screen */
 				sequence[k].flags &= (~ACTIVE & ~INITIALIZED);
-				sprintf (buffer, "screen_del %c\n", shortname );
-				sock_send_string (sock, buffer);
+				/* delte the screen if we are connected */
+				if (sock >= 0) {
+					sock_printf(sock, "screen_del %c\n", sequence[k].which);
+				}	
 			} else
 				sequence[k].flags |= ACTIVE;
 			return 1; //found
@@ -148,19 +153,23 @@ int set_mode(int shortname, char *longname, int state)
 	return 0; //not found
 }
 
+
 void clear_modes()
 {
 	int k;
+
 	/* ignore already selected modes */
 	for (k = 0; sequence[k].which != 0; k++) {
 		sequence[k].flags &= (~ACTIVE);
 	}
 }
 
+
 int
 main(int argc, char **argv)
 {
-	int error = 0;
+	int cfgresult;
+	int c;
 
 	/* get uname information */
 	if (uname(&unamebuf) == -1) {
@@ -174,26 +183,94 @@ main(int argc, char **argv)
 	signal(SIGHUP, exit_program);	// kill -HUP
 	signal(SIGKILL, exit_program);	// kill -9 [cannot be trapped; but ...]
 
-	/* Set default config file, command line may overwrite */
-	strncpy(configfile, DEFAULT_CONFIGFILE, sizeof(configfile));
+	/* No error output from getopt */
+	opterr = 0;
 
-	/* Read command line*/
-	CHAIN( error, process_command_line(argc, argv) );
+	/* get options from command line */
+	while ((c = getopt( argc, argv, "s:p:e:c:fhv")) > 0) {
+		char *end;
+
+		switch (c) {
+			// c is for config file
+			case 'c':
+				configfile = optarg;
+				break;
+			// s is for server
+			case 's':
+				server = optarg;
+				break;
+			// p is for port
+			case 'p':
+				port = strtol(optarg, &end, 0);
+				if ((*optarg == '\0') || (*end != '\0') ||
+				    (port <= 0) || (port >= 0xFFFF)) {
+					fprintf(stderr, "Illegal port value %s\n", optarg);
+					exit(EXIT_FAILURE);
+				}
+				break;
+			case 'e':
+				islow = strtol(optarg, &end, 0);
+				if ((*optarg == '\0') || (*end != '\0') || (islow < 0)) {
+					fprintf(stderr, "Illegal delay value %s\n", optarg);
+					exit(EXIT_FAILURE);
+				}
+				break;
+			case 'f':
+				foreground = TRUE;
+				break;
+			case 'h':
+				HelpScreen(EXIT_SUCCESS);
+				break;
+			case 'v':
+				fprintf(stderr, "LCDproc %s\n", version);
+				exit(EXIT_SUCCESS);
+				break;
+			// otherwise...  Get help!
+			case '?':	// unknown option or missing argument	
+			default:
+				HelpScreen(EXIT_FAILURE);
+				break;
+		}
+	}	
 
 	/* Read config file*/
-	if (strcmp(configfile, UNSET_STR) != 0)
-		CHAIN( error, process_configfile(configfile) );
+	cfgresult = process_configfile(configfile);
+	if (cfgresult < 0) {
+		fprintf(stderr, "Error reading config file");
+		exit(EXIT_FAILURE);
+	}	
 
-	/* Set default options */
-	if (report_dest == UNSET_INT )
+	/* Set default reporting options */
+	if (report_dest == UNSET_INT)
 		report_dest = DEFAULT_REPORTDEST;
-	if( report_level == UNSET_INT )
+	if( report_level == UNSET_INT)
 		report_level = DEFAULT_REPORTLEVEL;
 
 	/* Set reporting settings */
 	set_reporting("lcdproc", report_level, report_dest);
 
-	CHAIN_END( error, "Error in config file or command line\n" );
+	/* parse non-option arguments: modes to add/delete */
+	if (argc > max(optind, 1)) {
+		int i;
+
+		// if no config file was read, ignore hard coded default modes
+		if (cfgresult == 0)
+			clear_modes();
+
+		// turn additional options on or off (using ! as prefix)
+		for (i = max(optind, 1); i < argc; i++) {
+			int state = (*argv[i] == '!') ? 0 : 1;
+			char *name = (state) ? argv[i] : argv[i]+1;
+			int shortname = (strlen(name) == 1) ? name[0] : '\0';
+fprintf(stderr, "%s%s\n", (state) ? "" : "!", name);
+			int found = set_mode(shortname, name, state);
+
+			if (!found) {
+				fprintf(stderr, "Invalid Mode: %s\n", name);
+				return(EXIT_FAILURE);
+			}
+		}	
+	}
 
 	if (server == NULL)
 		server = DEFAULT_SERVER;
@@ -217,7 +294,7 @@ main(int argc, char **argv)
 	lcd_cellwid = 5;
 	lcd_cellhgt = 8;
 
-	if (daemonize) {
+	if (foreground == 0) {
 		if (daemon(1,0) != 0) {
 			fprintf(stderr, "Error: daemonize failed");
 			return(EXIT_FAILURE);
@@ -236,90 +313,33 @@ main(int argc, char **argv)
 	return(0);
 }
 
-/* parses arguments given on command line */
-static int
-process_command_line(int argc, char **argv)
-{
-	int i;
-	int c;
 
-	/* No error output from getopt */
-	opterr = 0;
-
-	/* get options */
-	while ((c = getopt( argc, argv, "s:p:e:c:dhv")) > 0) {
-		switch (c) {
-			// c is for config file
-			case 'c':
-				strncpy(configfile, optarg, sizeof(configfile));
-				configfile[sizeof(configfile)-1] = 0; /* Terminate string */
-				break;
-			// s is for server
-			case 's':
-				if (server == NULL)
-					server = optarg;
-				else
-					fprintf(stderr, "Ignoring additional server: %s\n", optarg);
-				break;
-			// p is for port
-			case 'p':
-				port = atoi(optarg);
-				if ((port < 1) && (port > 0xFFFF)) {
-					fprintf(stderr, "Warning:  Port %d outside of legal range\n", port);
-					return(EXIT_FAILURE);
-				}	
-				break;
-			case 'e':
-				islow = atoi(optarg);
-				break;
-			case 'd':
-				daemonize = TRUE;
-				break;
-			case 'h':
-				HelpScreen(EXIT_SUCCESS);
-				break;
-			case 'v':
-				fprintf(stderr, "LCDproc %s\n", version);
-				exit(EXIT_SUCCESS);
-				break;
-			// otherwise...  Get help!
-			case '?':	// unknown option or missing argument	
-			default:
-				HelpScreen(EXIT_FAILURE);
-				break;
-		}
-	}	
-
-	/* parse arguments */
-	if (argc > optind)		//user specified some modes, so clear all defaults
-		clear_modes();
-
-	for (i = max(optind, 1); i < argc; i++) {
-		int shortname = (strlen(argv[i]) == 1) ? toupper(argv[i][0]) : '\0';
-		int found = set_mode(shortname, argv[i], 1);
-
-		if (!found) {
-			fprintf(stderr, "Invalid Mode: %c\n", argv[i][0]);
-			return(EXIT_FAILURE);
-		}
-	}
-	return 0;
-}
-
-/* reads and parses configuration file */
+/* reads and parses configuration filei
+ * returns:  1 if configfile was read,
+ *           0 if default configfile doesn't exist
+ *          <0 on error
+ */
 static int
 process_configfile(char *configfile)
 {
 	int k;
+	char *tmp;
 
-	debug(RPT_DEBUG, "%s(%s)", __FUNCTION__, configfile);
+	debug(RPT_DEBUG, "%s(%s)", __FUNCTION__, (configfile) ? configfile : "<null>");
 
-	/* Read server settings*/
+	/* Read config settings*/
 
-	if (strcmp(configfile, UNSET_STR) == 0) {
+	if (configfile == NULL) {
+		struct stat statbuf;
+
+		// if default config file does not exist, do not consider this an error
+		if ((lstat(DEFAULT_CONFIGFILE, &statbuf) == -1) && (errno = ENOENT))
+			return 0;
+
 		configfile = DEFAULT_CONFIGFILE;
 	}
-	if (config_read_file(configfile) != 0 ) {
+		
+	if (config_read_file(configfile) != 0) {
 		report(RPT_CRIT, "Could not read config file: %s", configfile);
 		return -1;
 		//report(RPT_WARNING, "Could not read config file: %s", configfile);
@@ -331,6 +351,7 @@ process_configfile(char *configfile)
 	if (port == UNSET_INT) {
 		port = config_get_int(progname, "Port", 0, LCDPORT);
 	}
+
 	if(report_level == UNSET_INT) {
 		report_level = config_get_int(progname, "ReportLevel", 0, RPT_WARNING);
 	}
@@ -341,12 +362,15 @@ process_configfile(char *configfile)
 			report_dest = RPT_DEST_STDERR;
 		}
 	}
-	if (daemonize == UNSET_INT) {
-		daemonize = config_get_bool(progname, "Daemonize", 0, 1);
+	if (foreground == UNSET_INT) {
+		foreground = config_get_bool(progname, "Foreground", 0, 0);
 	}
 	if (islow < 0) {
-		islow = config_get_int(progname, "delay", 0, -1);
+		islow = config_get_int(progname, "Delay", 0, -1);
 	}
+
+	if ((tmp = config_get_string(progname, "DisplayName", 0, NULL)) != NULL)
+		displayname = strdup(tmp);
 
 	/*
 	 * check for config file variables to override all the sequence defaults
@@ -363,7 +387,7 @@ process_configfile(char *configfile)
 		}
 	}
 
-	return 0;
+	return 1;
 }
 
 void
@@ -374,7 +398,7 @@ HelpScreen (int exit_state)
 		"  where <options> are\n"
 		"    -s <host>               connect to LCDd daemon on <host>\n"
 		"    -p <port>               connect to LCDd daemon using <port>\n"
-		"    -d                      daemonize\n"
+		"    -f                      run in foreground\n"
 		"    -e <delay>              slow down initial announcement of modes (in 1/100s)\n"
 		"    -c <config>             use a configuration file other than %s\n"
 		"    -h                      show this help screen\n"
@@ -387,6 +411,7 @@ HelpScreen (int exit_state)
 		"    M Memory                memory & swap usage\n"
 		"    S ProcSize              biggest processes size\n"
 		"    D Disk                  disk usage\n"
+		"    I Iface                 network interface usage\n"
 		"    B Battery               battery status\n"
 		"    T TimeDate              time & date information\n"
 		"    O OldTime               old time screen\n"
@@ -550,7 +575,10 @@ main_loop()
 										lcd_cellhgt = atoi(argv[++a]);
 								}
 								connected = 1;
-								sock_printf(sock, "client_set -name {LCDproc %s}\n", get_hostname());
+								if (displayname != NULL)
+									sock_printf(sock, "client_set -name \"%s\"\n", displayname);
+								else
+									sock_printf(sock, "client_set -name {LCDproc %s}\n", get_hostname());
 #ifdef LCDPROC_MENUS
 								menus_init();
 #endif

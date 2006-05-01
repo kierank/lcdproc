@@ -119,6 +119,7 @@ Usage: lcdproc [<options>] [<modes> ...]
     M Memory                memory & swap usage
     S ProcSize              biggest processes size
     D Disk                  disk usage
+    I Iface                 network interface usage
     B Battery               battery status
     T TimeDate              time & date information
     O OldTime               old time screen

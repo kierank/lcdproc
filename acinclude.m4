@@ -155,7 +155,7 @@ dnl			else
 			AC_CHECK_HEADER(linux/i2c-dev.h,
 				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-i2c.o"
 				AC_DEFINE(HAVE_I2C,[1],[Define to 1 if you have the i2c headers])
-  			)
+			)
 			DRIVERS="$DRIVERS hd44780${SO}"
 			actdrivers=["$actdrivers hd44780"]
 			;;
