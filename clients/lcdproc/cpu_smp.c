@@ -24,21 +24,21 @@
 *  modify it under the terms of the GNU General Public License
 *  as published by the Free Software Foundation; either version 2
 *  of the License, or (at your option) any later version.
-* 
+*
 *  This program is distributed in the hope that it will be useful,
 *  but WITHOUT ANY WARRANTY; without even the implied warranty of
 *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 *  GNU General Public License for more details.
-* 
+*
 *  You should have received a copy of the GNU General Public License
 *  along with this program; if not, write to the Free Software
 *  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 *
 *  ---
-* 
+*
 *  $Source: /cvsroot/lcdproc/lcdproc/clients/lcdproc/cpu_smp.c,v $
-*  $Revision: 1.1.1.1 $ $Date: 2001/11/17 23:20:35 $
-*  Checked in by: $Author: dglaude $
+*  $Revision: 1.12.2.1 $ $Date: 2006/05/07 17:33:26 $
+*  Checked in by: $Author: marschap $
 *
 *******************************************************************************/
 
@@ -54,167 +54,38 @@
 
 #include "main.h"
 #include "mode.h"
+#include "machine.h"
 #include "cpu_smp.h"
-
-#ifdef SOLARIS
-#include <sys/types.h>
-#include <sys/param.h>
-#include <sys/cpuvar.h>
-#endif
-#ifdef HAVE_LIBKSTAT
-#include <kstat.h>
-#endif
 
 #define MAX_CPUS 8
 
-struct load {
-	unsigned long total, user, system, nice, idle;
-};
-
-#ifdef HAVE_LIBKSTAT
-kstat_ctl_t *kc;
-#endif
-
-static int load_fd = 0;
-
 static char *numnames[MAX_CPUS] = { "one", "two", "three", "four", "five", "six", "seven", "eight" };
-
-static void
-get_load (struct load *result, int *numcpus)
-{
-	char *token;
-	static struct load last_load[MAX_CPUS];
-	struct load curr_load[MAX_CPUS];
-
-
-#ifndef HAVE_LIBKSTAT
-	*numcpus = 0;
-
-	reread (load_fd, "get_load");
-
-	// Look for lines starting with "cpu0", "cpu1", etc.
-
-	token = strtok (buffer, "\n");
-	while (token) {
-		if (token[0] == 'c') {
-			if (isdigit (token[3])) {
-				sscanf (token, "%*s %lu %lu %lu %lu", &curr_load[*numcpus].user, &curr_load[*numcpus].nice, &curr_load[*numcpus].system, &curr_load[*numcpus].idle);
-
-				curr_load[*numcpus].total = curr_load[*numcpus].user + curr_load[*numcpus].nice + curr_load[*numcpus].system + curr_load[*numcpus].idle;
-				result[*numcpus].total = curr_load[*numcpus].total - last_load[*numcpus].total;
-				result[*numcpus].user = curr_load[*numcpus].user - last_load[*numcpus].user;
-				result[*numcpus].nice = curr_load[*numcpus].nice - last_load[*numcpus].nice;
-				result[*numcpus].system = curr_load[*numcpus].system - last_load[*numcpus].system;
-				result[*numcpus].idle = curr_load[*numcpus].idle - last_load[*numcpus].idle;
-				last_load[*numcpus].total = curr_load[*numcpus].total;
-				last_load[*numcpus].user = curr_load[*numcpus].user;
-				last_load[*numcpus].nice = curr_load[*numcpus].nice;
-				last_load[*numcpus].system = curr_load[*numcpus].system;
-				last_load[*numcpus].idle = curr_load[*numcpus].idle;
-
-				(*numcpus)++;
-			}
-		} else {
-			break;
-		}
-		token = strtok (NULL, "\n");
-	}
-#else
-	kstat_t	*k_space;
-	void    *val_ptr;
-	int		ncpu=0,count;
-	char	buffer[10];
-
-	*numcpus=sysconf(_SC_NPROCESSORS_CONF);
-	for (count = 0; count < MAX_CPUS;count++) {
-		sprintf (buffer, "cpu_stat%d",count);
-		k_space = kstat_lookup(kc, "cpu_stat", count, buffer);
-		if (k_space == NULL) {
-		} else if (kstat_read(kc, k_space, NULL) == -1) {
-		} else  {
-			struct cpu_stat cinfo;
-			k_space=kstat_lookup(kc, "cpu_stat", -1, buffer);
-			kstat_read(kc,k_space,&cinfo);
-			curr_load[ncpu].idle=cinfo.cpu_sysinfo.cpu[CPU_IDLE];
-			curr_load[ncpu].user=cinfo.cpu_sysinfo.cpu[CPU_USER];
-			curr_load[ncpu].system=cinfo.cpu_sysinfo.cpu[CPU_KERNEL];
-			curr_load[ncpu].nice=cinfo.cpu_sysinfo.cpu[CPU_WAIT];
-			curr_load[ncpu].nice=0;
-			curr_load[ncpu].total = curr_load[ncpu].user + curr_load[ncpu].nice + curr_load[ncpu].system + curr_load[ncpu].idle;
-			result[ncpu].total = curr_load[ncpu].total - last_load[ncpu].total;
-			result[ncpu].user = curr_load[ncpu].user - last_load[ncpu].user;
-			result[ncpu].nice = curr_load[ncpu].nice - last_load[ncpu].nice;
-			result[ncpu].system = curr_load[ncpu].system - last_load[ncpu].system;
-			result[ncpu].idle = curr_load[ncpu].idle - last_load[ncpu].idle;
-			last_load[ncpu].total = curr_load[ncpu].total;
-			last_load[ncpu].user = curr_load[ncpu].user;
-			last_load[ncpu].nice = curr_load[ncpu].nice;
-			last_load[ncpu].system = curr_load[ncpu].system;
-			last_load[ncpu].idle = curr_load[ncpu].idle;
-			ncpu=ncpu++;
-		}
-	}
-#endif
-}
-
-int
-cpu_smp_init ()
-{
-#ifndef HAVE_LIBKSTAT
-	if (!load_fd) {
-		load_fd = open ("/proc/stat", O_RDONLY);
-	}
-#else
-	kc = kstat_open();
-	if (kc == NULL) {
-		exit(1);
-	}
-#endif
-
-	return 0;
-}
-
-int
-cpu_smp_close ()
-{
-#ifndef HAVE_LIBKSTAT
-	if (load_fd)
-		close (load_fd);
-#else
-	kstat_close(kc);
-#endif
-
-	load_fd = 0;
-
-	return 0;
-}
 
 //////////////////////////////////////////////////////////////////////////
 // CPU screen shows info about percentage of the CPU being used
 //
 int
-cpu_smp_screen (int rep, int display)
+cpu_smp_screen (int rep, int display, int *flags_ptr)
 {
 #undef CPU_BUF_SIZE
 #define CPU_BUF_SIZE 4
 	int i, j, n, z;
-	static int first = 1;
 	float value;
 	static float cpu[MAX_CPUS][CPU_BUF_SIZE + 1][5];	// last buffer is scratch
-	struct load load[MAX_CPUS];
+	load_type load[MAX_CPUS];
 	int numprocs;
 	char buf[256];
 	char *graphsize;
 
-	if (first) {
-		first = 0;
+	if ((*flags_ptr & INITIALIZED) == 0) {
+		*flags_ptr |= INITIALIZED;
 
-		get_load (load, &numprocs);
+		machine_get_smpload (load, &numprocs);
 
 		sock_send_string (sock, "screen_add P\n");
-		sock_send_string (sock, "widget_del P heartbeat\n");
+		sock_send_string (sock, "screen_set P -heartbeat off\n");
 
-		sprintf (buffer, "screen_set P -name {CPU Use: %s}\n", host);
+		sprintf (buffer, "screen_set P -name {CPU Use: %s}\n", get_hostname());
 		sock_send_string (sock, buffer);
 
 		graphsize = calloc (sizeof (char), lcd_wid);
@@ -251,7 +122,7 @@ cpu_smp_screen (int rep, int display)
 		return 0;
 	}
 
-	get_load (load, &numprocs);
+	machine_get_smpload(load, &numprocs);
 
 	for (z = 0; z < numprocs; z++) {
 
@@ -260,21 +131,20 @@ cpu_smp_screen (int rep, int display)
 			for (j = 4; j < 5; j++)
 				cpu[z][i][j] = cpu[z][i + 1][j];
 
-		if (load[z].total == 0) {
-			continue;
-		}
 		// Read new data
 #if 0									  // we're only using 4 right now
-		cpu[z][CPU_BUF_SIZE - 1][0] = ((float) load[z].user / (float) load[z].total) * 100.0;
-		cpu[z][CPU_BUF_SIZE - 1][1] = ((float) load[z].system / (float) load[z].total) * 100.0;
-		cpu[z][CPU_BUF_SIZE - 1][2] = ((float) load[z].nice / (float) load[z].total) * 100.0;
-		cpu[z][CPU_BUF_SIZE - 1][3] = ((float) load[z].idle / (float) load[z].total) * 100.0;
+		cpu[z][CPU_BUF_SIZE-1][0] = ((float) load[z].user / (float) load[z].total) * 100.0;
+		cpu[z][CPU_BUF_SIZE-1][1] = ((float) load[z].system / (float) load[z].total) * 100.0;
+		cpu[z][CPU_BUF_SIZE-1][2] = ((float) load[z].nice / (float) load[z].total) * 100.0;
+		cpu[z][CPU_BUF_SIZE-1][3] = ((float) load[z].idle / (float) load[z].total) * 100.0;
 #endif
-		cpu[z][CPU_BUF_SIZE - 1][4] = (((float) load[z].user + (float) load[z].system + (float) load[z].nice) / (float) load[z].total) * 100.0;
+		cpu[z][CPU_BUF_SIZE-1][4] = (load[z].total > 0L)
+					    ? (((float) load[z].user + (float) load[z].system + (float) load[z].nice) / (float) load[z].total) * 100.0
+					    : 0.0;
 
 		// Average values for final result
 		for (i = 4; i < 5; i++) {
-			value = 0;
+			value = 0.0;
 			for (j = 0; j < CPU_BUF_SIZE; j++) {
 				value += cpu[z][j][i];
 			}

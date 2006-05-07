@@ -8,92 +8,46 @@
 # include "config.h"
 #endif
 
-#if defined( HAVE_GETLOADAVG ) && defined( HAVE_SYS_LOADAVG_H )
-# define USE_GETLOADAVG
-#else
-# undef USE_GETLOADAVG
-#endif
-
 #include "shared/sockets.h"
 #include "main.h"
 #include "mode.h"
+#include "machine.h"
 #include "load.h"
 
-#ifdef USE_GETLOADAVG
-# include <sys/loadavg.h>
-#endif
-
-
-int loadavg_fd = 0;
-
-static double get_loadavg (void);
-
-static double
-get_loadavg (void)
-{
-	double load;
-#ifdef USE_GETLOADAVG
-	double loadavg[LOADAVG_NSTATS];
-#endif
-
-#ifndef USE_GETLOADAVG
-	reread (loadavg_fd, "get_load:");
-	sscanf (buffer, "%lf", &load);
-#else
-	getloadavg(loadavg,LOADAVG_NSTATS);
-	load = loadavg[LOADAVG_1MIN];
-#endif
-	return load;
-}
-
-int
-load_init ()
-{
-#ifndef USE_GETLOADAVG
-	if (!loadavg_fd)
-		loadavg_fd = open ("/proc/loadavg", O_RDONLY);
-#endif
-	return 0;
-}
-
-int
-load_close ()
-{
-#ifndef USE_GETLOADAVG
-	if (loadavg_fd)
-		close (loadavg_fd);
-
-	loadavg_fd = 0;
-#endif
-	return 0;
-}
 
 ///////////////////////////////////////////////////////////////////////////
 // Shows a display very similar to "xload"'s histogram.
 //
-
+// +--------------------+	+--------------------+
+// |## LOAD 0.44: myh #@|	|myhost 0.24        1|
+// |                   1|	|        |||||||||||0|
+// |            ||||||  |	+--------------------+
+// |    ||||  |||||||| 0|
+// +--------------------+
+//
 int
-xload_screen (int rep, int display)
+xload_screen (int rep, int display, int *flags_ptr)
 {
-	static int first = 1;
-	static float loads[LCD_MAX_WIDTH];
-	int n, i;
-	float loadmax = 0, factor, x;
+	static int gauge_hgt = 0;
+	static double loads[LCD_MAX_WIDTH];
+	int loadtop, i;
+	double loadmax = 0, factor;
 	int status = 0;
 
-	if (first)						  // Only the first time this is ever called...
-	{
-		first = 0;
-		memset (loads, 0, sizeof (float) * LCD_MAX_WIDTH);
+	if ((*flags_ptr & INITIALIZED) == 0) {
+		*flags_ptr |= INITIALIZED;
+
+		gauge_hgt = (lcd_hgt > 2) ? (lcd_hgt - 1) : lcd_hgt;
+		memset (loads, '\0', sizeof (double) * LCD_MAX_WIDTH);
 
 		sock_send_string (sock, "screen_add X\n");
-		sprintf (buffer, "screen_set X -name {X-Load: %s}\n", host);
+		sprintf (buffer, "screen_set X -name {X-Load: %s}\n", get_hostname());
 		sock_send_string (sock, buffer);
 		// Add the vbars...
 		for (i = 1; i < lcd_wid; i++) {
-			sprintf (tmp, "widget_add X %i vbar\n", i);
+			sprintf (tmp, "widget_add X bar%i vbar\n", i);
 			sock_send_string (sock, tmp);
-			sprintf (tmp, "widget_set X %i %i %i 0\n", i, i, lcd_hgt);
+			sprintf (tmp, "widget_set X bar%i %i %i 0\n", i, i, lcd_hgt);
 			sock_send_string (sock, tmp);
 		}
 		// And add a title...
@@ -103,58 +57,57 @@ xload_screen (int rep, int display)
 		} else {
 			sock_send_string (sock, "widget_add X title string\n");
 			sock_send_string (sock, "widget_set X title 1 1 {LOAD}\n");
-			sock_send_string (sock, "widget_del X heartbeat\n");
+			sock_send_string (sock, "screen_set X -heartbeat off\n");
 		}
 		sock_send_string (sock, "widget_add X zero string\n");
 		sock_send_string (sock, "widget_add X top string\n");
 		sprintf (tmp, "widget_set X zero %i %i 0\n", lcd_wid, lcd_hgt);
 		sock_send_string (sock, tmp);
-		sprintf (tmp, "widget_set X top %i %i 1\n", lcd_wid, (lcd_hgt <= 2) ? 1 : 2);
+		sprintf (tmp, "widget_set X top %i %i 1\n", lcd_wid, (lcd_hgt + 1 - gauge_hgt));
 		sock_send_string (sock, tmp);
 	}
 
-	for (n = 0; n < (lcd_wid - 2); n++)
-		loads[n] = loads[n + 1];
-	loads[lcd_wid - 2] = get_loadavg ();
+	// shift load history
+	for (i = 0; i < (lcd_wid - 2); i++)
+		loads[i] = loads[i + 1];
 
-	for (n = 0; n < lcd_wid - 1; n++)
-		if (loads[n] > loadmax)
-			loadmax = loads[n];
+	// get new load value
+	machine_get_loadavg(&(loads[lcd_wid - 2]));
 
-	n = (int) loadmax;
-	if ((float) n < loadmax) {
-		n++;
-	}
-	sprintf (tmp, "widget_set X top %i %i %i\n", lcd_wid, (lcd_hgt <= 2) ? 1 : 2, n);
-	//if(display) sock_send_string(sock, tmp);
+	// determine max. load from history
+	for (i = 0; i < lcd_wid - 1; i++)
+		loadmax = max(loadmax, loads[i]);
+
+	// poor man's ceil()
+	loadtop = (int) loadmax;
+	if (loadtop < loadmax)
+		loadtop++;
+	loadtop = max(1, loadtop);
+
+	factor = (double) (lcd_cellhgt * gauge_hgt) / (double) loadtop;
+
+	// display load
+	sprintf (tmp, "widget_set X top %i %i %i\n", lcd_wid, (lcd_hgt + 1 - gauge_hgt), loadtop);
 	sock_send_string (sock, tmp);
 
-	factor = (float) (lcd_cellhgt) * ((lcd_hgt <= 2) ? 2.0 : 1.0 * (lcd_hgt-1)) / (float) n;
+	for (i = 0; i < lcd_wid - 1; i++) {
+		double x = loads[i] * factor;
 
-	for (n = 0; n < lcd_wid - 1; n++) {
-		x = (loads[n] * factor);
-
-		sprintf (tmp, "widget_set X %i %i %i %i\n", n + 1, n + 1, lcd_hgt, (int) x);
-		//if(display) sock_send_string(sock, tmp);
+		sprintf (tmp, "widget_set X bar%i %i %i %i\n", i + 1, i + 1, lcd_hgt, (int) x);
 		sock_send_string (sock, tmp);
 	}
 
-	if (loadmax < LOAD_MIN) {
-		status = BACKLIGHT_OFF;
-	}
-	if (loadmax > LOAD_MIN) {
-		status = BACKLIGHT_ON;
-	}
-	if (loads[lcd_wid - 2] > LOAD_MAX) {
-		status = BLINK_ON;
-	}
 	// And now the title...
 	if (lcd_hgt > 2)
-		sprintf (tmp, "widget_set X title {LOAD %2.2f: %s}\n", loads[lcd_wid - 2], host);
+		sprintf (tmp, "widget_set X title {LOAD %2.2f: %s}\n", loads[lcd_wid - 2], get_hostname());
 	else
-		sprintf (tmp, "widget_set X title 1 1 {%s %2.2f}\n", host, loads[lcd_wid - 2]);
-	//if(display) sock_send_string(sock, tmp);
+		sprintf (tmp, "widget_set X title 1 1 {%s %2.2f}\n", get_hostname(), loads[lcd_wid - 2]);
 	sock_send_string (sock, tmp);
+
+	// set return status depending on max & current load
+	status = (loadmax >  LOAD_MIN) ? BACKLIGHT_ON : BACKLIGHT_OFF;
+	if (loads[lcd_wid - 2] > LOAD_MAX)
+		status = BLINK_ON;
 
 	return status;
 }										  // End xload_screen()
