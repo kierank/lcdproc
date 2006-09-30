@@ -32,12 +32,12 @@
 *
 *  You should have received a copy of the GNU General Public License
 *  along with this program; if not, write to the Free Software
-*  Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
+*  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 *
 *  ---
 *
 *  $Source: /cvsroot/lcdproc/lcdproc/clients/lcdproc/cpu_smp.c,v $
-*  $Revision: 1.13 $ $Date: 2006/05/07 17:32:36 $
+*  $Revision: 1.14 $ $Date: 2006/09/30 18:18:22 $
 *  Checked in by: $Author: marschap $
 *
 *******************************************************************************/
