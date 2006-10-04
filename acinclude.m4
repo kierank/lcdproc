@@ -2,12 +2,12 @@ AC_DEFUN([LCD_DRIVERS_SELECT], [
 AC_CHECKING(for which drivers to compile)
 
 AC_ARG_ENABLE(drivers,
-	[  --enable-drivers=<list> compile driver for LCDs in <list>.]
-	[                  drivers may be separated with commas.]
-	[                  Possible choices are:]
-	[                    bayrad,CFontz,CFontz633,CFontzPacket,curses,CwLnx,]
-	[                    glcdlib,glk,hd44780,icp_a106,imon,IOWarrior,irman,]
-	[                    joy,lb216,lcdm001,lcterm,lirc,ms6931,mtc_s16209x,]
+	[  --enable-drivers=<list> compile drivers for LCDs in <list>,]
+	[                  which is a comma-separated list of drivers.]
+	[                  Possible drivers are:]
+	[                    bayrad,CFontz,CFontz633,CFontzPacket,curses,CwLnx,EyeboxOne,]
+	[                    g15,glcdlib,glk,hd44780,icp_a106,imon,IOWarrior,irman,]
+	[                    joy,lb216,lcdm001,lcterm,lirc,MD8800,ms6931,mtc_s16209x,]
 	[                    MtxOrb,NoritakeVFD,pyramid,sed1330,sed1520,serialVFD,]
 	[                    sli,stv5730,svga,t6963,text,tyan,ula200,xosd]
 	[                  'all' compiles all drivers;]
@@ -15,12 +15,13 @@ AC_ARG_ENABLE(drivers,
 	drivers="$enableval",
 	drivers=[bayrad,CFontz,CFontz633,curses,CwLnx,glk,lb216,lcdm001,MtxOrb,pyramid,text])
 
-allDrivers=[bayrad,CFontz,CFontz633,CFontzPacket,curses,CwLnx,glcdlib,glk,hd44780,icp_a106,imon,IOWarrior,irman,joy,lb216,lcdm001,lcterm,lirc,ms6931,mtc_s16209x,MtxOrb,NoritakeVFD,pyramid,sed1330,sed1520,serialVFD,sli,stv5730,svga,t6963,text,tyan,ula200,xosd]
+allDrivers=[bayrad,CFontz,CFontz633,CFontzPacket,curses,CwLnx,EyeboxOne,g15,glcdlib,glk,hd44780,icp_a106,imon,IOWarrior,irman,joy,lb216,lcdm001,lcterm,lirc,MD8800,ms6931,mtc_s16209x,MtxOrb,NoritakeVFD,pyramid,sed1330,sed1520,serialVFD,sli,stv5730,svga,t6963,text,tyan,ula200,xosd]
 
 drivers=`echo $drivers | sed -e 's/,/ /g'`
 
 dnl replace special keyword "all" in a secure manner
 drivers=[" $drivers "]
+drivers=`echo " $drivers " | sed -e "s/ all,/ ${allDrivers} /"`
 drivers=`echo " $drivers " | sed -e "s/ all / ${allDrivers} /"`
 drivers=`echo $drivers | sed -e 's/,/ /g'`
 
@@ -29,8 +30,8 @@ selectdrivers=" "
 for driver in $drivers ; do
 	case $driver in
 		!*)
-			driver=`echo $driver | sed -e 's/^.//'`
-			selectdrivers=[`echo $selectdrivers | sed -r -e "s/ $driver / /"`]
+			driver=`echo "$driver" | sed -e 's/^.//'`
+			selectdrivers=[`echo " $selectdrivers " | sed -r -e "s/ $driver / /g"`]
 			;;
 		*)
 			selectdrivers=["$selectdrivers $driver "]
@@ -123,6 +124,40 @@ dnl				else
 			DRIVERS="$DRIVERS CwLnx${SO}"
 			actdrivers=["$actdrivers CwLnx"]
 			;;
+		EyeboxOne)
+			DRIVERS="$DRIVERS EyeboxOne${SO}"
+			actdrivers=["$actdrivers EyeboxOne"]
+			;;
+		g15)
+			AC_CHECK_HEADERS([g15daemon_client.h],[
+				AC_CHECK_LIB(g15daemon_client, new_g15_screen,[
+					LIBG15="-lg15daemon_client"
+				],[
+dnl				else
+					AC_MSG_WARN([The g15 driver needs libg15daemon_client-1.2 or better])
+				],
+				[-lg15daemon_client]
+				)
+			],[
+dnl			else
+				AC_MSG_WARN([The g15 driver needs g15daemon_client.h])
+			])
+			AC_CHECK_HEADERS([libg15render.h],[
+				AC_CHECK_LIB(g15render, g15r_initCanvas,[
+					LIBG15="$LIBG15 -lg15render"
+					DRIVERS="$DRIVERS g15${SO}"
+					actdrivers=["$actdrivers g15"]
+				],[
+dnl				else
+					AC_MSG_WARN([the g15 driver needs libg15render])
+				],
+				[-lg15render]
+				)
+			],[
+dnl			else
+				AC_MSG_WARN([The g15driver needs libg15render.h])
+			])
+			;;
 		glcdlib)
 			AC_CHECK_HEADERS([glcdproclib/glcdprocdriver.h],[
 				AC_CHECK_LIB(glcdprocdriver, main,[
@@ -145,7 +180,7 @@ dnl			else
 			actdrivers=["$actdrivers glk"]
 			;;
 		hd44780)
-			HD44780_DRIVERS="hd44780-hd44780-picanlcd.o hd44780-hd44780-lcdserializer.o hd44780-hd44780-lis2.o"
+			HD44780_DRIVERS="hd44780-hd44780-serial.o hd44780-hd44780-lis2.o"
 			if test "$ac_cv_port_have_lpt" = yes ; then
 				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-4bit.o hd44780-hd44780-ext8bit.o hd44780-lcd_sem.o hd44780-hd44780-winamp.o hd44780-hd44780-serialLpt.o"
 			fi
@@ -215,6 +250,10 @@ dnl				else
 dnl				else
 				AC_MSG_WARN([The lirc driver needs the lirc client library])
 			])
+			;;
+		MD8800)
+			DRIVERS="$DRIVERS MD8800${SO}"
+			actdrivers=["$actdrivers MD8800"]
 			;;
 		ms6931)
 			DRIVERS="$DRIVERS ms6931${SO}"
@@ -348,6 +387,7 @@ AC_SUBST(LIBLIRC_CLIENT)
 AC_SUBST(LIBSVGA)
 AC_SUBST(DRIVERS)
 AC_SUBST(HD44780_DRIVERS)
+AC_SUBST(LIBG15)
 AC_SUBST(LIBGLCD)
 AC_SUBST(LIBFTDI)
 AC_SUBST(LIBXOSD)
@@ -705,8 +745,8 @@ AC_DEFUN([BB_ENABLE_DOXYGEN],
 [
 AC_ARG_ENABLE(doxygen, [  --enable-doxygen        enable documentation generation with doxygen (auto)])
 AC_ARG_ENABLE(dot, [  --enable-dot            use 'dot' to generate graphs in doxygen (auto)])
-AC_ARG_ENABLE(html-dox, [  --enable-html-dox      enable HTML generation with doxygen (yes)], [], [ enable_html_dox=yes])
-AC_ARG_ENABLE(latex-dox, [  --enable-latex-dox     enable LaTeX documentation generation with doxygen (no)], [], [ enable_latex_dox=no])
+AC_ARG_ENABLE(html-dox, [  --enable-html-dox       enable HTML generation with doxygen (yes)], [], [ enable_html_dox=yes])
+AC_ARG_ENABLE(latex-dox, [  --enable-latex-dox      enable LaTeX documentation generation with doxygen (no)], [], [ enable_latex_dox=no])
 if test "x$enable_doxygen" = xno; then
         enable_dox=no
 else
