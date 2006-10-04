@@ -26,6 +26,8 @@ lcdproc (0.5.1~cvs20061004) UNRELEASED; urgency=low
         - config file support with lots of options
         - iface screen - netwerk interface information
         - bigclock screen flexibilized
+      + lcdpexec
+        - revamped & documented menu configuration
       +  sample Perl clients
 
  -- Peter Marschall <peter@adpm.de>  Wed,  4 Oct 2006 17:00:00 +0200
