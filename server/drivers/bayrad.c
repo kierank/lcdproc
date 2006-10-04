@@ -443,7 +443,7 @@ bayrad_init_vbar(Driver * drvthis)
 
   if (p->ccmode != CCMODE_STANDARD) {
     /* Not supported (yet) */
-    report(RPT_WARNING, "%s: cannot combine two modes using user defined characters",
+    report(RPT_WARNING, "%s: cannot combine two modes using user-defined characters",
 		    drvthis->name);
     return;
   }
@@ -523,7 +523,7 @@ bayrad_init_hbar(Driver * drvthis)
 
   if (p->ccmode != CCMODE_STANDARD) {
     /* Not supported (yet) */
-    report(RPT_WARNING, "%s: cannot combine two modes using user defined characters",
+    report(RPT_WARNING, "%s: cannot combine two modes using user-defined characters",
 		    drvthis->name);
     return;
   }
@@ -570,7 +570,7 @@ bayrad_set_char(Driver * drvthis, int n, char *dat)
 
   //debug(RPT_DEBUG, "Set char %i", n);
 
-  if ((n < 0) || (n > 7)) /* Do we want to the aliased indexes as well (0x98 - 0x9F?) */
+  if ((n < 0) || (n >= NUM_CCs)) /* Do we want to the aliased indexes as well (0x98 - 0x9F?) */
     return;
 
   if (!dat)

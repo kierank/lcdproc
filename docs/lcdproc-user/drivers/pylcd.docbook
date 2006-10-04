@@ -10,7 +10,7 @@ sold by <ulink url="http://www.pyramid.de/">Pyramid Ccomputer</ulink>.
 Pyramid Computer builds these LC displays into its thriving server products
 to show system data, and to allow the user to change important parameters or
 shut down the appliance in a controlled manner.
-The LCD module, accessible via USB, can be integrated by Pyramid’s BTO server
+The LCD module, accessible via USB, can be integrated by Pyramid's BTO server
 and appliance manufacturing division at the customer's request or it can be
 made available separately for self-integration, e.g. as a 5.25" module. 
 </para>
@@ -21,6 +21,21 @@ made available separately for self-integration, e.g. as a 5.25" module.
 <para>
 The displays are 16 characters wide and 2 lines high. They have 4 programmable
 buttons as well as 3 (or 9) LEDs which can also be software controlled.
+</para>
+
+</sect2>
+
+
+<sect2 id="pyramid-requirements">
+<title>Requirements</title>
+
+<para>
+For Linux the driver depends on features of the <filename>ftdi_sio.ko</filename>
+that have only been added to quite recent version of the 2.6 kernel series.
+For older Linux kernels of the 2.6 series (or even the 2.4 series) that patch
+to <filename>ftdi_sio.c</filename> might help: 
+<ulink url="http://www.pyramid.de/d/downloads/patch-4-linux-2.6.13-14.txt">
+http://www.pyramid.de/d/downloads/patch-4-linux-2.6.13-14.txt</ulink>.
 </para>
 
 </sect2>
@@ -101,7 +116,7 @@ Email: info@coresystems.de  · http://www.coresystems.de/
 <sect2 id="pyramid-config">
 <title>Configuration in LCDd.conf</title>
 
-<sect3>
+<sect3 id="pyramid-config-section">
 <title>[pyramid]</title>
 
 <variablelist>

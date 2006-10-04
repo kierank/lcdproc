@@ -1,6 +1,6 @@
 <?xml version='1.0'?>
-<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.1//EN"
-                      "http://www.oasis-open.org/docbook/xml/4.1/docbookx.dtd" [
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"
+                      "http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd" [
   <!ENTITY bookinfo SYSTEM "bookinfo.docbook">
   <!ENTITY introduction SYSTEM "introduction.docbook">
   <!ENTITY how-to-obtain SYSTEM "how-to-obtain.docbook">
@@ -19,6 +19,8 @@
   <!ENTITY CFontzPacket SYSTEM "drivers/CFontzPacket.docbook">
   <!ENTITY curses SYSTEM "drivers/curses.docbook">
   <!ENTITY CwLnx SYSTEM "drivers/CwLnx.docbook">
+  <!ENTITY EyeboxOne SYSTEM "drivers/eyeboxone.docbook">
+  <!ENTITY g15 SYSTEM "drivers/g15.docbook">
   <!ENTITY glcdlib SYSTEM "drivers/glcdlib.docbook">
   <!ENTITY glk SYSTEM "drivers/glk.docbook">
   <!ENTITY hd44780 SYSTEM "drivers/hd44780.docbook">
@@ -31,6 +33,7 @@
   <!ENTITY lcdm001 SYSTEM "drivers/lcdm001.docbook">
   <!ENTITY lcterm SYSTEM "drivers/lcterm.docbook">
   <!ENTITY lirc SYSTEM "drivers/lircin.docbook">
+  <!ENTITY MD8800 SYSTEM "drivers/MD8800.docbook">
   <!ENTITY ms6931 SYSTEM "drivers/ms6931.docbook">
   <!ENTITY mtc_s16209x SYSTEM "drivers/mtc_s16209x.docbook">
   <!ENTITY MtxOrb SYSTEM "drivers/mtxorb.docbook">

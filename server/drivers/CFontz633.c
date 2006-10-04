@@ -15,7 +15,7 @@
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 */
 
 
 /*
@@ -61,6 +61,7 @@
 #include "CFontz633io.h"
 #include "report.h"
 #include "lcd_lib.h"
+#include "adv_bignum.h"
 
 #define CF633_KEY_UP		1
 #define CF633_KEY_DOWN		2
@@ -83,11 +84,6 @@ typedef enum {
 } CGmode;
 
 
-typedef struct cgram_cache {
-	char cache[DEFAULT_CELL_HEIGHT];
-	int clean;
-} CGram;
-
 typedef struct driver_private_data {
 	char device[200];
 
@@ -107,7 +103,6 @@ typedef struct driver_private_data {
 	unsigned char *backingstore;
 
 	/* defineable characters */
-	CGram cc[NUM_CCs];
 	CGmode ccmode;
 
 	int contrast;
@@ -133,8 +128,10 @@ static void CFontz633_no_live_report (Driver *drvthis);
 static void CFontz633_hardware_clear (Driver *drvthis);
 
 
-/*
- * Opens com port and sets baud correctly...
+/**
+ * Initialize the driver.
+ * \param drvthis  Pointer to driver structure.
+ * \return  Information of success (0) or failure (non-0).
  */
 MODULE_EXPORT int
 CFontz633_init (Driver *drvthis)
@@ -313,8 +310,9 @@ CFontz633_init (Driver *drvthis)
 }
 
 
-/*
- * Clean-up
+/**
+ * Close the driver (do necessary clean-up).
+ * \param drvthis  Pointer to driver structure.
  */
 MODULE_EXPORT void
 CFontz633_close (Driver *drvthis)
@@ -339,8 +337,10 @@ CFontz633_close (Driver *drvthis)
 }
 
 
-/*
- * Returns the display width in characters
+/**
+ * Return the display width in characters.
+ * \param drvthis  Pointer to driver structure.
+ * \return  Number of characters the display is wide.
  */
 MODULE_EXPORT int
 CFontz633_width (Driver *drvthis)
@@ -351,8 +351,10 @@ CFontz633_width (Driver *drvthis)
 }
 
 
-/*
- * Returns the display height in characters
+/**
+ * Return the display height in characters.
+ * \param drvthis  Pointer to driver structure.
+ * \return  Number of characters the display is high.
  */
 MODULE_EXPORT int
 CFontz633_height (Driver *drvthis)
@@ -363,8 +365,10 @@ CFontz633_height (Driver *drvthis)
 }
 
 
-/*
- * Returns the width of a character in pixels
+/**
+ * Return the width of a character in pixels.
+ * \param drvthis  Pointer to driver structure.
+ * \return  Number of pixel columns a character cell is wide.
  */
 MODULE_EXPORT int
 CFontz633_cellwidth (Driver *drvthis)
@@ -375,8 +379,10 @@ CFontz633_cellwidth (Driver *drvthis)
 }
 
 
-/*
- * Returns the height of a character in pixels
+/**
+ * Return the height of a character in pixels.
+ * \param drvthis  Pointer to driver structure.
+ * \return  Number of pixel lines a character cell is high.
  */
 MODULE_EXPORT int
 CFontz633_cellheight (Driver *drvthis)
@@ -387,8 +393,9 @@ CFontz633_cellheight (Driver *drvthis)
 }
 
 
-/*
- * Flushes all output to the lcd...
+/**
+ * Flush data on screen to the LCD.
+ * \param drvthis  Pointer to driver structure.
  */
 MODULE_EXPORT void
 CFontz633_flush (Driver *drvthis)
@@ -439,8 +446,10 @@ CFontz633_flush (Driver *drvthis)
 }
 
 
-/*
- * Return one char from the KeyRing
+/**
+ * Get next key from the KeyRing.
+ * \param drvthis  Pointer to driver structure.
+ * \return  String representation of the key.
  */
 MODULE_EXPORT const char *
 CFontz633_get_key (Driver *drvthis)
@@ -477,9 +486,13 @@ CFontz633_get_key (Driver *drvthis)
 }
 
 
-/*
- * Prints a character on the lcd display, at position (x,y).
- * The upper-left is (1,1), and the lower right should be (16,2).
+/**
+ * Print a character on the screen at position (x,y).
+ * The upper-left corner is (1,1), the lower-right corner is (p->width, p->height).
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param y        Vertical character position (row).
+ * \param c        Character that gets written.
  */
 MODULE_EXPORT void
 CFontz633_chr (Driver *drvthis, int x, int y, char c)
@@ -494,10 +507,12 @@ CFontz633_chr (Driver *drvthis, int x, int y, char c)
 }
 
 
-/*
- * Returns current contrast (in promille)
+/**
+ * Get current LCD contrast.
  * This is only the locally stored contrast, the contrast value
  * cannot be retrieved from the LCD.
+ * \param drvthis  Pointer to driver structure.
+ * \return  Stored contrast in promille.
  */
 MODULE_EXPORT int
 CFontz633_get_contrast (Driver *drvthis)
@@ -508,8 +523,10 @@ CFontz633_get_contrast (Driver *drvthis)
 }
 
 
-/*
- *  Changes screen contrast (in promille)
+/**
+ * Change LCD contrast.
+ * \param drvthis  Pointer to driver structure.
+ * \param promille New contrast value in promille.
  */
 MODULE_EXPORT void
 CFontz633_set_contrast (Driver *drvthis, int promille)
@@ -530,8 +547,11 @@ CFontz633_set_contrast (Driver *drvthis, int promille)
 }
 
 
-/*
- * Retrieves brightness (in promille)
+/**
+ * Retrieve brightness.
+ * \param drvthis  Pointer to driver structure.
+ * \param state    Brightness state (on/off) for which we want the value.
+ * \return Stored brightness in promille.
  */
 MODULE_EXPORT int
 CFontz633_get_brightness(Driver *drvthis, int state)
@@ -542,8 +562,11 @@ CFontz633_get_brightness(Driver *drvthis, int state)
 }
 
 
-/*
- * Sets on/off brightness (in promille)
+/**
+ * Set on/off brightness.
+ * \param drvthis  Pointer to driver structure.
+ * \param state    Brightness state (on/off) for which we want to store the value.
+ * \param promille New brightness in promille.
  */
 MODULE_EXPORT void
 CFontz633_set_brightness(Driver *drvthis, int state, int promille)
@@ -566,9 +589,10 @@ CFontz633_set_brightness(Driver *drvthis, int state, int promille)
 }
 
 
-/*
- * Sets the backlight on or off.
- * The hardware support any value between 0 and 100.
+/**
+ * Turn the LCD backlight on or off.
+ * \param drvthis  Pointer to driver structure.
+ * \param on       New backlight status.
  */
 MODULE_EXPORT void
 CFontz633_backlight (Driver *drvthis, int on)
@@ -584,8 +608,9 @@ CFontz633_backlight (Driver *drvthis, int on)
 }
 
 
-/*
- * Get rid of the blinking cursor
+/**
+ * Get rid of the blinking cursor.
+ * \param drvthis  Pointer to driver structure.
  */
 static void
 CFontz633_hidecursor (Driver *drvthis)
@@ -596,8 +621,9 @@ CFontz633_hidecursor (Driver *drvthis)
 }
 
 
-/*
+/**
  * Stop live reporting of temperature.
+ * \param drvthis  Pointer to driver structure.
  */
 static void
 CFontz633_no_live_report (Driver *drvthis)
@@ -611,8 +637,9 @@ CFontz633_no_live_report (Driver *drvthis)
 }
 
 
-/*
+/**
  * Stop the reporting of any fan.
+ * \param drvthis  Pointer to driver structure.
  */
 static void
 CFontz633_no_fan_report (Driver *drvthis)
@@ -623,8 +650,9 @@ CFontz633_no_fan_report (Driver *drvthis)
 }
 
 
-/*
+/**
  * Stop the reporting of any temperature.
+ * \param drvthis  Pointer to driver structure.
  */
 static void
 CFontz633_no_temp_report (Driver *drvthis)
@@ -636,8 +664,9 @@ CFontz633_no_temp_report (Driver *drvthis)
 }
 
 
-/*
- * Reset the display bios
+/**
+ * Reset the LCD display.
+ * \param drvthis  Pointer to driver structure.
  */
 static void
 CFontz633_reboot (Driver *drvthis)
@@ -650,262 +679,147 @@ CFontz633_reboot (Driver *drvthis)
 }
 
 
-/*
- * Sets up for vertical bars.
- */
-static void
-CFontz633_init_vbar (Driver *drvthis)
-{
-	PrivateData *p = drvthis->private_data;
-	char a[] = {
-		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		0, 1, 1, 1, 1, 1,
-	};
-	char b[] = {
-		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		0, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1,
-	};
-	char c[] = {
-		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		0, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1,
-	};
-	char d[] = {
-		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		0, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1,
-	};
-	char e[] = {
-		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		0, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1,
-	};
-	char f[] = {
-		0, 0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0, 0,
-		0, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1,
-	};
-	char g[] = {
-		0, 0, 0, 0, 0, 0,
-		0, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1,
-		0, 1, 1, 1, 1, 1,
-	};
-
-	if (p->ccmode != vbar) {
-		//if (p->ccmode != standard) {
-		//	/* Not supported(yet) */
-		//	report(RPT_WARNING, "%s: init_vbar: cannot combine two modes using user defined characters"
-		//		drvthis->name);
-		//	return;
-		//}
-		p->ccmode = vbar;
-
-		CFontz633_set_char(drvthis, 1, a);
-		CFontz633_set_char(drvthis, 2, b);
-		CFontz633_set_char(drvthis, 3, c);
-		CFontz633_set_char(drvthis, 4, d);
-		CFontz633_set_char(drvthis, 5, e);
-		CFontz633_set_char(drvthis, 6, f);
-		CFontz633_set_char(drvthis, 7, g);
-	}
-}
-
-
-/*
- * Inits horizontal bars...
- */
-static void
-CFontz633_init_hbar (Driver *drvthis)
-{
-	PrivateData *p = drvthis->private_data;
-	char a[] = {
-		1, 0, 0, 0, 0, 0,
-		1, 0, 0, 0, 0, 0,
-		1, 0, 0, 0, 0, 0,
-		1, 0, 0, 0, 0, 0,
-		1, 0, 0, 0, 0, 0,
-		1, 0, 0, 0, 0, 0,
-		1, 0, 0, 0, 0, 0,
-		1, 0, 0, 0, 0, 0,
-	};
-	char b[] = {
-		1, 1, 0, 0, 0, 0,
-		1, 1, 0, 0, 0, 0,
-		1, 1, 0, 0, 0, 0,
-		1, 1, 0, 0, 0, 0,
-		1, 1, 0, 0, 0, 0,
-		1, 1, 0, 0, 0, 0,
-		1, 1, 0, 0, 0, 0,
-		1, 1, 0, 0, 0, 0,
-	};
-	char c[] = {
-		1, 1, 1, 0, 0, 0,
-		1, 1, 1, 0, 0, 0,
-		1, 1, 1, 0, 0, 0,
-		1, 1, 1, 0, 0, 0,
-		1, 1, 1, 0, 0, 0,
-		1, 1, 1, 0, 0, 0,
-		1, 1, 1, 0, 0, 0,
-		1, 1, 1, 0, 0, 0,
-	};
-	char d[] = {
-		1, 1, 1, 1, 0, 0,
-		1, 1, 1, 1, 0, 0,
-		1, 1, 1, 1, 0, 0,
-		1, 1, 1, 1, 0, 0,
-		1, 1, 1, 1, 0, 0,
-		1, 1, 1, 1, 0, 0,
-		1, 1, 1, 1, 0, 0,
-		1, 1, 1, 1, 0, 0,
-	};
-	char e[] = {
-		1, 1, 1, 1, 1, 0,
-		1, 1, 1, 1, 1, 0,
-		1, 1, 1, 1, 1, 0,
-		1, 1, 1, 1, 1, 0,
-		1, 1, 1, 1, 1, 0,
-		1, 1, 1, 1, 1, 0,
-		1, 1, 1, 1, 1, 0,
-		1, 1, 1, 1, 1, 0,
-	};
-	char f[] = {
-		1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1, 1,
-	};
-
-	if (p->ccmode != hbar) {
-		//if (p->ccmode != standard) {
-		//	/* Not supported(yet) */
-		//	report(RPT_WARNING, "%s: init_hbar: Cannot combine two modes using user defined characters",
-		//		drvthis->name);
-		//	return;
-		//}
-		p->ccmode = hbar;
-
-		CFontz633_set_char(drvthis, 1, a);
-		CFontz633_set_char(drvthis, 2, b);
-		CFontz633_set_char(drvthis, 3, c);
-		CFontz633_set_char(drvthis, 4, d);
-		CFontz633_set_char(drvthis, 5, e);
-		CFontz633_set_char(drvthis, 6, f);
-	}
-}
-
-
-/*
- * Draws a vertical bar...
+/**
+ * Draw a vertical bar bottom-up.
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column) of the starting point.
+ * \param y        Vertical character position (row) of the starting point.
+ * \param len      Number of characters that the bar is high at 100%
+ * \param promille Current height level of the bar in promille.
+ * \param options  Options (currently unused).
  */
 MODULE_EXPORT void
 CFontz633_vbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 {
-/* x and y are the start position of the bar.
- * The bar by default grows in the 'up' direction
- * (other direction not yet implemented).
- * len is the number of characters that the bar is long at 100%
- * promille is the number of promilles (0..1000) that the bar should be filled.
- */
 	PrivateData *p = drvthis->private_data;
 
-	CFontz633_init_vbar(drvthis);
+	if (p->ccmode != vbar) {
+		unsigned char vBar[p->cellheight];
+		int i;
+
+		if (p->ccmode != standard) {
+			/* Not supported(yet) */
+			report(RPT_WARNING, "%s: vbar: cannot combine two modes using user-defined characters",
+					drvthis->name);
+			return;
+		}
+		p->ccmode = vbar;
+
+		memset(vBar, 0x00, sizeof(vBar));
+
+		for (i = 1; i < p->cellheight; i++) {
+			// add pixel line per pixel line ...
+			vBar[p->cellheight - i] = 0xFF;
+			CFontz633_set_char(drvthis, i, vBar);
+		}
+	}
+
 	lib_vbar_static(drvthis, x, y, len, promille, options, p->cellheight, 0);
 }
 
 
-/*
- * Draws a horizontal bar to the right.
+/**
+ * Draw a horizontal bar to the right.
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column) of the starting point.
+ * \param y        Vertical character position (row) of the starting point.
+ * \param len      Number of characters that the bar is long at 100%
+ * \param promille Current length level of the bar in promille.
+ * \param options  Options (currently unused).
  */
 MODULE_EXPORT void
 CFontz633_hbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 {
-/* x and y are the start position of the bar.
- * The bar by default grows in the 'right' direction
- * (other direction not yet implemented).
- * len is the number of characters that the bar is long at 100%
- * promille is the number of promilles (0..1000) that the bar should be filled.
- */
 	PrivateData *p = drvthis->private_data;
 
-	CFontz633_init_hbar(drvthis);
+	if (p->ccmode != hbar) {
+		unsigned char hBar[p->cellheight];
+		int i;
+
+		if (p->ccmode != standard) {
+			/* Not supported(yet) */
+			report(RPT_WARNING, "%s: hbar: cannot combine two modes using user-defined characters",
+					drvthis->name);
+			return;
+		}
+		p->ccmode = hbar;
+
+		memset(hBar, 0x00, sizeof(hBar));
+
+		for (i = 1; i <= p->cellwidth; i++) {
+			// fill pixel columns from left to right.
+			memset(hBar, 0xFF & ~((1 << (p->cellwidth - i)) - 1), sizeof(hBar)-1);
+			CFontz633_set_char(drvthis, i, hBar);
+		}
+	}
+
 	lib_hbar_static(drvthis, x, y, len, promille, options, p->cellwidth, 0);
 }
 
 
-/*
- * Writes a big number.
- * This is not supported on 633 because we only have 2 lines...
+/**
+ * Write a big number to the screen.
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param num      Character to write (0 - 10 with 10 representing ':')
  */
 MODULE_EXPORT void
-CFontz633_num (Driver *drvthis, int x, int num)
+CFontz633_num(Driver *drvthis, int x, int num)
 {
-/*
-	PrivateData *p = drvthis->private_data;
-	unsigned char out[5];
+PrivateData *p = drvthis->private_data;
+int do_init = 0;
 
-	if ((x <= 0) || (x > p->width))
+	if ((num < 0) || (num > 10))
 		return;
 
-	snprintf(out, sizeof(out), "%c%c%c", 28, x, num);
-	write(p->fd, out, 3);
-*/
+	if (p->ccmode != bignum) {
+		if (p->ccmode != standard) {
+			/* Not supported (yet) */
+			report(RPT_WARNING, "%s: num: cannot combine two modes using user-defined characters",
+					drvthis->name);
+			return;
+		}
+
+		p->ccmode = bignum;
+
+		do_init = 1;
+	}
+
+	// Lib_adv_bignum does everything needed to show the bignumbers.
+	lib_adv_bignum(drvthis, x, num, do_init, NUM_CCs);
 }
 
 
-/*
- * Sets a custom character from 0 - (NUM_CCs-1)
- *
- * For input, values > 0 mean "on" and values <= 0 are "off".
- *
- * The input is just an array of characters...
+/**
+ * Get number of custom chars available.
+ * \param drvthis  Pointer to driver structure.
+ * \returns  Number of custom characters (always NUM_CCs).
+ */
+MODULE_EXPORT int
+CFontz633_get_free_chars (Driver *drvthis)
+{
+//PrivateData *p = drvthis->private_data;
+
+	return NUM_CCs;
+}
+
+
+/**
+ * Define a custom character and write it to the LCD.
+ * \param drvthis  Pointer to driver structure.
+ * \param n        Custom character to define [0 - (NUM_CCs-1)].
+ * \param dat      Array of 8(=cellheight) bytes, each representing a pixel row
+ *                 starting from the top to bottom.
+ *                 The bits in each byte represent the pixels where the LSB
+ *                 (least significant bit) is the rightmost pixel in each pixel row.
  */
 MODULE_EXPORT void
-CFontz633_set_char (Driver *drvthis, int n, char *dat)
+CFontz633_set_char (Driver *drvthis, int n, unsigned char *dat)
 {
 	PrivateData *p = drvthis->private_data;
 	unsigned char out[9];
-	int row, col;
+	unsigned char mask = (1 << p->cellwidth) - 1;
+	int row;
 
 	if ((n < 0) || (n >= NUM_CCs))
 		return;
@@ -915,115 +829,146 @@ CFontz633_set_char (Driver *drvthis, int n, char *dat)
 	out[0] = n;	/* Custom char to define. xxx */
 
 	for (row = 0; row < p->cellheight; row++) {
-		int letter = 0;
-
-		for (col = 0; col < p->cellwidth; col++) {
-			letter <<= 1;
-			letter |= (dat[(row * p->cellwidth) + col] > 0);
-		}
-		out[row+1] = letter;
+		out[row+1] = dat[row] & mask;
 	}
 	send_bytes_message(p->fd, CF633_Set_LCD_Special_Character_Data, 9, out);
 }
 
 
-/*
- * Places an icon on screen
+/**
+ * Place an icon on the screen.
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param y        Vertical character position (row).
+ * \param icon     synbolic value representing the icon.
+ * \return  Information whether the icon is handled here or needs to be handled by the server core.
  */
 MODULE_EXPORT int
 CFontz633_icon (Driver *drvthis, int x, int y, int icon)
 {
 	PrivateData *p = drvthis->private_data;
-	char icons[8][6 * 8] = {
-	/* Empty Heart */
-		{
-		 1, 1, 1, 1, 1, 1,
-		 1, 1, 0, 1, 0, 1,
-		 1, 0, 0, 0, 0, 0,
-		 1, 0, 0, 0, 0, 0,
-		 1, 0, 0, 0, 0, 0,
-		 1, 1, 0, 0, 0, 1,
-		 1, 1, 1, 0, 1, 1,
-		 1, 1, 1, 1, 1, 1,
-		 },
-	/* Filled Heart */
-		{
-		 1, 1, 1, 1, 1, 1,
-		 1, 1, 0, 1, 0, 1,
-		 1, 0, 1, 0, 1, 0,
-		 1, 0, 1, 1, 1, 0,
-		 1, 0, 1, 1, 1, 0,
-		 1, 1, 0, 1, 0, 1,
-		 1, 1, 1, 0, 1, 1,
-		 1, 1, 1, 1, 1, 1,
-		 },
-	/* arrow_up */
-		{
-		 0, 0, 0, 1, 0, 0,
-		 0, 0, 1, 1, 1, 0,
-		 0, 1, 0, 1, 0, 1,
-		 0, 0, 0, 1, 0, 0,
-		 0, 0, 0, 1, 0, 0,
-		 0, 0, 0, 1, 0, 0,
-		 0, 0, 0, 1, 0, 0,
-		 0, 0, 0, 0, 0, 0,
-		 },
-	/* arrow_down */
-		{
-		 0, 0, 0, 1, 0, 0,
-		 0, 0, 0, 1, 0, 0,
-		 0, 0, 0, 1, 0, 0,
-		 0, 0, 0, 1, 0, 0,
-		 0, 1, 0, 1, 0, 1,
-		 0, 0, 1, 1, 1, 0,
-		 0, 0, 0, 1, 0, 0,
-		 0, 0, 0, 0, 0, 0,
-		 },
-	/* checkbox_off */
-		{
-		 0, 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0, 0,
-		 0, 1, 1, 1, 1, 1,
-		 0, 1, 0, 0, 0, 1,
-		 0, 1, 0, 0, 0, 1,
-		 0, 1, 0, 0, 0, 1,
-		 0, 1, 1, 1, 1, 1,
-		 0, 0, 0, 0, 0, 0,
-		 },
-	/* checkbox_on */
-		{
-		 0, 0, 0, 1, 0, 0,
-		 0, 0, 0, 1, 0, 0,
-		 0, 1, 1, 1, 0, 1,
-		 0, 1, 0, 1, 1, 0,
-		 0, 1, 0, 1, 0, 1,
-		 0, 1, 0, 0, 0, 1,
-		 0, 1, 1, 1, 1, 1,
-		 0, 0, 0, 0, 0, 0,
-		 },
-	/* checkbox_gray */
-		{
-		 0, 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0, 0,
-		 0, 1, 1, 1, 1, 1,
-		 0, 1, 0, 1, 0, 1,
-		 0, 1, 1, 0, 1, 1,
-		 0, 1, 0, 1, 0, 1,
-		 0, 1, 1, 1, 1, 1,
-		 0, 0, 0, 0, 0, 0,
-		 },
-	 /* Ellipsis */
-		{
-		 0, 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0, 0,
-		 1, 0, 1, 0, 1, 0,
-		 },
-	};
+
+	static unsigned char heart_open[] = 
+		{ b__XXXXX,
+		  b__X_X_X,
+		  b_______,
+		  b_______,
+		  b_______,
+		  b__X___X,
+		  b__XX_XX,
+		  b__XXXXX };
+	static unsigned char heart_filled[] = 
+		{ b__XXXXX,
+		  b__X_X_X,
+		  b___X_X_,
+		  b___XXX_,
+		  b___XXX_,
+		  b__X_X_X,
+		  b__XX_XX,
+		  b__XXXXX };
+	static unsigned char arrow_up[] = 
+		{ b____X__,
+		  b___XXX_,
+		  b__X_X_X,
+		  b____X__,
+		  b____X__,
+		  b____X__,
+		  b____X__,
+		  b_______ };
+	static unsigned char arrow_down[] = 
+		{ b____X__,
+		  b____X__,
+		  b____X__,
+		  b____X__,
+		  b__X_X_X,
+		  b___XXX_,
+		  b____X__,
+		  b_______ };
+	/*
+	static unsigned char arrow_left[] = 
+		{ b_______,
+		  b____X__,
+		  b___X___,
+		  b__XXXXX,
+		  b___X___,
+		  b____X__,
+		  b_______,
+		  b_______ };
+	static unsigned char arrow_right[] = 
+		{ b_______,
+		  b____X__,
+		  b_____X_,
+		  b__XXXXX,
+		  b_____X_,
+		  b____X__,
+		  b_______,
+		  b_______ };
+	*/
+	static unsigned char checkbox_off[] = 
+		{ b_______,
+		  b_______,
+		  b__XXXXX,
+		  b__X___X,
+		  b__X___X,
+		  b__X___X,
+		  b__XXXXX,
+		  b_______ };
+	static unsigned char checkbox_on[] = 
+		{ b____X__,
+		  b____X__,
+		  b__XXX_X,
+		  b__X_XX_,
+		  b__X_X_X,
+		  b__X___X,
+		  b__XXXXX,
+		  b_______ };
+	static unsigned char checkbox_gray[] = 
+		{ b_______,
+		  b_______,
+		  b__XXXXX,
+		  b__X_X_X,
+		  b__XX_XX,
+		  b__X_X_X,
+		  b__XXXXX,
+		  b_______ };
+	/*
+	static unsigned char selector_left[] = 
+		{ b___X___,
+		  b___XX__,
+		  b___XXX_,
+		  b___XXXX,
+		  b___XXX_,
+		  b___XX__,
+		  b___X___,
+		  b_______ };
+	static unsigned char selector_right[] = 
+		{ b_____X_,
+		  b____XX_,
+		  b___XXX_,
+		  b__XXXX_,
+		  b___XXX_,
+		  b____XX_,
+		  b_____X_,
+		  b_______ };
+	static unsigned char ellipsis[] = 
+		{ b_______,
+		  b_______,
+		  b_______,
+		  b_______,
+		  b_______,
+		  b_______,
+		  b__X_X_X,
+		  b_______ };
+	static unsigned char block_filled[] = 
+		{ b__XXXXX,
+		  b__XXXXX,
+		  b__XXXXX,
+		  b__XXXXX,
+		  b__XXXXX,
+		  b__XXXXX,
+		  b__XXXXX,
+		  b__XXXXX };
+	*/
 
 	/* Yes we know, this is a VERY BAD implementation :-) */
 	switch (icon) {
@@ -1032,22 +977,22 @@ CFontz633_icon (Driver *drvthis, int x, int y, int icon)
 			break;
 		case ICON_HEART_FILLED:
 		        p->ccmode = custom;
-			CFontz633_set_char(drvthis, 0, icons[1]);
+			CFontz633_set_char(drvthis, 0, heart_filled);
 			CFontz633_chr(drvthis, x, y, 0);
 			break;
 		case ICON_HEART_OPEN:
 		        p->ccmode = custom;
-			CFontz633_set_char(drvthis, 0, icons[0]);
+			CFontz633_set_char(drvthis, 0, heart_open);
 			CFontz633_chr(drvthis, x, y, 0);
 			break;
 		case ICON_ARROW_UP:
 		        p->ccmode = custom;
-			CFontz633_set_char(drvthis, 1, icons[2]);
+			CFontz633_set_char(drvthis, 1, arrow_up);
 			CFontz633_chr(drvthis, x, y, 1);
 			break;
 		case ICON_ARROW_DOWN:
 		        p->ccmode = custom;
-			CFontz633_set_char(drvthis, 2, icons[3]);
+			CFontz633_set_char(drvthis, 2, arrow_down);
 			CFontz633_chr(drvthis, x, y, 2);
 			break;
 		case ICON_ARROW_LEFT:
@@ -1058,17 +1003,17 @@ CFontz633_icon (Driver *drvthis, int x, int y, int icon)
 			break;
 		case ICON_CHECKBOX_OFF:
 		        p->ccmode = custom;
-			CFontz633_set_char(drvthis, 3, icons[4]);
+			CFontz633_set_char(drvthis, 3, checkbox_off);
 			CFontz633_chr(drvthis, x, y, 3);
 			break;
 		case ICON_CHECKBOX_ON:
 		        p->ccmode = custom;
-			CFontz633_set_char(drvthis, 4, icons[5]);
+			CFontz633_set_char(drvthis, 4, checkbox_on);
 			CFontz633_chr(drvthis, x, y, 4);
 			break;
 		case ICON_CHECKBOX_GRAY:
 		        p->ccmode = custom;
-			CFontz633_set_char(drvthis, 5, icons[6]);
+			CFontz633_set_char(drvthis, 5, checkbox_gray);
 			CFontz633_chr(drvthis, x, y, 5);
 			break;
 		default:
@@ -1078,8 +1023,9 @@ CFontz633_icon (Driver *drvthis, int x, int y, int icon)
 }
 
 
-/*
- * Clears the LCD screen
+/**
+ * Clear the screen.
+ * \param drvthis  Pointer to driver structure.
  */
 MODULE_EXPORT void
 CFontz633_clear (Driver *drvthis)
@@ -1091,8 +1037,9 @@ CFontz633_clear (Driver *drvthis)
 }
 
 
-/*
- * Hardware clears the LCD screen
+/**
+ * Clear the LCD using hardware commands.
+ * \param drvthis  Pointer to driver structure.
  */
 static void
 CFontz633_hardware_clear (Driver *drvthis)
@@ -1103,9 +1050,13 @@ CFontz633_hardware_clear (Driver *drvthis)
 }
 
 
-/*
- * Prints a string on the lcd display, at position (x,y).  The
- * upper-left is (1,1), and the lower right should be (16,2).
+/**
+ * Print a string on the screen at position (x,y).
+ * The upper-left corner is (1,1), the lower-right corner is (p->width, p->height).
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param y        Vertical character position (row).
+ * \param string   String that gets written.
  */
 MODULE_EXPORT void
 CFontz633_string (Driver *drvthis, int x, int y, char string[])

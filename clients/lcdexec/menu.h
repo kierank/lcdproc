@@ -41,9 +41,10 @@ typedef struct menu_entry {
 } MenuEntry;
 
 
-MenuEntry *menu_read(MenuEntry *parent, char *name);
+MenuEntry *menu_read(MenuEntry *parent, const char *ame);
 int menu_sock_send(MenuEntry *me, MenuEntry *parent, int sock);
 MenuEntry *menu_find_by_id(MenuEntry *me, int id);
 const char *menu_command(MenuEntry *me);
 void menu_free(MenuEntry *me);
+void menu_dump(MenuEntry *me);
 

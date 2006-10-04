@@ -7,6 +7,7 @@
 #include <fcntl.h>
 #include <termios.h>
 #include <errno.h>
+#include <locale.h>
 #include <signal.h>
 #include <netdb.h>
 #include <ctype.h>
@@ -34,6 +35,9 @@
 #include "mem.h"
 #include "machine.h"
 #include "iface.h"
+#ifdef LCDPROC_EYEBOXONE
+# include "eyebox.h"
+#endif
 
 // TODO: Commenting...  Everything!
 
@@ -171,6 +175,9 @@ main(int argc, char **argv)
 	int cfgresult;
 	int c;
 
+	/* set locale for cwdate & time formatting in chrono.c */
+	setlocale(LC_TIME, "" );
+
 	/* get uname information */
 	if (uname(&unamebuf) == -1) {
 		perror("uname");
@@ -266,7 +273,7 @@ main(int argc, char **argv)
 			int found = set_mode(shortname, name, state);
 
 			if (!found) {
-				fprintf(stderr, "Invalid Mode: %s\n", name);
+				fprintf(stderr, "Invalid Screen: %s\n", name);
 				return(EXIT_FAILURE);
 			}
 		}	
@@ -323,7 +330,7 @@ static int
 process_configfile(char *configfile)
 {
 	int k;
-	char *tmp;
+	const char *tmp;
 
 	debug(RPT_DEBUG, "%s(%s)", __FUNCTION__, (configfile) ? configfile : "<null>");
 
@@ -394,34 +401,39 @@ void
 HelpScreen (int exit_state)
 {
 	fprintf(stderr,
-		"Usage: lcdproc [<options>] [<modes> ...]\n"
+		"lcdproc - LCDproc system status information viewer\n"
+		"\n"
+		"Copyright (c) 1999-2006 Scott Scriven, William Ferrell, and misc. contributors.\n"
+		"This program is released under the terms of the GNU General Public License.\n"
+		"\n"
+		"Usage: lcdproc [<options>] [<screens> ...]\n"
 		"  where <options> are\n"
-		"    -s <host>               connect to LCDd daemon on <host>\n"
-		"    -p <port>               connect to LCDd daemon using <port>\n"
-		"    -f                      run in foreground\n"
-		"    -e <delay>              slow down initial announcement of modes (in 1/100s)\n"
-		"    -c <config>             use a configuration file other than %s\n"
-		"    -h                      show this help screen\n"
-		"    -v                      display program version\n"
-		"  and <modes> are\n"
-		"    C CPU                   detailed CPU usage\n"
-		"    P SMP-CPU               CPU usage overview (one line per CPU)\n"
-		"    G CPUGraph              CPU usage histogram\n"
-		"    L Load                  load histogram\n"
-		"    M Memory                memory & swap usage\n"
-		"    S ProcSize              biggest processes size\n"
-		"    D Disk                  disk usage\n"
-		"    I Iface                 network interface usage\n"
-		"    B Battery               battery status\n"
-		"    T TimeDate              time & date information\n"
-		"    O OldTime               old time screen\n"
-		"    U Uptime                uptime screen\n"
-		"    K BigClock              big clock\n"
-		"    N MiniClock             minimal clock\n"
-		"    A About                 credits page\n"
+		"    -s <host>           connect to LCDd daemon on <host>\n"
+		"    -p <port>           connect to LCDd daemon using <port>\n"
+		"    -f                  run in foreground\n"
+		"    -e <delay>          slow down initial announcement of screens (in 1/100s)\n"
+		"    -c <config>         use a configuration file other than %s\n"
+		"    -h                  show this help screen\n"
+		"    -v                  display program version\n"
+		"  and <screens> are\n"
+		"    C CPU               detailed CPU usage\n"
+		"    P SMP-CPU           CPU usage overview (one line per CPU)\n"
+		"    G CPUGraph          CPU usage histogram\n"
+		"    L Load              load histogram\n"
+		"    M Memory            memory & swap usage\n"
+		"    S ProcSize          biggest processes size\n"
+		"    D Disk              filling level of mounted file systems\n"
+		"    I Iface             network interface usage\n"
+		"    B Battery           battery status\n"
+		"    T TimeDate          time & date information\n"
+		"    O OldTime           old time screen\n"
+		"    U Uptime            uptime screen\n"
+		"    K BigClock          big clock\n"
+		"    N MiniClock         minimal clock\n"
+		"    A About             credits page\n"
 		"\n"
 		"Example:\n"
-		"    lcdproc -s my.lcdproc.server.com -p 13666 C M X\n"
+		"    lcdproc -s my.lcdproc.server.com -p 13666 C M L\n"
 		, DEFAULT_CONFIGFILE);
 
 	exit(exit_state);
@@ -433,6 +445,12 @@ HelpScreen (int exit_state)
 void
 exit_program(int val)
 {
+#ifdef LCDPROC_EYEBOXONE
+	/*
+	 * Clear Eyebox Leds
+	 */
+	eyebox_clear();
+#endif
 	//printf("exit program\n");
 	Quit = 1;
 	sock_close(sock);

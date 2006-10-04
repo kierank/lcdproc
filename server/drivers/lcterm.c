@@ -17,7 +17,7 @@
 
   You should have received a copy of the GNU General Public License
   along with this program; if not, write to the Free Software
-  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307
+  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301
 
   This driver is mostly based on the HD44780 and the LCDM001 driver.
   (Hopefully I have NOT forgotten any file I have stolen code from.
@@ -104,7 +104,7 @@ lcterm_init (Driver *drvthis)
   /* Get and parse size */
   {
     int w, h;
-    char *s = drvthis->config_get_string(drvthis->name, "Size", 0, "16x2");
+    const char *s = drvthis->config_get_string(drvthis->name, "Size", 0, "16x2");
 
     debug(RPT_DEBUG, "%s: reading size: %s", __FUNCTION__, s);
 
@@ -409,7 +409,7 @@ lcterm_init_vbar (Driver *drvthis)
 
   if (p->ccmode != CCMODE_STANDARD) {
     /* Not supported (yet) */
-    report(RPT_WARNING, "%s: init_vbar: cannot combine two modes using user defined characters",
+    report(RPT_WARNING, "%s: init_vbar: cannot combine two modes using user-defined characters",
 		    drvthis->name);
     return;
   }
@@ -489,7 +489,7 @@ lcterm_init_hbar (Driver *drvthis)
 
   if (p->ccmode != CCMODE_STANDARD) {
     /* Not supported (yet) */
-    report(RPT_WARNING, "%s: init_hbar: cannot combine two modes using user defined characters",
+    report(RPT_WARNING, "%s: init_hbar: cannot combine two modes using user-defined characters",
 		    drvthis->name);
     return;
   }
@@ -616,7 +616,7 @@ lcterm_init_num (Driver *drvthis)
 
   if (p->ccmode != CCMODE_STANDARD) {
     /* Not supported (yet) */
-    report(RPT_WARNING, "%s: init_num: cannot combine two modes using user defined characters",
+    report(RPT_WARNING, "%s: init_num: cannot combine two modes using user-defined characters",
 		    drvthis->name);
     return;
   }

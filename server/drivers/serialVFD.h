@@ -6,7 +6,7 @@
 	driver.
 	It may contain parts of other drivers of this package too.
 
-	2006-02-13 Version 0.2: everything should work (not all hardware tested!)
+	2006-05-16 Version 0.3: everything should work (not all hardware tested!)
 
 	This program is free software; you can redistribute it and/or modify
 	it under the terms of the GNU General Public License as published by
@@ -20,12 +20,14 @@
 
 	You should have received a copy of the GNU General Public License
 	along with this program; if not, write to the Free Software
-	Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 */
 
 #ifndef SERIALVFD_H
 #define SERIALVFD_H
 #include "lcd.h"
 #include "adv_bignum.h"
+#include "serialVFD_displays.h"
+#include "serialVFD_io.h"
 
 #define CCMODE_STANDARD 0 /* only char 0 is used for heartbeat */
 #define CCMODE_VBAR 1
@@ -59,12 +61,49 @@ MODULE_EXPORT void serialVFD_vbar (Driver *drvthis, int x, int y, int len, int p
 MODULE_EXPORT void serialVFD_hbar (Driver *drvthis, int x, int y, int len, int promille, int options);
 MODULE_EXPORT int  serialVFD_icon(Driver *drvthis, int x, int y, int icon);
 
-MODULE_EXPORT void serialVFD_set_char (Driver *drvthis, int n, char *dat);
+MODULE_EXPORT void serialVFD_set_char (Driver *drvthis, int n, unsigned char *dat);
 
 MODULE_EXPORT int  serialVFD_get_brightness (Driver *drvthis, int state);
 MODULE_EXPORT void serialVFD_set_brightness (Driver *drvthis, int state, int promille);
+MODULE_EXPORT void serialVFD_backlight (Driver *drvthis, int on);
 MODULE_EXPORT void serialVFD_output (Driver *drvthis, int state);
 MODULE_EXPORT void serialVFD_num (Driver * drvthis, int x, int num);
 MODULE_EXPORT int serialVFD_get_free_chars (Driver *drvthis);
 MODULE_EXPORT const char * serialVFD_get_info( Driver *drvthis );
+
+typedef struct driver_private_data {
+	int use_parallel;		// use parallel?
+	unsigned int port;		// Port in parallel mode
+	char device[200];		// Device in serial mode
+	int fd;
+	int speed;			// Speed in serial mode
+	/* dimensions */
+	int width, height;
+	int cellwidth, cellheight;
+	/* framebuffer and buffer for old LCD contents */
+	unsigned char *framebuf;
+	unsigned char *backingstore;
+	/* defineable characters */
+	int ccmode;
+	int on_brightness;
+	int off_brightness;
+	int hw_brightness;
+	int customchars;
+	int predefined_hbar;
+	int predefined_vbar;
+	int ISO_8859_1;
+	unsigned int refresh_timer;
+	unsigned char charmap[128];
+	int display_type;		// display type
+	int last_custom;		// last custom character written
+	char custom_char[31][7]; 	// stored custom characters
+	char custom_char_store[31][7]; 	// custom characters backingstore
+	char hw_cmd[10][4]; 		// hardwarespecific commands
+	int usr_chr_dot_assignment[57];	// how to setup usercharacters
+	unsigned int usr_chr_mapping[31];// where to place the usercharacters (0..30) in the asciicode
+	int hbar_cc_offset;		// character offset of the bars
+	int vbar_cc_offset;		// character offset of the bars
+	char info[255];
+} PrivateData;
+
 #endif

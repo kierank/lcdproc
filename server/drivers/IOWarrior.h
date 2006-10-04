@@ -21,7 +21,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 */
 
 
 #ifndef IOWARRIOR_H
@@ -39,6 +39,7 @@
 #define iowVendor		0x07c0   /* CodeMercs */
 #define iowProd40		0x1500   /* IOW40 */
 #define iowProd24		0x1501   /* IOW24 */
+#define iowProd56		0x1503   /* IOW56 */
 #define iowTimeout		1000
 
 #define USB_REQ_SET_REPORT	0x09
@@ -61,9 +62,10 @@
 typedef enum {
   standard,	/* only char 0 is used for heartbeat */
   vbar,		/* vertical bars */
-  hbar,		/* horizontaln bars */
+  hbar,		/* horizontal bars */
   bignum,	/* big numbers */
-  bigchar	/* big characters */
+  bigchar,	/* big characters */
+  custom	/* custom icons */
 } CGmode;
 
 
@@ -120,9 +122,9 @@ MODULE_EXPORT char *symbol_prefix = "IOWarrior_";
 MODULE_EXPORT int  IOWarrior_init(Driver *drvthis);
 MODULE_EXPORT void IOWarrior_close(Driver *drvthis);
 MODULE_EXPORT int  IOWarrior_width(Driver *drvthis);
-MODULE_EXPORT int  IOWarrior_height(Driver *drvthis);
-MODULE_EXPORT int  IOWarrior_cellwidth(Driver *drvthis);
 MODULE_EXPORT int  IOWarrior_cellheight(Driver *drvthis);
+MODULE_EXPORT int  IOWarrior_cellwidth(Driver *drvthis);
+MODULE_EXPORT int  IOWarrior_height(Driver *drvthis);
 MODULE_EXPORT void IOWarrior_clear(Driver *drvthis);
 MODULE_EXPORT void IOWarrior_chr(Driver *drvthis, int x, int y, char c);
 MODULE_EXPORT void IOWarrior_string(Driver *drvthis, int x, int y, char string[]);
@@ -132,9 +134,9 @@ MODULE_EXPORT void IOWarrior_vbar(Driver *drvthis, int x, int y, int len, int pr
 MODULE_EXPORT void IOWarrior_hbar(Driver *drvthis, int x, int y, int len, int promille, int options);
 MODULE_EXPORT void IOWarrior_num(Driver *drvthis, int x, int num);
 MODULE_EXPORT int  IOWarrior_get_free_chars(Driver *drvthis);
-MODULE_EXPORT void IOWarrior_set_char(Driver *drvthis, int n, char *dat);
+MODULE_EXPORT void IOWarrior_set_char(Driver *drvthis, int n, unsigned char *dat);
 MODULE_EXPORT int  IOWarrior_icon(Driver *drvthis, int x, int y, int icon);
-MODULE_EXPORT void IOWarrior_output(Driver *drvthis, int on);
+MODULE_EXPORT void IOWarrior_output(Driver *drvthis, int state);
 MODULE_EXPORT const char *IOWarrior_get_info(Driver *drvthis);
 
 #endif	/* IOWARRIOR_H */

@@ -5,15 +5,43 @@ Key:
      + Something added
      * Something changed / fixed
 
-v.0.5dev (stable branch)
+v.0.5.1~dev (stable branch)
  + config file support in lcdproc client (Andrew Foss)
  * install server & client config files in $(sysconfdir)
  + new client lcdvc: virtual console on LCD
- + add iface screen(s) to lcdproc client (Andrew Foss)
+ * convert adv_bignum library to bitwise set_char()
+ * adapt drivers to modified bignum library:
+   + CFontz
+   + CFontz633
+   + CFontzPacket
+   + hd44780
+   + IOWarrior
+   + MtxOrb
+   + serialVFD
+   + tyan
+ + add iface screen(s) to lcdproc client (Andrew Foss/Markus Dolze)
  * update sample Perl clients
  * fix LCDd crash on shutdown of clients using "menu_set_main" (Andrew Foss)
  * fix sock_connect() to allow 0 as legal socket (Frederick Nacino)
+ * improve serialVFD driver (Stefan Herdler)
+ + add MD8800 driver for LCDs in Medion MD8800 PCs (Stefan Herdler/Martin Møller)
+ * make bigclock client screen more flexible: centered, require only 14 chars
  * correct axis mapping logic for joystick driver (Jannis Achstetter)
+ * fixes to the CFontz driver
+ + new unified serial sub-driver for hd44780 (Matteo Pillon)
+ - obsolete hd44780 subdrivers-removed: lcdserializer, picanlcd
+ * character mapping for special HD44780 modules (Matteo Pillon)
+ + g15 - driver for LCD in Logitech G15 gaming keyboards (Anthony J. Mirabella)
+ + EyeboxOne - driver for the LCD display on the EyeboxOne (Cedric TESSIER)
+ * more flexible parsing of config files: allow spaces around sections and keys
+ * updated & extended documentation
+ * command line options more synchronizd between server and clients
+ * CFontzPacket & CFontz633 support big & little endian systems
+ * MtxOrb driver completely rewritten to support used-defined characters
+ * more options in lcdproc's config file lcdproc.conf:
+   + time and date formats can be changed using strftime formats
+   + Load screen's LowLoad & HighLoad thresholds
+ * various little fixes
 
 v0.5.0
 This version has split off from unstable-0.4.3. Includes major changes.
@@ -168,7 +196,7 @@ v0.4-pre10:
 V0.4-pre9:
  * small fixes for irix
  * Added flag in LCDd to shut off server screen:
-	"-i off" or "--serverinfo off"
+ 	"-i off" or "--serverinfo off"
  + Wirz SLI driver
  + 16x2 support (server only)
  + MtxOrb generic output support in driver

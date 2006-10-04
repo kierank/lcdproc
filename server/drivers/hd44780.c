@@ -27,6 +27,9 @@
  *
  * Modified October 2001 to read the configfile.
  *
+ * Modified August 2006 by Pillon Matteo <matteo.pillon@email.it> to
+ * allow user selecting charmaps
+ *
  * Moved the delay timing code by Charles Steinkuehler to timing.h.
  * Guillaume Filion <gfk@logidac.com>, December 2001
  *
@@ -73,6 +76,7 @@
 #include "lcd_lib.h"
 #include "hd44780.h"
 #include "report.h"
+#include "adv_bignum.h"
 
 #include "timing.h"
 #include "hd44780-low.h"
@@ -107,7 +111,7 @@ static char *defaultKeyMapMatrix[KEYPAD_MAXY][KEYPAD_MAXX] = {
 void HD44780_position (Driver *drvthis, int x, int y);
 static void uPause (PrivateData *p, int usecs);
 unsigned char HD44780_scankeypad(PrivateData *p);
-static int parse_span_list (int *spanListArray[], int *spLsize, int *dispOffsets[], int *dOffsize, int *dispSizeArray[], char *spanlist);
+static int parse_span_list (int *spanListArray[], int *spLsize, int *dispOffsets[], int *dOffsize, int *dispSizeArray[], const char *spanlist);
 
 // Vars for the server core
 MODULE_EXPORT char * api_version = API_VERSION;
@@ -115,6 +119,9 @@ MODULE_EXPORT int stay_in_foreground = 0;
 MODULE_EXPORT int supports_multiple = 1; // yes, we have no global variables (except for constants)
 MODULE_EXPORT char *symbol_prefix = "HD44780_";
 
+#define IF_TYPE_PARPORT  0
+#define IF_TYPE_USB      1
+#define IF_TYPE_SERIAL   2
 
 /////////////////////////////////////////////////////////////////
 // Opens com port and sets baud correctly...
@@ -125,23 +132,22 @@ HD44780_init (Driver * drvthis)
 	// TODO: remove the two magic numbers below
 	// TODO: single point of return
 	char buf[40];
-	char *s;
+	const char *s;
 	int i;
-	int usb = 0;
+	int if_type = IF_TYPE_PARPORT;
 	PrivateData *p;
 
 	// Alocate and store private data
-	p = (PrivateData *) malloc(sizeof(PrivateData));
+	p = (PrivateData *) calloc(1, sizeof(PrivateData));
 	if (p == NULL)
 		return -1;
-	if (drvthis->store_private_ptr( drvthis, p))
+	if (drvthis->store_private_ptr(drvthis, p))
 		return -1;
 
-	// Clear data struct
-	memset( p, 0, sizeof(*p) );
+	// initialize private data
 	p->cellheight = 8; /* Do not change this !!! This is a controller property, not a display property !!! */
 	p->cellwidth = 5;
-	p->ccmode = CCMODE_STANDARD;
+	p->ccmode = standard;
 
 
 	//// READ THE CONFIG FILE
@@ -163,10 +169,16 @@ HD44780_init (Driver * drvthis)
 		return -1; // fatal error
 	} else {
 		p->connectiontype_index = i;
-		/* check if ConnectionType contains the string "USB" or "usb" */
-		if ((strstr(connectionMapping[i].name, "usb") != NULL) ||
-		    (strstr(connectionMapping[i].name, "USB") != NULL))
-			usb = 1;
+		/* check if ConnectionType contains the string "usb" or "USB" */
+		if ((strstr(connectionMapping[p->connectiontype_index].name, "usb") != NULL) ||
+		    (strstr(connectionMapping[p->connectiontype_index].name, "USB") != NULL))
+			if_type = IF_TYPE_USB;
+		/* check if it is the serial driver */
+		for (i = 0; i < (sizeof(serial_interfaces)/sizeof(SerialInterface)); i++) {
+			if (strcasecmp(connectionMapping[p->connectiontype_index].name,
+				       serial_interfaces[i].name)==0)
+			    if_type = IF_TYPE_SERIAL;
+		}
 	}
 
 	// Get and parse vspan only when specified
@@ -189,18 +201,18 @@ HD44780_init (Driver * drvthis)
 	// default case for when spans aren't indicated
 	// - add a sanity check against p->height ??
 	if (p->numLines == 0) {
-		if ((p->spanList = (int *) malloc(sizeof(int) * p->height))) {
+		if ((p->spanList = (int *) calloc(sizeof(int), p->height)) != NULL) {
 			int i;
 			for (i = 0; i < p->height; ++i) {
 				p->spanList[i] = 1;
 				p->numLines = p->height;
 			}
 		} else
-			report(RPT_ERR, "%s: error mallocing", drvthis->name);
+			report(RPT_ERR, "%s: error allocing", drvthis->name);
 	}
 	if (p->numDisplays == 0) {
-		if ((p->dispVOffset = (int *) malloc(sizeof(int))) &&
-	            (p->dispSizes = (int *) malloc(sizeof(int)))) {
+		if (((p->dispVOffset = (int *) calloc(1, sizeof(int))) != NULL) &&
+	            ((p->dispSizes = (int *) calloc(1, sizeof(int))) != NULL)) {
 			p->dispVOffset[0] = 0;
 			p->dispSizes[0] = p->height;
 			p->numDisplays = 1;
@@ -228,7 +240,7 @@ HD44780_init (Driver * drvthis)
 #endif
 
 	// Allocate framebuffer
-	p->framebuf = (char *) malloc(p->width * p->height);
+	p->framebuf = (char *) calloc(p->width * p->height, sizeof(char));
 	if (p->framebuf == NULL) {
 		report(RPT_ERR, "%s: unable to allocate framebuffer", drvthis->name);
 		//HD44780_close();
@@ -236,29 +248,18 @@ HD44780_init (Driver * drvthis)
 	}
 
 	// Allocate and clear the buffer for incremental updates
-	p->lcd_contents = (char *) malloc (p->width * p->height);
+	p->lcd_contents = (char *) calloc (p->width * p->height, sizeof(char));
 	if (p->lcd_contents == NULL) {
 		report(RPT_ERR, "%s: unable to allocate framebuffer backing store", drvthis->name);
 		return -1;
 	}
-	memset(p->lcd_contents, 0, p->width * p->height);
-
-	// Allocate and clear the buffer for defineable characters
-	p->cc_buf = (char *) malloc(NUM_CCs * p->cellheight);
-	p->cc_dirty = (char *) malloc(NUM_CCs);
-	if (!p->cc_buf || !p->cc_dirty) {
-		report(RPT_ERR, "%s: error mallocing", drvthis->name);
-		return -1;
-	}
-	memset(p->cc_buf, 0, NUM_CCs * p->cellheight);
-	memset(p->cc_dirty, 1, NUM_CCs); /* all custom chars dirty */
 
 	// Keypad ?
 	if (p->have_keypad) {
 		int x, y;
 
 		// Read keymap
-		for ( x=0; x<KEYPAD_MAXX; x++ ) {
+		for (x = 0; x < KEYPAD_MAXX; x++) {
 			char buf[40];
 
 			// First fill with default value
@@ -275,8 +276,8 @@ HD44780_init (Driver * drvthis)
 			}
 		}
 
-		for ( x=0; x<KEYPAD_MAXX; x++ ) {
-			for ( y=0; y<KEYPAD_MAXY; y++ ) {
+		for (x = 0; x < KEYPAD_MAXX; x++) {
+			for (y = 0; y<KEYPAD_MAXY; y++) {
 				char buf[40];
 
 				// First fill with default value
@@ -295,10 +296,32 @@ HD44780_init (Driver * drvthis)
 		}
 	}
 
+	// Get configured charmap
+	char conf_charmap[MAX_CHARMAP_NAME_LENGHT];
+
+	strncpy(conf_charmap, drvthis->config_get_string(drvthis->name, "charmap", 0, "hd44780_default"), MAX_CHARMAP_NAME_LENGHT);
+	conf_charmap[MAX_CHARMAP_NAME_LENGHT-1]='\0';
+	p->charmap=0;
+	for (i=0; i<(sizeof(available_charmaps)/sizeof(struct charmap)); i++) {
+		if (strcasecmp(conf_charmap, available_charmaps[i].name) == 0) {
+			p->charmap=i;
+			break;
+		}
+	}
+	if (p->charmap != i) {
+		report(RPT_ERR, "%s: Charmap %s is unknown", drvthis->name, conf_charmap);
+		report(RPT_ERR, "%s: Available charmaps:", drvthis->name);
+		for (i=0; i<(sizeof(available_charmaps)/sizeof(struct charmap)); i++) {
+			report(RPT_ERR, " %s", available_charmaps[i].name);
+		}
+		return -1;
+	}
+	report(RPT_INFO, "%s: Using %s charmap", drvthis->name, available_charmaps[p->charmap].name);
+
 	// Output latch state - init to a non-valid value
 	p->output_state = 999999;
 
-	if ((p->hd44780_functions = (HD44780_functions *) malloc(sizeof(HD44780_functions))) == NULL) {
+	if ((p->hd44780_functions = (HD44780_functions *) calloc(1, sizeof(HD44780_functions))) == NULL) {
 		report(RPT_ERR, "%s: error mallocing", drvthis->name);
 		return -1;
 	}
@@ -307,25 +330,35 @@ HD44780_init (Driver * drvthis)
 	p->hd44780_functions->output = NULL;
 
 	// Do connection type specific display init
-	if (connectionMapping[p->connectiontype_index].init_fn (drvthis) != 0)
+	if (connectionMapping[p->connectiontype_index].init_fn(drvthis) != 0)
 		return -1;
 
 	// Display startup parameters on the LCD
 	HD44780_clear (drvthis);
 	sprintf (buf, "HD44780 %dx%d", p->width, p->height );
 	HD44780_string (drvthis, 1, 1, buf);
-	if (usb) {
-		sprintf(buf, "USB %s%s%s",
-				(p->have_backlight ? " bl" : ""),
-				(p->have_keypad ? " key" : ""),
-				(p->have_output ? " out" : ""));
-	}
-	else {
-		sprintf(buf, "LPT 0x%03X%s%s%s", p->port,
-				(p->have_backlight ? " bl" : ""),
-				(p->have_keypad ? " key" : ""),
-				(p->have_output ? " out" : ""));
-	}
+ 	switch(if_type) {
+ 	case IF_TYPE_USB:
+  		sprintf (buf, "USB %s%s%s",
+ 			 (p->have_backlight?" bl":""),
+ 			 (p->have_keypad?" key":""),
+ 			 (p->have_output?" out":"")
+ 			);
+ 		break;
+ 	case IF_TYPE_SERIAL:
+ 		sprintf (buf, "SERIAL %s%s%s",
+ 			 (p->have_backlight?" bl":""),
+ 			 (p->have_keypad?" key":""),
+ 			 (p->have_output?" out":"")
+ 			);
+ 		break;
+ 	default:
+ 		sprintf (buf, "LPT 0x%x%s%s%s", p->port,
+ 			 (p->have_backlight?" bl":""),
+ 			 (p->have_keypad?" key":""),
+ 			 (p->have_output?" out":"")
+  			);
+  	}
 	HD44780_string (drvthis, 1, 2, buf);
 	HD44780_flush (drvthis);
 	sleep (2);
@@ -409,6 +442,26 @@ HD44780_height (Driver *drvthis)
 }
 
 /////////////////////////////////////////////////////////////////
+// Returns the display's character cell width
+//
+MODULE_EXPORT int
+HD44780_cellwidth (Driver *drvthis)
+{
+	PrivateData *p = (PrivateData *) drvthis->private_data;
+	return p->cellwidth;
+}
+
+/////////////////////////////////////////////////////////////////
+// Returns the display's character cell height
+//
+MODULE_EXPORT int
+HD44780_cellheight (Driver *drvthis)
+{
+	PrivateData *p = (PrivateData *) drvthis->private_data;
+	return p->cellheight;
+}
+
+/////////////////////////////////////////////////////////////////
 // Set position (not part of API)
 //
 // x and y here are for the virtual p->height x p->width display
@@ -457,19 +510,19 @@ HD44780_flush (Driver *drvthis)
 
 	// Update LCD incrementally by comparing with last contents
 	count = 0;
-	for (y=0; y<p->height; y++) {
+	for (y = 0; y < p->height; y++) {
 		drawing = 0;
-		for (x=0 ; x<wid; x++) {
+		for (x = 0 ; x < wid; x++) {
 			ch = p->framebuf[(y * wid) + x];
 			if ( ch != p->lcd_contents[(y*wid)+x] ) {
 				if ( !drawing || x % 8 == 0 ) { // x%8 is for 16x1 displays !
 					drawing = 1;
 					HD44780_position(drvthis,x,y);
 				}
-				p->hd44780_functions->senddata (p, p->spanList[y], RS_DATA, HD44780_charmap[(unsigned char)ch]);
+				p->hd44780_functions->senddata (p, p->spanList[y], RS_DATA, available_charmaps[p->charmap].charmap[(unsigned char)ch]);
 				p->hd44780_functions->uPause (p, 40);  // Minimum exec time for all commands
 				p->lcd_contents[(y*wid)+x] = ch;
-				count ++;
+				count++;
 			}
 			else {
 				drawing = 0;
@@ -480,8 +533,8 @@ HD44780_flush (Driver *drvthis)
 
 	/* Check which defineable chars we need to update */
 	count = 0;
-	for ( i = 0; i < NUM_CCs; i ++ ) {
-		if ( p->cc_dirty[i] ) {
+	for (i = 0; i < NUM_CCs; i++) {
+		if (!p->cc[i].clean) {
 
 			/* Tell the HD44780 we will redefine char number i */
 			p->hd44780_functions->senddata (p, 0, RS_INSTR, SETCHAR | i * 8);
@@ -489,15 +542,14 @@ HD44780_flush (Driver *drvthis)
 
 			/* Send the subsequent rows */
 			for (row = 0; row < p->cellheight; row++) {
-				p->hd44780_functions->senddata (p, 0, RS_DATA, p->cc_buf[i*p->cellheight+row]);
+				p->hd44780_functions->senddata (p, 0, RS_DATA, p->cc[i].cache[row]);
 				p->hd44780_functions->uPause (p, 40);  /* Minimum exec time for all commands */
 			}
-			/* Mark as not dirty anymore */
-			p->cc_dirty[i] = 0;
-			count ++;
+			p->cc[i].clean = 1;	/* mark as clean */
+			count++;
 		}
 	}
-	debug(RPT_DEBUG, "HD44780: flushed %d custom chars's", count );
+	debug(RPT_DEBUG, "%s: flushed %d custom chars", drvthis->name, count);
 }
 
 /////////////////////////////////////////////////////////////////
@@ -508,7 +560,7 @@ HD44780_clear (Driver *drvthis)
 {
 	PrivateData *p = (PrivateData *) drvthis->private_data;
 	memset(p->framebuf, ' ', p->width * p->height);
-	p->ccmode = CCMODE_STANDARD;
+	p->ccmode = standard;
 }
 
 /////////////////////////////////////////////////////////////////
@@ -521,26 +573,28 @@ HD44780_chr (Driver *drvthis, int x, int y, char ch)
 	y--;
 	x--;
 
-	p->framebuf[ (y * p->width) + x] = ch;
+	if ((x >= 0) && (y >= 0) && (x < p->width) && (y < p->height))
+		p->framebuf[ (y * p->width) + x] = ch;
 }
 
 /////////////////////////////////////////////////////////////////
 // Place a string in the framebuffer
 //
 MODULE_EXPORT void
-HD44780_string (Driver *drvthis, int x, int y, char *s)
+HD44780_string (Driver *drvthis, int x, int y, char *string)
 {
 	PrivateData *p = (PrivateData *) drvthis->private_data;
 	int i;
 
-	x --;  // Convert 1-based coords to 0-based
-	y --;
+	x--;  // Convert 1-based coords to 0-based
+	y--;
 
-	for (i = 0; s[i]; i++) {
-		// Check for buffer overflows...
-		if ((y * p->width) + x + i > (p->width * p->height))
-			break;
-		p->framebuf[(y*p->width) + x + i] = s[i];
+	if ((y < 0) || (y >= p->height))
+		return;
+
+	for (i = 0; (string[i] != '\0') && (x < p->width); i++, x++) {
+		if (x >= 0)	// no write left of left border
+			p->framebuf[(y * p->width) + x] = string[i];
 	}
 }
 
@@ -552,185 +606,6 @@ HD44780_backlight (Driver *drvthis, int on)
 {
 	PrivateData *p = (PrivateData *) drvthis->private_data;
 	p->hd44780_functions->backlight (p, on);
-}
-
-/////////////////////////////////////////////////////////////////
-// Sets up for vertical bars.  Call before HD44780->vbar()
-//
-static void
-HD44780_init_vbar (Driver *drvthis)
-{
-	PrivateData *p = (PrivateData *) drvthis->private_data;
-
-	char a[] = {
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		1, 1, 1, 1, 1,
-	};
-	char b[] = {
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-	};
-	char c[] = {
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-	};
-	char d[] = {
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-	};
-	char e[] = {
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-	};
-	char f[] = {
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-	};
-	char g[] = {
-		0, 0, 0, 0, 0,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-	};
-
-	if ( p->ccmode == CCMODE_VBAR ) {
-		/* Work already done */
-		return;
-	}
-
-	if ( p->ccmode != CCMODE_STANDARD ) {
-		/* Not supported (yet) */
-		report(RPT_WARNING, "HD44780_init_vbar: Cannot combine two modes using user defined characters" );
-		return;
-	}
-	p->ccmode = CCMODE_VBAR;
-
-	HD44780_set_char (drvthis, 1, a);
-	HD44780_set_char (drvthis, 2, b);
-	HD44780_set_char (drvthis, 3, c);
-	HD44780_set_char (drvthis, 4, d);
-	HD44780_set_char (drvthis, 5, e);
-	HD44780_set_char (drvthis, 6, f);
-	HD44780_set_char (drvthis, 7, g);
-}
-
-/////////////////////////////////////////////////////////////////
-// Inits horizontal bars...
-//
-static void
-HD44780_init_hbar (Driver *drvthis)
-{
-	PrivateData *p = (PrivateData *) drvthis->private_data;
-
-	char a[] = {
-		1, 0, 0, 0, 0,
-		1, 0, 0, 0, 0,
-		1, 0, 0, 0, 0,
-		1, 0, 0, 0, 0,
-		1, 0, 0, 0, 0,
-		1, 0, 0, 0, 0,
-		1, 0, 0, 0, 0,
-		1, 0, 0, 0, 0,
-	};
-	char b[] = {
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-	};
-	char c[] = {
-		1, 1, 1, 0, 0,
-		1, 1, 1, 0, 0,
-		1, 1, 1, 0, 0,
-		1, 1, 1, 0, 0,
-		1, 1, 1, 0, 0,
-		1, 1, 1, 0, 0,
-		1, 1, 1, 0, 0,
-		1, 1, 1, 0, 0,
-	};
-	char d[] = {
-		1, 1, 1, 1, 0,
-		1, 1, 1, 1, 0,
-		1, 1, 1, 1, 0,
-		1, 1, 1, 1, 0,
-		1, 1, 1, 1, 0,
-		1, 1, 1, 1, 0,
-		1, 1, 1, 1, 0,
-		1, 1, 1, 1, 0,
-	};
-	char e[] = {
-		1, 1, 1, 1, 0,
-		1, 1, 1, 1, 0,
-		1, 1, 1, 1, 0,
-		1, 1, 1, 1, 0,
-		1, 1, 1, 1, 0,
-		1, 1, 1, 1, 0,
-		1, 1, 1, 1, 0,
-		1, 1, 1, 1, 0,
-	};
-
-	if ( p->ccmode == CCMODE_HBAR ) {
-		/* Work already done */
-		return;
-	}
-
-	if ( p->ccmode != CCMODE_STANDARD ) {
-		/* Not supported (yet) */
-		report(RPT_WARNING, "HD44780_init_hbar: Cannot combine two modes using user defined characters" );
-		return;
-	}
-	p->ccmode = CCMODE_HBAR;
-
-	HD44780_set_char (drvthis, 1, a);
-	HD44780_set_char (drvthis, 2, b);
-	HD44780_set_char (drvthis, 3, c);
-	HD44780_set_char (drvthis, 4, d);
-	HD44780_set_char (drvthis, 5, e);
-
 }
 
 /////////////////////////////////////////////////////////////////
@@ -748,7 +623,26 @@ HD44780_vbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 	 * promille is the number of promilles (0..1000) that the bar should be filled.
 	 */
 
-	HD44780_init_vbar(drvthis);
+	if (p->ccmode != vbar) {
+		unsigned char vBar[p->cellheight];
+		int i;
+
+		if (p->ccmode != standard) {
+			/* Not supported(yet) */
+			report(RPT_WARNING, "%s: vbar: cannot combine two modes using user-defined characters",
+				drvthis->name);
+			return;
+		}
+		p->ccmode = vbar;
+
+		memset(vBar, 0x00, sizeof(vBar));
+
+		for (i = 1; i < p->cellheight; i++) {
+			// add pixel line per pixel line ...
+			vBar[p->cellheight - i] = 0xFF;
+			HD44780_set_char(drvthis, i, vBar);
+		}
+	}
 
 	lib_vbar_static(drvthis, x, y, len, promille, options, p->cellheight, 0);
 }
@@ -768,107 +662,29 @@ HD44780_hbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 	 * promille is the number of promilles (0..1000) that the bar should be filled.
 	 */
 
-	HD44780_init_hbar(drvthis);
+	if (p->ccmode != hbar) {
+		unsigned char hBar[p->cellheight];
+		int i;
+
+		if (p->ccmode != standard) {
+			/* Not supported(yet) */
+			report(RPT_WARNING, "%s: hbar: cannot combine two modes using user-defined characters",
+			      drvthis->name);
+		return;
+		}
+
+		p->ccmode = hbar;
+
+		for (i = 1; i <= p->cellwidth; i++) {
+			// fill pixel columns from left to right.
+			memset(hBar, 0xFF & ~((1 << (p->cellwidth - i)) - 1), sizeof(hBar));
+			HD44780_set_char(drvthis, i, hBar);
+		}
+	}
 
 	lib_hbar_static(drvthis, x, y, len, promille, options, p->cellwidth, 0);
 }
 
-/////////////////////////////////////////////////////////////////
-// Sets up for big numbers.
-//
-static void
-HD44780_init_num (Driver *drvthis)
-{
-	PrivateData *p = (PrivateData *) drvthis->private_data;
-
-	char bignum_ccs[8][5*8] = {{
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0
-	}, {
-		0, 0, 0, 1, 1,
-		0, 0, 0, 1, 1,
-		0, 0, 0, 1, 1,
-		0, 0, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		0, 0, 0, 0, 0
-	}, {
-		1, 1, 0, 1, 1,
-		1, 1, 0, 1, 1,
-		1, 1, 0, 1, 1,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0
-	}, {
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		0, 0, 0, 0, 0
-	}, {
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 1, 1,
-		0, 0, 0, 1, 1,
-		0, 0, 0, 1, 1,
-		0, 0, 0, 0, 0
-	}, {
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		1, 1, 0, 1, 1,
-		1, 1, 0, 1, 1,
-		1, 1, 0, 1, 1,
-		0, 0, 0, 0, 0
-	}, {
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		0, 0, 0, 0, 0
-	}, {
-		0, 0, 0, 1, 1,
-		0, 0, 0, 1, 1,
-		0, 0, 0, 1, 1,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0
-	}};
-
-	if (p->ccmode != CCMODE_BIGNUM) {
-		int i;
-
-		if ( p->ccmode != CCMODE_STANDARD ) {
-			/* Not supported (yet) */
-			report(RPT_WARNING, "HD44780_init_num: Cannot combine two modes using user defined characters" );
-			return;
-		}
-		p->ccmode = CCMODE_BIGNUM;
-
-		for (i = 0; i < 8; i++)
-			HD44780_set_char (drvthis, i, bignum_ccs[i]);
-	}
-}
 
 /////////////////////////////////////////////////////////////////
 // Writes a big number.
@@ -877,85 +693,26 @@ MODULE_EXPORT void
 HD44780_num (Driver *drvthis, int x, int num)
 {
 	PrivateData *p = (PrivateData *) drvthis->private_data;
+	int do_init = 0;
 
-	char bignum_map[11][4][3] = {
-	{ /* 0: */
-		{  1,  2,  3 }, 
-		{  6, 32,  6 }, 
-		{  6, 32,  6 }, 
-		{  7,  2, 32 } }, 
-	{ /* 1: */
-		{  7,  6, 32 }, 
-		{ 32,  6, 32 }, 
-		{ 32,  6, 32 }, 
-		{  7,  2, 32 } }, 
-	{ /* 2: */
-		{  1,  2,  3 }, 
-		{ 32,  5,  0 }, 
-		{  1, 32, 32 }, 
-		{  2,  2,  0 } }, 
-	{ /* 3: */
-		{  1,  2,  3 }, 
-		{ 32,  5,  0 }, 
-		{  3, 32,  6 }, 
-		{  7,  2, 32 } }, 
-	{ /* 4: */
-		{ 32,  3, 6 }, 
-		{  1, 32, 6 }, 
-		{  2,  2, 6 }, 
-		{ 32, 32, 0 } }, 
-	{ /* 5: */
-		{  1,  2,  0 }, 
-		{  2,  2,  3 }, 
-		{  3, 32,  6 }, 
-		{  7,  2, 32 } }, 
-	{ /* 6: */
-		{  1,  2, 32 }, 
-		{  6,  5, 32 }, 
-		{  6, 32,  6 }, 
-		{  7,  2, 32 } }, 
-	{ /* 7: */
-		{  2,  2,  6 }, 
-		{ 32,  1, 32 }, 
-		{ 32,  6, 32 }, 
-		{ 32,  0, 32 } }, 
-	{ /* 8: */
-		{  1,  2,  3 }, 
-		{  4,  5,  0 }, 
-		{  6, 32,  6 }, 
-		{  7,  2, 32 } }, 
-	{ /* 9: */
-		{  1,  2,  3 }, 
-		{  4,  3,  6 }, 
-		{ 32,  1, 32 }, 
-		{  7, 32, 32 } }, 
-	{ /* colon: (only 1st column used) */
-		{ 32, 32, 32 },
-		{  7, 32, 32 },
-		{  7, 32, 32 },
-		{ 32, 32, 32 } }
-	};
-
-	if ((num < 0) || (num > 10))
+        if ((num < 0) || (num > 10))
 		return;
 
-	if (p->height >= 4) {
-		int y = (p->height - 2) / 2;
-		int x2, y2;
-
-		HD44780_init_num(drvthis);
-
-		for (x2 = 0; x2 < 3; x2++) {
-			for (y2 = 0; y2 < 4; y2++) {
-				HD44780_chr( drvthis, x+x2, y+y2, bignum_map[num][y2][x2] );
-			}
-			if (num == 10)
-				x2 = 2; /* =break, for colon only */
+	if (p->ccmode != bignum) {
+		if (p->ccmode != standard) {
+			/* Not supported (yet) */
+			report(RPT_WARNING, "%s: num: cannot combine two modes using user-defined characters",
+					drvthis->name);
+			return;
 		}
+
+		p->ccmode = bignum;
+
+		do_init = 1;
 	}
-	else
-		HD44780_chr(drvthis, x, 1 + (p->height - 1) / 2,
-			    (num == 10) ? ':' : (num + '0'));
+
+	// Lib_adv_bignum does everything needed to show the bignumbers.
+	lib_adv_bignum(drvthis, x, num, do_init, NUM_CCs);
 }
 
 /////////////////////////////////////////////////////////////////
@@ -966,29 +723,26 @@ HD44780_num (Driver *drvthis, int x, int num)
 // The input is just an array of characters...
 //
 MODULE_EXPORT void
-HD44780_set_char (Driver *drvthis, int n, char *dat)
+HD44780_set_char (Driver *drvthis, int n, unsigned char *dat)
 {
 	PrivateData *p = (PrivateData *) drvthis->private_data;
-	int row, col;
-	int letter;
+	unsigned char mask = (1 << p->cellwidth) - 1;
+	int row;
 
-	if (n < 0 || n > 7)
+	if ((n < 0) || (n >= NUM_CCs))
 		return;
 	if (!dat)
 		return;
 
 	for (row = 0; row < p->cellheight; row++) {
-		letter = 0;
-		if (p->lastline || (row < p->cellheight - 1)) {
-			for (col = 0; col < p->cellwidth; col++) {
-				letter <<= 1;
-				letter |= (dat[(row * p->cellwidth) + col] > 0) ? 1 : 0;
-			}
-		}	
-		if ( p->cc_buf[n*p->cellheight+row] != letter ) {
-			p->cc_dirty[n] = 1; /* only mark as dirty if really different */
-		}
-		p->cc_buf[n*p->cellheight+row] = letter;
+		int letter = 0;
+
+		if (p->lastline || (row < p->cellheight - 1))
+			letter = dat[row] & mask;	
+
+		if (p->cc[n].cache[row] != letter)
+			p->cc[n].clean = 0;	 /* only mark dirty if really different */
+		p->cc[n].cache[row] = letter;
 	}
 }
 
@@ -998,78 +752,127 @@ HD44780_set_char (Driver *drvthis, int n, char *dat)
 MODULE_EXPORT int
 HD44780_icon (Driver *drvthis, int x, int y, int icon)
 {
-	char heart_open[] = {
-		 1, 1, 1, 1, 1,
-		 1, 0, 1, 0, 1,
-		 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0,
-		 1, 0, 0, 0, 1,
-		 1, 1, 0, 1, 1,
-		 1, 1, 1, 1, 1 };
-	char heart_filled[] = {
-		 1, 1, 1, 1, 1,
-		 1, 0, 1, 0, 1,
-		 0, 1, 0, 1, 0,
-		 0, 1, 1, 1, 0,
-		 0, 1, 1, 1, 0,
-		 1, 0, 1, 0, 1,
-		 1, 1, 0, 1, 1,
-		 1, 1, 1, 1, 1 };
-	char arrow_up[] = {
-		 0, 0, 1, 0, 0,
-		 0, 1, 1, 1, 0,
-		 1, 0, 1, 0, 1,
-		 0, 0, 1, 0, 0,
-		 0, 0, 1, 0, 0,
-		 0, 0, 1, 0, 0,
-		 0, 0, 1, 0, 0,
-		 0, 0, 0, 0, 0 };
-	char arrow_down[] = {
-		 0, 0, 1, 0, 0,
-		 0, 0, 1, 0, 0,
-		 0, 0, 1, 0, 0,
-		 0, 0, 1, 0, 0,
-		 1, 0, 1, 0, 1,
-		 0, 1, 1, 1, 0,
-		 0, 0, 1, 0, 0,
-		 0, 0, 0, 0, 0 };
-	char checkbox_off[] = {
-		 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0,
-		 1, 1, 1, 1, 1,
-		 1, 0, 0, 0, 1,
-		 1, 0, 0, 0, 1,
-		 1, 0, 0, 0, 1,
-		 1, 1, 1, 1, 1,
-		 0, 0, 0, 0, 0 };
-	char checkbox_on[] = {
-		 0, 0, 1, 0, 0,
-		 0, 0, 1, 0, 0,
-		 1, 1, 1, 0, 1,
-		 1, 0, 1, 1, 0,
-		 1, 0, 1, 0, 1,
-		 1, 0, 0, 0, 1,
-		 1, 1, 1, 1, 1,
-		 0, 0, 0, 0, 0 };
-	char checkbox_gray[] = {
-		 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0,
-		 1, 1, 1, 1, 1,
-		 1, 0, 1, 0, 1,
-		 1, 1, 0, 1, 1,
-		 1, 0, 1, 0, 1,
-		 1, 1, 1, 1, 1,
-		 0, 0, 0, 0, 0 };
-	char block_filled[] = {
-		 1, 1, 1, 1, 1,
-		 1, 1, 1, 1, 1,
-		 1, 1, 1, 1, 1,
-		 1, 1, 1, 1, 1,
-		 1, 1, 1, 1, 1,
-		 1, 1, 1, 1, 1,
-		 1, 1, 1, 1, 1,
-		 1, 1, 1, 1, 1 };
+	static unsigned char heart_open[] = 
+		{ b__XXXXX,
+		  b__X_X_X,
+		  b_______,
+		  b_______,
+		  b_______,
+		  b__X___X,
+		  b__XX_XX,
+		  b__XXXXX };
+	static unsigned char heart_filled[] = 
+		{ b__XXXXX,
+		  b__X_X_X,
+		  b___X_X_,
+		  b___XXX_,
+		  b___XXX_,
+		  b__X_X_X,
+		  b__XX_XX,
+		  b__XXXXX };
+	static unsigned char arrow_up[] = 
+		{ b____X__,
+		  b___XXX_,
+		  b__X_X_X,
+		  b____X__,
+		  b____X__,
+		  b____X__,
+		  b____X__,
+		  b_______ };
+	static unsigned char arrow_down[] = 
+		{ b____X__,
+		  b____X__,
+		  b____X__,
+		  b____X__,
+		  b__X_X_X,
+		  b___XXX_,
+		  b____X__,
+		  b_______ };
+	/*
+	static unsigned char arrow_left[] = 
+		{ b_______,
+		  b____X__,
+		  b___X___,
+		  b__XXXXX,
+		  b___X___,
+		  b____X__,
+		  b_______,
+		  b_______ };
+	static unsigned char arrow_right[] = 
+		{ b_______,
+		  b____X__,
+		  b_____X_,
+		  b__XXXXX,
+		  b_____X_,
+		  b____X__,
+		  b_______,
+		  b_______ };
+	*/
+	static unsigned char checkbox_off[] = 
+		{ b_______,
+		  b_______,
+		  b__XXXXX,
+		  b__X___X,
+		  b__X___X,
+		  b__X___X,
+		  b__XXXXX,
+		  b_______ };
+	static unsigned char checkbox_on[] = 
+		{ b____X__,
+		  b____X__,
+		  b__XXX_X,
+		  b__X_XX_,
+		  b__X_X_X,
+		  b__X___X,
+		  b__XXXXX,
+		  b_______ };
+	static unsigned char checkbox_gray[] = 
+		{ b_______,
+		  b_______,
+		  b__XXXXX,
+		  b__X_X_X,
+		  b__XX_XX,
+		  b__X_X_X,
+		  b__XXXXX,
+		  b_______ };
+	/*
+	static unsigned char selector_left[] = 
+		{ b___X___,
+		  b___XX__,
+		  b___XXX_,
+		  b___XXXX,
+		  b___XXX_,
+		  b___XX__,
+		  b___X___,
+		  b_______ };
+	static unsigned char selector_right[] = 
+		{ b_____X_,
+		  b____XX_,
+		  b___XXX_,
+		  b__XXXX_,
+		  b___XXX_,
+		  b____XX_,
+		  b_____X_,
+		  b_______ };
+	static unsigned char ellipsis[] = 
+		{ b_______,
+		  b_______,
+		  b_______,
+		  b_______,
+		  b_______,
+		  b_______,
+		  b__X_X_X,
+		  b_______ };
+	*/	  
+	static unsigned char block_filled[] = 
+		{ b__XXXXX,
+		  b__XXXXX,
+		  b__XXXXX,
+		  b__XXXXX,
+		  b__XXXXX,
+		  b__XXXXX,
+		  b__XXXXX,
+		  b__XXXXX };
 
 	/* Yes I know, this is a VERY BAD implementation */
 	switch ( icon ) {
@@ -1151,7 +954,7 @@ HD44780_get_key(Driver *drvthis)
 				return NULL;
 			}
 			// Otherwise a keypress will be returned
-			p->pressed_key_repetitions ++;
+			p->pressed_key_repetitions++;
 		}
 		else {
 			// It's a new keypress
@@ -1269,7 +1072,7 @@ HD44780_output (Driver *drvthis, int on)
 //      returns number of span elements, -1 on parse error
 
 int
-parse_span_list (int *spanListArray[], int *spLsize, int *dispOffsets[], int *dOffsize, int *dispSizeArray[], char *spanlist)
+parse_span_list (int *spanListArray[], int *spLsize, int *dispOffsets[], int *dOffsize, int *dispSizeArray[], const char *spanlist)
 {
 	int j = 0, retVal = 0;
 

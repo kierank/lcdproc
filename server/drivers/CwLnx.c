@@ -1,5 +1,3 @@
-/* #define COUNT -1 */
-
 /*
 List of driver entry point:
 
@@ -49,7 +47,7 @@ get_info	.
 
     You should have received a copy of the GNU General Public License
     along with this program; if not, write to the Free Software
-    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 */
+    Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 */
 
 
 #include <stdlib.h>
@@ -78,6 +76,7 @@ get_info	.
 static char *defaultKeyMap[MaxKeyMap] = { "Up", "Down", "Left", "Right", "Enter", "Escape" };
 
 typedef enum {
+    standard = 0,
     hbar = 1,
     vbar = 2,
     bign = 4,
@@ -113,6 +112,7 @@ typedef struct p {
 
 } PrivateData;
 
+
 /* API: Vars for the server core */
 MODULE_EXPORT char *api_version = API_VERSION;
 MODULE_EXPORT int stay_in_foreground = 0; /* For testing only */
@@ -124,7 +124,6 @@ static void CwLnx_linewrap(int fd, int on);
 static void CwLnx_autoscroll(int fd, int on);
 static void CwLnx_hidecursor(int fd);
 
-static void CwLnx_draw_frame(Driver *drvthis, char *dat);
 
 #define LCD_CMD			254
 #define LCD_CMD_END		253
@@ -147,40 +146,13 @@ static void CwLnx_draw_frame(Driver *drvthis, char *dat);
 #define LCD_PUT_PIXEL		112
 #define LCD_CLEAR_PIXEL		113
 
-#define LCD_LENGTH		20
-
 #define DELAY			20
 #define UPDATE_DELAY		0	/* 1 sec */
 #define SETUP_DELAY		1	/* 2 sec */
 
-/* Parse one key from the configfile */
-static char CwLnx_parse_keypad_setting(Driver *drvthis, char * keyname, char default_value)
-{
-    char return_val = 0;
-    char * s;
-    char buf[255];
 
-    s = drvthis->config_get_string(drvthis->name, keyname, 0, NULL);
-    if (s != NULL) {
-	strncpy(buf, s, sizeof(buf));
-	buf[sizeof(buf)-1] = '\0';
-	return_val = buf[0];
-    } else {
-	return_val = default_value;
-    }
-    return return_val;
-}
 
-int Read_LCD(int fd, char *c, int size)
-{
-    int rc;
-
-    rc = read(fd, c, size);
-/*    usleep(DELAY); */
-    return rc;
-}
-
-int Write_LCD(int fd, char *c, int size)
+static int Write_LCD(int fd, char *c, int size)
 {
     int rc;
 
@@ -203,8 +175,6 @@ int Write_LCD(int fd, char *c, int size)
 }
 
 
-
-
 /*********************************************
  * Real hardware function.
  * Will be called by API function.
@@ -212,7 +182,7 @@ int Write_LCD(int fd, char *c, int size)
 
 
 /* Hardware function */
-void Enable_Backlight(int fd)
+static void Enable_Backlight(int fd)
 {
     char c;
     int rc;
@@ -226,7 +196,7 @@ void Enable_Backlight(int fd)
 }
 
 /* Hardware function */
-void Disable_Backlight(int fd)
+static void Disable_Backlight(int fd)
 {
     char c;
     int rc;
@@ -240,7 +210,7 @@ void Disable_Backlight(int fd)
 }
 
 /* Hardware function */
-void Enable_Pixel(int fd, int x, int y)
+static void Enable_Pixel(int fd, int x, int y)
 {
     char c;
     int rc;
@@ -260,7 +230,7 @@ void Enable_Pixel(int fd, int x, int y)
 }
 
 /* Hardware function */
-void Disable_Pixel(int fd, int x, int y)
+static void Disable_Pixel(int fd, int x, int y)
 {
     char c;
     int rc;
@@ -281,7 +251,7 @@ void Disable_Pixel(int fd, int x, int y)
 
 
 /* Hardware function */
-void Backlight_Brightness(int fd, int brightness)
+static void Backlight_Brightness(int fd, int brightness)
 {
     char c;
     int rc;
@@ -303,7 +273,7 @@ void Backlight_Brightness(int fd, int brightness)
 }
 
 /* Hardware function */
-void Enable_Scroll(int fd)
+static void Enable_Scroll(int fd)
 {
     char c;
     int rc;
@@ -317,7 +287,7 @@ void Enable_Scroll(int fd)
 }
 
 /* Hardware function */
-void Disable_Scroll(int fd)
+static void Disable_Scroll(int fd)
 {
     char c;
     int rc;
@@ -332,7 +302,7 @@ void Disable_Scroll(int fd)
 
 
 /* Hardware function */
-void Clear_Screen(int fd)
+static void Clear_Screen(int fd)
 {
     char c;
     int rc;
@@ -347,7 +317,7 @@ void Clear_Screen(int fd)
 }
 
 /* Hardware function */
-void Enable_Wrap(int fd)
+static void Enable_Wrap(int fd)
 {
     char c;
     int rc;
@@ -361,7 +331,7 @@ void Enable_Wrap(int fd)
 }
 
 /* Hardware function */
-void Disable_Wrap(int fd)
+static void Disable_Wrap(int fd)
 {
     char c;
     int rc;
@@ -375,7 +345,7 @@ void Disable_Wrap(int fd)
 }
 
 /* Hardware function */
-void Disable_Cursor(int fd)
+static void Disable_Cursor(int fd)
 {
     char c;
     int rc;
@@ -390,7 +360,7 @@ void Disable_Cursor(int fd)
 
 
 /* Hardware function */
-void Init_Port(fd)
+static void Init_Port(fd)
 {
     /* Posix - set baudrate to 0 and back */
     struct termios tty, old;
@@ -405,7 +375,7 @@ void Init_Port(fd)
 }
 
 /* Hardware function */
-void Setup_Port(int fd, speed_t speed)
+static void Setup_Port(int fd, speed_t speed)
 {
     struct termios portset;
 
@@ -423,7 +393,7 @@ void Setup_Port(int fd, speed_t speed)
 }
 
 /* Hardware function */
-void Set_9600(int fd)
+static void Set_9600(int fd)
 {
     char c;
     int rc;
@@ -439,7 +409,7 @@ void Set_9600(int fd)
 }
 
 /* Hardware function */
-void Set_19200(int fd)
+static void Set_19200(int fd)
 {
     char c;
     int rc;
@@ -454,33 +424,29 @@ void Set_19200(int fd)
     rc = Write_LCD(fd, &c, 1);
 }
 
-
-/*
- * ONLY USED BY flush_box
-int Write_Line_LCD(int fd, char *buf)
+/* Hardware function */
+static void Set_Insert(int fd, int row, int col)
 {
-    int i;
     char c;
-    int isEnd = 0;
     int rc;
 
-    for (i = 0; i < LCD_LENGTH; i++) {
-	if (buf[i] == '\0') {
-	    isEnd = 1;
-	}
-	if (isEnd) {
-	    c = ' ';
-	} else {
-	    c = buf[i];
-	}
+    c = LCD_CMD;
+    rc = Write_LCD(fd, &c, 1);
+    if (row == 0 && col == 0) {
+    	c = LCD_INIT_INSERT;
+    	rc = Write_LCD(fd, &c, 1);
+    }
+    else {
+	c = LCD_SET_INSERT;
+	rc = Write_LCD(fd, &c, 1);
+	c = col;
+	rc = Write_LCD(fd, &c, 1);
+	c = row;
 	rc = Write_LCD(fd, &c, 1);
     }
-*/
-/*    printf("%s\n", buf); */
-/*
-    return 0;
+    c = LCD_CMD_END;
+    rc = Write_LCD(fd, &c, 1);
 }
-*/
 
 
 /*****************************************************
@@ -490,7 +456,8 @@ int Write_Line_LCD(int fd, char *buf)
 /*****************************************************
  * API: Opens com port and sets baud correctly...
  */
-int CwLnx_init(Driver * drvthis)
+MODULE_EXPORT int
+CwLnx_init(Driver *drvthis)
 {
     struct termios portset_save;
 
@@ -501,7 +468,7 @@ int CwLnx_init(Driver * drvthis)
     int tmp;
     int w;
     int h;
-    char *s;
+    const char *s;
 
     PrivateData *p;
 
@@ -518,6 +485,8 @@ int CwLnx_init(Driver * drvthis)
     p->backingstore = NULL;
     p->cellwidth = DEFAULT_CELLWIDTH;
     p->cellheight = DEFAULT_CELLHEIGHT;
+
+    p->custom = standard;
 
     p->saved_backlight = -1;
     p->backlight = DEFAULT_BACKLIGHT;
@@ -627,7 +596,7 @@ int CwLnx_init(Driver * drvthis)
 
 
     /* Set up io port correctly, and open it... */
-    debug(RPT_DEBUG, "%s: Opening serial device: %s", drvthis->name, device);
+    debug(RPT_DEBUG, "%s: Opening device: %s", drvthis->name, device);
     p->fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY);
     if (p->fd == -1) {
 	report(RPT_ERR, "%s: open(%s) failed (%s)", drvthis->name, device, strerror(errno));
@@ -673,7 +642,7 @@ int CwLnx_init(Driver * drvthis)
 MODULE_EXPORT void
 CwLnx_close(Driver *drvthis)
 {
-    PrivateData * p = drvthis->private_data;
+    PrivateData *p = drvthis->private_data;
 
     if (p != NULL) {
 	if (p->fd >= 0)
@@ -693,25 +662,26 @@ CwLnx_close(Driver *drvthis)
 }
 
 /******************************************************
- * API: Returns the displays width
+ * API: Returns the display's width
  */
 MODULE_EXPORT int 
 CwLnx_width(Driver *drvthis)
 {
-    PrivateData * p = drvthis->private_data;
+    PrivateData *p = drvthis->private_data;
 
     debug(RPT_DEBUG, "CwLnx: returning width");
 
     return p->width;
 }
 
+
 /******************************************************
- * API: Returns the displays height
+ * API: Returns the display's height
  */
 MODULE_EXPORT int 
 CwLnx_height(Driver *drvthis)
 {
-    PrivateData * p = drvthis->private_data;
+    PrivateData *p = drvthis->private_data;
 
     debug(RPT_DEBUG, "CwLnx: returning height");
 
@@ -719,46 +689,42 @@ CwLnx_height(Driver *drvthis)
 }
 
 
+/******************************************************
+ * API: Returns the display's cell width
+ */
+MODULE_EXPORT int 
+CwLnx_cellwidth(Driver *drvthis)
+{
+    PrivateData *p = drvthis->private_data;
+
+    debug(RPT_DEBUG, "CwLnx: returning cellwidth");
+
+    return p->cellwidth;
+}
+
 
 /******************************************************
- * API: Clean-up
+ * API: Returns the display's cell height
  */
-/*
-MODULE_EXPORT void
-CwLnx_flushtime_backlight(Driver *drvthis)
+MODULE_EXPORT int 
+CwLnx_cellheight(Driver *drvthis)
 {
-    PrivateData * p = drvthis->private_data;
+    PrivateData *p = drvthis->private_data;
 
-    int bright;
+    debug(RPT_DEBUG, "CwLnx: returning cellheight");
 
-    if (((p->saved_backlight) && (!p->backlight))
-	|| ((p->backlight) && (!p->saved_backlight))) {
-	p->backlight = p->saved_backlight;
-	if (p->backlight) {
-	    Enable_Backlight(p->fd);
-	}
-	else {
-	    Disable_Backlight(p->fd);
-	}
-    }
-
-    if (p->brightness != p->saved_brightness) {
-	p->brightness = p->saved_brightness;
-	Backlight_Brightness(p->fd, p->brightness)
-    }
-
-    debug(RPT_DEBUG, "CwLnx: updating the backlight and brightness at flush time");
+    return p->cellheight;
 }
-*/
+
 
 /*****************************************************
  * This is a test to see how a driver can overwrite build-in heartbeat.
  * It make a pixel blink at calling rate independently of flush call.
  */
 MODULE_EXPORT void
-CwLnx_flushtime_heartbeat(Driver * drvthis)
+CwLnx_flushtime_heartbeat(Driver *drvthis)
 {
-    PrivateData * p = drvthis->private_data;
+    PrivateData *p = drvthis->private_data;
 
     if (p->heartbeat != p->saved_heartbeat) {
         p->saved_heartbeat=p->heartbeat;
@@ -780,54 +746,36 @@ CwLnx_flushtime_heartbeat(Driver * drvthis)
 MODULE_EXPORT void
 CwLnx_flush(Driver *drvthis)
 {
-    PrivateData * p = drvthis->private_data;
+    PrivateData *p = drvthis->private_data;
 
-    CwLnx_draw_frame(drvthis, p->framebuf);
+    int i, j;
+    int mv = 1;
+    char *q = p->framebuf;
+    char *r = p->backingstore;
+
+    for (i = 0; i < p->height; i++) {
+	for (j = 0; j < p->width; j++) {
+	    if ((*q == *r) && !((0 < *q) && (*q < 16))) {
+		mv = 1;
+	    }
+	    else {
+		/* Draw characters that have changed, as well
+		 * as custom characters.  We know not if a custom
+		 * character has changed.  */ 
+		if (mv == 1) {
+		    Set_Insert(p->fd, i, j);
+		    mv = 0;
+		}
+		Write_LCD(p->fd, q, 1);
+	    }
+	    q++;
+	    r++; 
+	}
+    }
+    memcpy(p->backingstore, p->framebuf, p->width * p->height);
 
     CwLnx_flushtime_heartbeat(drvthis);
-/*    CwLnx_flushtime_backlight(drvthis); */ 
 }
-
-void Set_Insert(int fd, int row, int col)
-{
-    char c;
-    int rc;
-
-    c = LCD_CMD;
-    rc = Write_LCD(fd, &c, 1);
-    if (row == 0 && col == 0) {
-    	c = LCD_INIT_INSERT;
-    	rc = Write_LCD(fd, &c, 1);
-    }
-    else {
-	c = LCD_SET_INSERT;
-	rc = Write_LCD(fd, &c, 1);
-	c = col;
-	rc = Write_LCD(fd, &c, 1);
-	c = row;
-	rc = Write_LCD(fd, &c, 1);
-    }
-    c = LCD_CMD_END;
-    rc = Write_LCD(fd, &c, 1);
-}
-
-/***********************************************
- *
- * _flush_box is not an API entry anymore.
- * 
-static void
-CwLnx_flush_box(int lft, int top, int rgt, int bot)
-{
-    int y;
-
-    debug(RPT_DEBUG, "CwLnx: flush_box (%i,%i)-(%i,%i)", lft, top, rgt,
-	  bot);
-    for (y = top; y <= bot; y++) {
-	Set_Insert(fd, top, lft);
-	Write_Line_LCD(fd, CwLnx->framebuf + (y * p->width) + lft);
-    }
-}
-*/
 
 
 /*******************************************************************
@@ -837,7 +785,7 @@ CwLnx_flush_box(int lft, int top, int rgt, int bot)
 MODULE_EXPORT void
 CwLnx_chr(Driver *drvthis, int x, int y, char c)
 {
-    PrivateData * p = drvthis->private_data;
+    PrivateData *p = drvthis->private_data;
 
     int offset;
 
@@ -882,9 +830,9 @@ CwLnx_chr(Driver *drvthis, int x, int y, char c)
  * the API only permit setting to off=0 and on<>0
  */
 MODULE_EXPORT void
-CwLnx_backlight(Driver * drvthis, int on)
+CwLnx_backlight(Driver *drvthis, int on)
 {
-    PrivateData * p = drvthis->private_data;
+    PrivateData *p = drvthis->private_data;
 
     p->backlight = on;
 }
@@ -894,9 +842,9 @@ CwLnx_backlight(Driver * drvthis, int on)
  * API: Get the backlight brightness
  */
 MODULE_EXPORT int 
-CwLnx_get_brightness(Driver * drvthis, int state)
+CwLnx_get_brightness(Driver *drvthis, int state)
 {
-        PrivateData * p = drvthis->private_data;
+        PrivateData *p = drvthis->private_data;
 
         return p->saved_brightness;
 }
@@ -906,9 +854,9 @@ CwLnx_get_brightness(Driver * drvthis, int state)
  * API: Set the backlight brightness
  */
 MODULE_EXPORT void
-CwLnx_set_brightness(Driver * drvthis, int state, int promille)
+CwLnx_set_brightness(Driver *drvthis, int state, int promille)
 {
-        PrivateData * p = drvthis->private_data;
+        PrivateData *p = drvthis->private_data;
 
         p->brightness = promille;
 }
@@ -955,9 +903,9 @@ CwLnx_hidecursor(int fd)
  * This was part of API in 0.4 and removed in 0.5
  */
 static void
-CwLnx_init_vbar(Driver * drvthis)
+CwLnx_init_vbar(Driver *drvthis)
 {
-    PrivateData * p = drvthis->private_data;
+    PrivateData *p = drvthis->private_data;
 
     char a[] = {
 	1, 0, 0, 0, 0, 0, 0, 0,
@@ -1033,9 +981,9 @@ CwLnx_init_vbar(Driver * drvthis)
  * This was part of API in 0.4 and removed in 0.5
  */
 static void
-CwLnx_init_hbar(Driver * drvthis)
+CwLnx_init_hbar(Driver *drvthis)
 {
-    PrivateData * p = drvthis->private_data;
+    PrivateData *p = drvthis->private_data;
 
     char a[] = {
 	1, 1, 1, 1, 1, 1, 1, 1,
@@ -1102,9 +1050,9 @@ CwLnx_init_hbar(Driver * drvthis)
  * API: Draws a vertical bar...
  */
 MODULE_EXPORT void
-CwLnx_vbar(Driver * drvthis, int x, int y, int len, int promille, int options)
+CwLnx_vbar(Driver *drvthis, int x, int y, int len, int promille, int options)
 {
-    PrivateData * p = drvthis->private_data;
+    PrivateData *p = drvthis->private_data;
 
     CwLnx_init_vbar(drvthis);
 
@@ -1115,9 +1063,9 @@ CwLnx_vbar(Driver * drvthis, int x, int y, int len, int promille, int options)
  * API: Draws a horizontal bar to the right.
  */
 MODULE_EXPORT void
-CwLnx_hbar(Driver * drvthis, int x, int y, int len, int promille, int options)
+CwLnx_hbar(Driver *drvthis, int x, int y, int len, int promille, int options)
 {
-    PrivateData * p = drvthis->private_data;
+    PrivateData *p = drvthis->private_data;
 
     CwLnx_init_hbar(drvthis);
 
@@ -1131,11 +1079,21 @@ CwLnx_hbar(Driver * drvthis, int x, int y, int len, int promille, int options)
 /* Currently using the server ascii default */
 /*
 MODULE_EXPORT void
-CwLnx_num(Driver * drvthis, int x, int num)
+CwLnx_num(Driver *drvthis, int x, int num)
 {
     return;
 }
 */
+
+
+MODULE_EXPORT int
+CwLnx_get_free_chars(Driver *drvthis)
+{
+//	PrivateData *p = drvthis->private_data;
+
+	return 16;
+}
+
 
 /*********************************************************************
  * API: Sets a custom character...
@@ -1147,9 +1105,9 @@ CwLnx_num(Driver * drvthis, int x, int num)
  * The input is just an array of characters...
  */
 MODULE_EXPORT void
-CwLnx_set_char(Driver * drvthis, int n, char *dat)
+CwLnx_set_char(Driver *drvthis, int n, char *dat)
 {
-    PrivateData * p = drvthis->private_data;
+    PrivateData *p = drvthis->private_data;
 
     int row, col;
     int letter;
@@ -1182,7 +1140,7 @@ CwLnx_set_char(Driver * drvthis, int n, char *dat)
 }
 
 MODULE_EXPORT int 
-CwLnx_icon(Driver * drvthis, int x, int y, int icon)
+CwLnx_icon(Driver *drvthis, int x, int y, int icon)
 {
     char heart_open[] = 
 	{
@@ -1333,54 +1291,6 @@ CwLnx_icon(Driver * drvthis, int x, int y, int icon)
 	return 0;
 }
 
-/**********************************************************
- * ONLY CALLED FROM _flush ...
- *
- * Blasts a single frame onscreen, to the lcd...
- *
- * Input is a character array, sized CwLnx->wid*CwLnx->hgt
- */
-static void
-CwLnx_draw_frame(Driver *drvthis, char *dat)
-{
-    PrivateData * p = drvthis->private_data;
-
-    int i, j, mv, rc;
-    char *q, *r;
-/*  char c; */
-/*  static int count=0; */
-
-    if (!dat)
-	return;
-
-    mv = 1;
-    q = dat;
-    r = p->backingstore;
-
-/*    printf("\n_draw_frame: %d\n", count);   */
-
-    for (i = 0; i < p->height; i++) {
-	for (j = 0; j < p->width; j++) {
-	    if ((*q == *r) && !((0 < *q) && (*q < 16))) {
-		mv = 1;
-/*         count++; if (count==COUNT) exit(0);       */
-	    }
-	    else {
-		/* Draw characters that have changed, as well
-		 * as custom characters.  We know not if a custom
-		 * character has changed.  */ 
-		if (mv == 1) {
-		    Set_Insert(p->fd, i, j);
-		    mv = 0;
-		}
-		rc = Write_LCD(p->fd, q, 1);
-	    }
-	    q++;
-	    r++; 
-	}
-    }
-    strncpy(p->backingstore, dat, p->width * p->height);
-}
 
 /*********************************************************
  * API: Clears the LCD screen
@@ -1388,13 +1298,10 @@ CwLnx_draw_frame(Driver *drvthis, char *dat)
 MODULE_EXPORT void
 CwLnx_clear(Driver *drvthis)
 {
-    PrivateData * p = drvthis->private_data;
+    PrivateData *p = drvthis->private_data;
 
-    /* WHY: are we the only function to check framebuf for null? */
-    if (p->framebuf != NULL)
-        memset(p->framebuf, ' ', p->width * p->height);
-
-    /* We could remember the custom char are not in use anymore. $$$ */
+    memset(p->framebuf, ' ', p->width * p->height);
+    p->custom = standard;
 
     debug(RPT_DEBUG, "CwLnx: cleared framebuffer");
 }
@@ -1404,9 +1311,9 @@ CwLnx_clear(Driver *drvthis)
  * The upper-left is (1,1), and the lower right should be (20,4).
  */
 MODULE_EXPORT void
-CwLnx_string(Driver * drvthis, int x, int y, char *string)
+CwLnx_string(Driver *drvthis, int x, int y, char *string)
 {
-    PrivateData * p = drvthis->private_data;
+    PrivateData *p = drvthis->private_data;
 
     int offset, siz;
 
@@ -1440,9 +1347,9 @@ CwLnx_string(Driver * drvthis, int x, int y, char *string)
  * API: Get a key translated into a string.
  */
 MODULE_EXPORT const char *
-CwLnx_get_key(Driver * drvthis)
+CwLnx_get_key(Driver *drvthis)
 {
-	PrivateData * p = drvthis->private_data;
+	PrivateData *p = drvthis->private_data;
 	char key = '\0';
 
 	read(p->fd, &key, 1);
@@ -1469,14 +1376,10 @@ CwLnx_get_key(Driver * drvthis)
  * It might be the flush just after the heartbeat call.
  */
 
-/*I*/ int saved_heartbeat;
-/*I*/ int heartbeat;
-/*I*/ int heartbeat_state;
-
 MODULE_EXPORT void
-CwLnx_heartbeat(Driver * drvthis, int type)
+CwLnx_heartbeat(Driver *drvthis, int type)
 {
-    PrivateData * p = drvthis->private_data;
+    PrivateData *p = drvthis->private_data;
 
     if (type) {
         if (p->heartbeat_state) {
@@ -1494,25 +1397,3 @@ CwLnx_heartbeat(Driver * drvthis, int type)
     }
 }
 
-/*
-MODULE_EXPORT void
-CwLnx_heartbeat(Driver * drvthis, int type)
-{
-    PrivateData * p = drvthis->private_data;
-
-    if (type) {
-        if (p->heartbeat_state) {
-            Enable_Pixel(p->fd, 121, 0);
-            p->heartbeat_state = 0;
-	} else {
-            Disable_Pixel(p->fd, 121, 0);
-            p->heartbeat_state = 1;
-	}
-    } else {
-        if (p->heartbeat_state) {
-            Disable_Pixel(p->fd, 121, 0);
-            p->heartbeat_state = 0;
-	}
-    }
-}
-*/

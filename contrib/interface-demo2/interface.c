@@ -7,7 +7,7 @@
    8/2000  Andi Kleen make the list operations a bit more efficient.
    People are crazy enough to use thousands of aliases now.
 
-   $Id: interface.c,v 1.1.2.1 2006/04/27 15:46:03 marschap Exp $
+   $Id: interface.c,v 1.1.2.2 2006/10/04 15:16:22 marschap Exp $
  */
 
 #include "config.h"

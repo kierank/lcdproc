@@ -6,7 +6,7 @@
  * COPYING file distributed with this package.
  *
  * Copyright (c) 2002, Joris Robijn
- *
+ * Copyright (c) 2006, Peter Marschall
  */
 
 #include <stdio.h>
@@ -16,8 +16,8 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <errno.h>
-extern char *optarg;
-extern int optind, optopt, opterr;
+
+#include "getopt.h"
 
 #include "shared/str.h"
 #include "shared/report.h"
@@ -27,21 +27,28 @@ extern int optind, optopt, opterr;
 #include "vc_link.h"
 #include "lcdvc.h"
 
+#if !defined(SYSCONFDIR)
+# define SYSCONFDIR	"/etc"
+#endif
+
 #define DEFAULT_CONFIGFILE	SYSCONFDIR "/lcdvc.conf"
 
+
 char * help_text =
-"lcdvc - LCDproc virtual console displayer.\n"
-"Copyright (c) 2002, Joris Robijn\n"
-"This file is released under the GNU General Public License. Refer to the\n"
-"COPYING file distributed with this package.\n"
-"Options:\n"
-"  -c <file>\tSpecify a configfile to load ["DEFAULT_CONFIGFILE"]\n"
-"  -a <address>\tDNS name or IP address of the LCDd server [localhost]\n"
-"  -p <port>\tPort of the LCDd server [13666]\n"
-"  -f \tRun in foreground\n"
-"  -r <level>\tSet reporting level (0-5) [2: errors and warnings]\n"
-"  -s <0|1>\tReport to 1=syslog or 0=stderr\n"
-"  -h\t\tShow this help\n";
+"lcdvc - LCDproc virtual console\n"
+"\n"
+"Copyright (c) 2002, Joris Robijn, 2006 Peter Marschall.\n"
+"This program is released under the terms of the GNU General Public License.\n"
+"\n"
+"Usage: lcdvc [<options>]\n"
+"  where <options> are:\n"
+"    -c <file>           Specify configuration file ["DEFAULT_CONFIGFILE"]\n"
+"    -a <address>        DNS name or IP address of the LCDd server [localhost]\n"
+"    -p <port>           port of the LCDd server [13666]\n"
+"    -f                  Run in foreground\n"
+"    -r <level>          Set reporting level (0-5) [2: errors and warnings]\n"
+"    -s <0|1>            Report to syslog (1) or stderr (0, default)\n"
+"    -h                  Show this help\n";
 
 char *progname = "lcdvc";
 char *configfile = UNSET_STR;
@@ -94,7 +101,7 @@ int main( int argc, char ** argv )
 
 int process_command_line( int argc, char ** argv )
 {
-	char c;
+	int c;
 	int error = 0;
 
 	/* No error output from getopt */

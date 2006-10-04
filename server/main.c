@@ -11,7 +11,7 @@
  *               2002, Mike Patnode
  *               2002, Guillaume Filion
  *               2003, Benjamin Tse (Win32 support)
- *               2005, Peter Marschall (cleanup)
+ *               2005-2006, Peter Marschall (cleanup)
  *
  * Contains main(), plus signal callback functions and a help screen.
  *
@@ -43,6 +43,7 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <sys/types.h>
+#include <limits.h>
 
 #include "getopt.h"
 
@@ -50,10 +51,6 @@
 # include <sys/time.h>
 #endif
 /* TODO: fill in what to include otherwise */
-
-/* REVISIT: externs should be provided by a header */
-extern char *optarg;
-extern int optind, optopt, opterr;
 
 #include "shared/report.h"
 
@@ -210,7 +207,7 @@ main(int argc, char **argv)
 
 	/* Read config file
 	 * If config file was not given on command line use default */
-	if (strcmp(configfile, UNSET_STR)==0)
+	if (strcmp(configfile, UNSET_STR) == 0)
 		strncpy(configfile, DEFAULT_CONFIGFILE, sizeof(configfile));
 	CHAIN( e, process_configfile(configfile) );
 
@@ -301,7 +298,7 @@ process_command_line(int argc, char **argv)
 
 	/* Analyze options here.. (please try to keep list of options the
 	 * same everywhere) */
-	while ((c = getopt(argc, argv, "hc:d:f:a:p:u:w:s:r:i:" )) > 0) {
+	while ((c = getopt(argc, argv, "hc:d:fa:p:u:w:s:r:i:" )) > 0) {
 		switch(c) {
 			case 'h':
 				help = 1; /* Continue to process the other
@@ -328,13 +325,7 @@ process_command_line(int argc, char **argv)
 				}
 				break;
 			case 'f':
-				b = interpret_boolean_arg( optarg );
-				if( b == -1 ) {
-					report( RPT_ERR, "Not a boolean value: '%s'", optarg );
-					e = -1;
-				} else {
-					foreground_mode = b;
-				}
+				foreground_mode = 1;
 				break;
 			case 'a':
 				strncpy(bind_addr, optarg, sizeof(bind_addr));
@@ -392,7 +383,7 @@ process_command_line(int argc, char **argv)
 		report( RPT_ERR, "Non-option arguments on the command line !");
 		e = -1;
 	}
-	if( help ) {
+	if (help) {
 		output_help_screen();
 		e = -1;
 	}
@@ -404,7 +395,7 @@ process_command_line(int argc, char **argv)
 static int
 process_configfile(char *configfile)
 {
-	char * s;
+	const char *s;
 	/*char buf[64];*/
 
 	debug( RPT_DEBUG, "%s()", __FUNCTION__ );
@@ -824,7 +815,16 @@ do_mainloop(void)
 		last_t = t;
 #ifndef WIN32
 		gettimeofday (&t, NULL);
-		t_diff = ((t.tv_sec - last_t.tv_sec) * 1e6 + (t.tv_usec - last_t.tv_usec));
+		t_diff = t.tv_sec - last_t.tv_sec;
+		if ((t_diff + 1) > (LONG_MAX / 1e6)) {
+			/* We're going to overflow the calculation - probably been to sleep, fudge the values */
+			t_diff = 0;
+			process_lag = 1;
+			render_lag = (1e6/RENDER_FREQ);
+		} else {
+			t_diff *= 1e6;
+			t_diff += t.tv_usec - last_t.tv_usec;
+		}
 #else
                 QueryPerformanceCounter(&t);
                 /*t_diff.HighPart = t.HighPart - last_t.HighPart;
@@ -950,14 +950,18 @@ catch_reload_signal(int val)
 static int
 interpret_boolean_arg(char *s)
 {
-	if( strcmp( s, "on" ) == 0 || strcmp( s, "yes" ) == 0
-	|| strcmp( s, "true" ) == 0 || strcmp( s, "1" ) == 0 ) {
-		return 1;
-	}
-	if( strcmp( s, "off" ) == 0 || strcmp( s, "no" ) == 0
-	|| strcmp( s, "false" ) == 0 || strcmp( s, "0" ) == 0 ) {
+	/* keep these checks consistent with config_get_boolean() */
+	if (strcasecmp(s, "0") == 0 || strcasecmp(s, "false") == 0
+	|| strcasecmp(s, "n") == 0 || strcasecmp(s, "no") == 0 
+	|| strcasecmp(s, "off") == 0) {
 		return 0;
 	}
+	if (strcasecmp(s, "1") == 0 || strcasecmp(s, "true") == 0
+	|| strcasecmp(s, "y") == 0 || strcasecmp(s, "yes") == 0
+	|| strcasecmp(s, "on") == 0) {
+		return 1;
+	}
+	/* no legal boolean string given */
 	return -1;
 }
 
@@ -968,24 +972,24 @@ output_GPL_notice(void)
 	/* This will only be invoked when running in foreground
 	 * So, directly output to stderr
 	 */
-	fprintf (stderr, "LCDd %s, LCDproc Protocol %s\n", VERSION, PROTOCOL_VERSION);
-	fprintf (stderr, "Part of LCDproc\n");
-	fprintf (stderr, "Copyright (C) 1998-2006 William Ferrell, Scott Scriven\n");
-	fprintf (stderr, "                        and many other contributors\n\n");
-	fprintf (stderr, "This program is free software; you can redistribute it and/or\n");
-	fprintf (stderr, "modify it under the terms of the GNU General Public License\n");
-	fprintf (stderr, "as published by the Free Software Foundation; either version 2\n");
-	fprintf (stderr, "of the License, or (at your option) any later version.\n\n");
+	fprintf(stderr, "LCDd %s, LCDproc Protocol %s\n", VERSION, PROTOCOL_VERSION);
+	fprintf(stderr, "Part of the LCDproc suite\n");
+	fprintf(stderr, "Copyright (C) 1998-2006 William Ferrell, Scott Scriven\n"
+	                "                        and many other contributors\n\n");
 
-	fprintf (stderr, "This program is distributed in the hope that it will be useful,\n");
-	fprintf (stderr, "but WITHOUT ANY WARRANTY; without even the implied warranty of\n");
-	fprintf (stderr, "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n");
-	fprintf (stderr, "GNU General Public License for more details.\n\n");
+	fprintf(stderr, "This program is free software; you can redistribute it and/or\n"
+	                "modify it under the terms of the GNU General Public License\n"
+	                "as published by the Free Software Foundation; either version 2\n"
+	                "of the License, or (at your option) any later version.\n\n");
 
-	fprintf (stderr, "The file COPYING contains the GNU General Public License.\n");
-	fprintf (stderr, "You should have received a copy of the GNU General Public License\n");
-	fprintf (stderr, "along with this program; if not, write to the Free Software\n");
-	fprintf (stderr, "Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.\n\n");
+	fprintf(stderr, "This program is distributed in the hope that it will be useful,\n"
+	                "but WITHOUT ANY WARRANTY; without even the implied warranty of\n"
+	                "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n"
+	                "GNU General Public License for more details.\n\n");
+
+	fprintf(stderr, "You should have received a copy of the GNU General Public License\n"
+	                "along with this program; if not, write to the Free Software Foundation,\n"
+	                "Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.\n\n");
 }
 
 
@@ -997,23 +1001,29 @@ output_help_screen(void)
 	 */
 	debug( RPT_DEBUG, "%s()", __FUNCTION__ );
 
-	fprintf (stdout, "LCDd: LCDproc Server Daemon, %s\n", version);
-	fprintf (stdout, "Copyright (c) 1999-2006 Scott Scriven, William Ferrell, and misc contributors\n");
-	fprintf (stdout, "This program is freely redistributable under the terms of the GNU Public License\n\n");
-	fprintf (stdout, "Usage: LCDd [<options>]\n");
-	fprintf (stdout, "  where <options> are:\n");
-	fprintf (stdout, "\t-h\t\tDisplay this help screen\n");
-	fprintf (stdout, "\t-c <config>\tUse a configuration file other than %s\n", DEFAULT_CONFIGFILE);
-	fprintf (stdout, "\t-d <driver>\tAdd a driver to use (overrides drivers in config file) [%s]\n", DEFAULT_DRIVER);
-	fprintf (stdout, "\t-f <bool>\tWhether to run in the foreground\n");
-	fprintf (stdout, "\t-a <addr>\tNetwork (IP) address to bind to [%s]\n", DEFAULT_BIND_ADDR);
-	fprintf (stdout, "\t-p <port>\tNetwork port to listen for connections on [%i]\n", DEFAULT_BIND_PORT);
-	fprintf (stdout, "\t-u <user>\tUser to run as [%s]\n", DEFAULT_USER);
-	fprintf (stdout, "\t-w <waittime>\tTime to pause at each screen (in seconds) [%d]\n", DEFAULT_SCREEN_DURATION);
-	fprintf (stdout, "\t-s <bool>\tIf set, reporting will be done using syslog\n");
-	fprintf (stdout, "\t-r <level>\tReport level [%d]\n", DEFAULT_REPORTLEVEL);
-	fprintf (stdout, "\t-i <bool>\tWhether to rotate the server info screen\n");
-	fprintf (stdout, "\n");
+	fprintf(stdout, "LCDd - LCDproc Server Daemon, %s\n\n", version);
+	fprintf(stdout, "Copyright (c) 1999-2006 Scott Scriven, William Ferrell, and misc. contributors.\n");
+	fprintf(stdout, "This program is released under the terms of the GNU General Public License.\n\n");
+	fprintf(stdout, "Usage: LCDd [<options>]\n");
+	fprintf(stdout, "  where <options> are:\n");
+	fprintf(stdout, "    -h                  Display this help screen\n");
+	fprintf(stdout, "    -c <config>         Use a configuration file other than %s\n",
+		DEFAULT_CONFIGFILE);
+	fprintf(stdout, "    -d <driver>         Add a driver to use (overrides drivers in config file) [%s]\n",
+		DEFAULT_DRIVER);
+	fprintf(stdout, "    -f                  Run in the foreground\n");
+	fprintf(stdout, "    -a <addr>           Network (IP) address to bind to [%s]\n",
+		DEFAULT_BIND_ADDR);
+	fprintf(stdout, "    -p <port>           Network port to listen for connections on [%i]\n",
+		DEFAULT_BIND_PORT);
+	fprintf(stdout, "    -u <user>           User to run as [%s]\n",
+		DEFAULT_USER);
+	fprintf(stdout, "    -w <waittime>       Time to pause at each screen (in seconds) [%d]\n",
+		DEFAULT_SCREEN_DURATION/RENDER_FREQ);
+	fprintf(stdout, "    -s <bool>           If set, reporting will be done using syslog\n");
+	fprintf(stdout, "    -r <level>          Report level [%d]\n",
+		DEFAULT_REPORTLEVEL);
+	fprintf(stdout, "    -i <bool>           Whether to rotate the server info screen\n");
 
 	/* Error messages will be flushed to the configured output after this
 	 * help message.

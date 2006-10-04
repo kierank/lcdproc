@@ -31,23 +31,22 @@
 
 
 char * help_text =
-"lcdexec - LCDproc client to execute commands from the LCDd menu.\n"
-"Copyright (c) 2002, Joris Robijn\n"
-"This file is released under the GNU General Public License. Refer to the\n"
-"COPYING file distributed with this package.\n"
-"Options:\n"
-"  -c <file>\tSpecify configuration file ["DEFAULT_CONFIGFILE"]\n"
-"  -a <address>\tDNS name or IP address of the LCDd server [localhost]\n"
-"  -p <port>\tport of the LCDd server [13666]\n"
-"  -f \t\tRun in foreground\n"
-"  -r <level>\tSet reporting level (0-5) [2: errors and warnings]\n"
-"  -s <0|1>\tReport to syslog (1) or stderr (0, default)\n"
-"  -h\t\tShow this help\n";
+"lcdexec - LCDproc client to execute commands from the LCDd menu\n"
+"\n"
+"Copyright (c) 2002, Joris Robijn, 2006 Peter Marschall.\n"
+"This program is released under the terms of the GNU General Public License.\n"
+"\n"
+"Usage: lcdexec [<options>]\n"
+"  where <options> are:\n"
+"    -c <file>           Specify configuration file ["DEFAULT_CONFIGFILE"]\n"
+"    -a <address>        DNS name or IP address of the LCDd server [localhost]\n"
+"    -p <port>           port of the LCDd server [13666]\n"
+"    -f                  Run in foreground\n"
+"    -r <level>          Set reporting level (0-5) [2: errors and warnings]\n"
+"    -s <0|1>            Report to syslog (1) or stderr (0, default)\n"
+"    -h                  Show this help\n";
 
 char * progname = "lcdexec";
-
-extern char *optarg;
-extern int optind, optopt, opterr;
 
 /* Variables set by config */
 #define UNSET_INT -1
@@ -110,7 +109,7 @@ int main(int argc, char **argv)
 
 int process_command_line(int argc, char **argv)
 {
-	char c;
+	int c;
 	int error = 0;
 
 	/* No error output from getopt */
@@ -175,9 +174,9 @@ int process_command_line(int argc, char **argv)
 	return error;
 }
 
-int process_configfile(char * configfile)
+int process_configfile(char *configfile)
 {
-	char * tmp;
+	const char *tmp;
 
 	if (configfile == NULL)
 		configfile = DEFAULT_CONFIGFILE;
@@ -330,7 +329,7 @@ int exec_command(MenuEntry *cmd)
 		switch (fork()) {
 		  case 0:
 			/* We're the child. Execute the command. */
-			execv(argv[0], argv);
+			execv(argv[0], (char **) argv);
 			exit(0);
 			break;
 		  case -1:
