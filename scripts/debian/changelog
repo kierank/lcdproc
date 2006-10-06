@@ -13,6 +13,7 @@ lcdproc (0.5.1~cvs20061004) UNRELEASED; urgency=low
       + CFontz
       + CFontz633
       + CFontzPacket
+      + CwLnx
       + hd44780
       + IOWarrior
       + joy
