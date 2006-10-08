@@ -1,0 +1,26 @@
+<?xml version='1.0'?>
+<!DOCTYPE book PUBLIC "-//OASIS//DTD DocBook XML V4.1.2//EN"
+                      "http://www.oasis-open.org/docbook/xml/4.1.2/docbookx.dtd" [
+  <!ENTITY bookinfo SYSTEM "bookinfo.docbook">
+  <!ENTITY introduction SYSTEM "introduction.docbook">
+  <!ENTITY shared-files SYSTEM "shared-files.docbook">
+  <!ENTITY language SYSTEM "language.docbook">
+  <!ENTITY driver-api SYSTEM "driver-api.docbook">
+  <!ENTITY make-driver SYSTEM "make-driver.docbook">
+  <!ENTITY add-your-driver SYSTEM "add-your-driver.docbook">
+  <!ENTITY license SYSTEM "license.docbook">  
+]>
+
+<book id="lcdproc-dev" lang="en">
+
+&bookinfo;
+
+&introduction;
+&shared-files;
+&language;
+&driver-api;
+&add-your-driver;
+&make-driver;
+&license;
+
+</book>
