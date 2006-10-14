@@ -1,6 +1,12 @@
-lcdproc (0.5.1~cvs20061004) UNRELEASED; urgency=low
+lcdproc (0.5.1+cvs20061014) UNRELEASED; urgency=low
 
   * New snapshot from upstream CVS
+
+ -- Peter Marschall <peter@adpm.de>  Sat, 14 Oct 2006 17:00:01 +0200
+
+lcdproc (0.5.1) unstable; urgency=low
+
+  * New upstream release
     - updated & extended documentation
     - install server & client config files in $(sysconfdir)
     - various fixes to the server core
@@ -31,7 +37,7 @@ lcdproc (0.5.1~cvs20061004) UNRELEASED; urgency=low
         - revamped & documented menu configuration
       +  sample Perl clients
 
- -- Peter Marschall <peter@adpm.de>  Wed,  4 Oct 2006 17:00:00 +0200
+ -- Peter Marschall <peter@adpm.de>  Sat, 14 Oct 2006 17:00:00 +0200
 
 lcdproc (0.5.0-1) unstable; urgency=low
 
