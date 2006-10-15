@@ -5,8 +5,6 @@ Key:
      + Something added
      * Something changed / fixed
 
-v.0.5.1+dev (stable branch)
-
 v.0.5.1
  + config file support in lcdproc client (Andrew Foss)
  * install server & client config files in $(sysconfdir)
