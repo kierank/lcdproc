@@ -195,7 +195,6 @@ clock_screen (int rep, int display, int *flags_ptr)
 	if (strftime(now, sizeof(now), timeFormat, rtime) == 0)
 		*now = '\0';
 	tickTime(now, heartbeat);
-fprintf(stderr, "now: %s\ttoday: %s\n", now, today);
 
 	if (lcd_hgt >= 4) {				// 4-line version of the screen
 		xoffs = (lcd_wid > strlen(today)) ? ((lcd_wid - strlen(today)) / 2) + 1 : 1;
