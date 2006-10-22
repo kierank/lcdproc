@@ -93,7 +93,7 @@ MODULE_EXPORT int imon_init (Driver *drvthis)
 	p->imon_fd = -1;
 	p->width = 0;
 	p->height = 0;
-	p->cellwidth = VFD_DEFAULT_CELL_HEIGHT;
+	p->cellwidth = VFD_DEFAULT_CELL_WIDTH;
 	p->cellheight = VFD_DEFAULT_CELL_HEIGHT;
 
 
@@ -277,7 +277,7 @@ MODULE_EXPORT void imon_hbar (Driver *drvthis, int x, int y, int len, int promil
 			; // write nothing (not even a space) 
 		}
 
-		pixels -= p->cellwidth * pos;
+		pixels -= p->cellwidth;
 	}
 }
 
