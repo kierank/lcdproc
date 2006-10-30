@@ -9,6 +9,7 @@ v.0.5.1+dev (stable branch)
  * fix switching on/off the Load screen in lcdproc client using the menu
  * fix cellwidth, vbar & hbar in iMon driver
  * try harder to find a shell in lcdexec
+ * do not copy more bytes than reserved in get_fs() in lcdproc's machine_*.c
 
 v.0.5.1
  + config file support in lcdproc client (Andrew Foss)
