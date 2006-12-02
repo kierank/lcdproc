@@ -9,13 +9,12 @@ COMPILE! YOU'VE BEEN WARNED!
 ***************************************************************
 
 With that out of the way, welcome to the bleeding edge of LCDproc.
-To build and run this version, you'll need autoconf and friends
-installed.
+To build and run this version, you'll need autoconf 2.50 or higher
+and friends installed.
 
 Run:
 
-$ chmod +x ./autogen.sh
-$ ./autogen.sh
+$ sh ./autogen.sh
 
 This produces the configure script and supporting files, and also
 runs configure with defaults. You want to run configure again with
@@ -26,8 +25,8 @@ Once the above two commands have run, the rest is pretty standard:
 
 $ ./configure --help
 [read about the options, figure out what to use]
-$ ./configure --prefix=/usr/local --enable-drivers=ncurses,cfontz
-[replace ncurses,cfontz with comma-separated list of drivers you want]
+$ ./configure --prefix=/usr/local --enable-drivers=curses,CFontz
+[replace curses,CFontz with comma-separated list of drivers you want]
 $ make
 $ su
 $ make install
@@ -35,4 +34,4 @@ $ make install
 version of LCDproc with a development release]
 
 Patches and suggestions are welcome! Join the mailing list to get
-started. See http://lcdproc.omnipotent.net/ for more information.
+started. See http://lcdproc.org/ for more information.
