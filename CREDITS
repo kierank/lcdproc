@@ -73,6 +73,7 @@ Jason Dale Woodward:
 
 Ethan Dicks:
 	- PIC-an-LCD original driver (later merged into HD44780 driver)
+	- fixes & tests to the MtxOrb driver and some clients
 
 Michael Reinelt:
 	- SED1520 (copied work of him)
@@ -186,12 +187,25 @@ Matthias Goebl <matthias.goebl@goebl.net>:
 
 Stefan Herdler:
 	- serialVFD driver
+	- bignum library
 
-Bernd Walle:
+Bernhard Walle:
 	- driver for the ULA-200 device from ELV (http://www.elv.de)
 
 Andrew Foss:
 	- menu support for lcdproc client
+
+Anthony J. Mirabella:
+	- Logitech g15 driver
+
+Cedric Tessier:
+	- EyeBoxOne driver
+
+John Sanders:
+	- iMon driver graphics support
+
+Eric Pooch:
+	- Mac OS X / Darwin support
 
 
 Further developers in the sourceforge lcdproc team:
