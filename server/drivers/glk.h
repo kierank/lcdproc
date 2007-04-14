@@ -11,7 +11,7 @@ MODULE_EXPORT int  glk_cellwidth(Driver *drvthis);
 MODULE_EXPORT int  glk_cellheight(Driver *drvthis);
 MODULE_EXPORT void glk_clear(Driver *drvthis);
 MODULE_EXPORT void glk_flush(Driver *drvthis);
-MODULE_EXPORT void glk_string(Driver *drvthis, int x, int y, char string[]);
+MODULE_EXPORT void glk_string(Driver *drvthis, int x, int y, const char string[]);
 MODULE_EXPORT void glk_chr(Driver *drvthis, int x, int y, char c);
 
 MODULE_EXPORT void glk_old_vbar(Driver *drvthis, int x, int len);
@@ -19,6 +19,7 @@ MODULE_EXPORT void glk_old_hbar(Driver *drvthis, int x, int y, int len);
 MODULE_EXPORT void glk_num(Driver *drvthis, int x, int num);
 MODULE_EXPORT void glk_old_icon(Driver *drvthis, int which, int dest);
 
+MODULE_EXPORT int  glk_get_free_chars(Driver *drvthis);
 MODULE_EXPORT void glk_set_char(Driver *drvthis, int n, char *dat);
 
 MODULE_EXPORT int glk_get_contrast(Driver *drvthis);

@@ -22,7 +22,7 @@
 *  ---
 * 
 *  $Source: /cvsroot/lcdproc/lcdproc/clients/lcdproc/util.h,v $
-*  $Revision: 1.1.2.2 $
+*  $Revision: 1.1.2.3 $
 *  Checked in by: $Author: marschap $
 *
 *******************************************************************************/

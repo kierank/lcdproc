@@ -26,8 +26,14 @@
 # endif
 #endif
 
+#ifdef HAVE_GETLOADAVG
+# define USE_GETLOADAVG
+#endif
+
 #ifdef USE_GETLOADAVG
-# include <sys/loadavg.h>
+# ifdef HAVE_SYS_LOADAVG_H
+#  include <sys/loadavg.h>
+# endif
 #endif
 
 #ifdef HAVE_PROCFS_H
@@ -44,8 +50,6 @@
 #include "config.h"
 #include "shared/LL.h"
 
-#define MAX_CPUS 8
-#define DEVFILE "/proc/net/dev"  /* file to read network statistics from */
 
 static int batt_fd;
 static int load_fd;
@@ -57,7 +61,8 @@ static char procbuf[1024]; //TODO ugly hack!
 
 static FILE *mtab_fd;
 
-int machine_init()
+
+int machine_init(void)
 {
 	uptime_fd	= -1;
 	batt_fd		= -1;
@@ -65,54 +70,45 @@ int machine_init()
 	loadavg_fd	= -1;
 	meminfo_fd	= -1;
 
-	if (uptime_fd == -1)
-	{
+	if (uptime_fd < 0) {
 		uptime_fd = open("/proc/uptime", O_RDONLY);
-		if (uptime_fd < 0)
-		{
+		if (uptime_fd < 0) {
 			perror("open /proc/uptime");
 			return(FALSE);
 		}
 	}
 
-	if (load_fd == -1)
-	{
+	if (load_fd < 0) {
 		load_fd = open("/proc/stat", O_RDONLY);
-		if (load_fd < 0)
-		{
+		if (load_fd < 0) {
 			perror("open /proc/stat");
 			return(FALSE);
 		}
 	}
 
 #ifndef USE_GETLOADAVG
-	if (loadavg_fd == -1)
-	{
+	if (loadavg_fd < 0) {
 		loadavg_fd = open("/proc/loadavg", O_RDONLY);
-		if (loadavg_fd < 0)
-		{
+		if (loadavg_fd < 0) {
 			perror("open /proc/loadavg");
 			return(FALSE);
 		}
 	}
 #endif
 
-	if (meminfo_fd == -1)
-	{
+	if (meminfo_fd < 0) {
 		meminfo_fd = open("/proc/meminfo", O_RDONLY);
-		if (meminfo_fd < 0)
-		{
+		if (meminfo_fd < 0) {
 			perror("open /proc/meminfo");
 			return(FALSE);
 		}
 	}
 
-	if (batt_fd == -1)
-	{
+	if (batt_fd < 0) {
 		batt_fd = open("/proc/apm", O_RDONLY);
-		if (batt_fd < 0)
-		{
+		if (batt_fd < 0) {
 			//perror("open /proc/apm");
+			/* allow opening /proc/apm to fail */
 			batt_fd = -1;
 		}
 	}
@@ -120,27 +116,27 @@ int machine_init()
 	return(TRUE);
 }
 
-int machine_close()
+int machine_close(void)
 {
-	if (batt_fd != -1)
+	if (batt_fd >= 0)
 		close(batt_fd);
 	batt_fd = -1;
 
-	if (load_fd != -1)
+	if (load_fd >= 0)
 		close(load_fd);
 	load_fd = -1;
 
 #ifndef USE_GETLOADAVG
-	if (loadavg_fd != -1)
+	if (loadavg_fd >= 0)
 		close(loadavg_fd);
 	loadavg_fd = -1;
 #endif
 
-	if (meminfo_fd != -1)
+	if (meminfo_fd >= 0)
 		close(meminfo_fd);
 	meminfo_fd = -1;
 
-	if (uptime_fd != -1)
+	if (uptime_fd >= 0)
 		close(uptime_fd);
 	uptime_fd = -1;
 
@@ -150,31 +146,35 @@ int machine_close()
 static void
 reread (int f, char *errmsg)
 {
-	if (lseek (f, 0L, 0) == 0 && read (f, procbuf, sizeof(procbuf) - 1) > 0)
+	if (lseek(f, 0L, 0) == 0 && read(f, procbuf, sizeof(procbuf) - 1) > 0)
 		return;
-	perror (errmsg);
-	exit (1);
+	perror(errmsg);
+	exit(1);
 }
 
-int
-getentry (const char *tag, const char *bufptr)
+static int
+getentry (const char *tag, const char *bufptr, long *value)
 {
 	char *tail;
-	int retval, len = strlen (tag);
+	int len = strlen(tag);
+	long val;
 
-	while (bufptr) {
+	while (bufptr != NULL) {
 		if (*bufptr == '\n')
 			bufptr++;
-		if (!strncmp (tag, bufptr, len)) {
-			retval = strtol (bufptr + len, &tail, 10);
-			if (tail == bufptr + len)
-				return -1;
+		if (!strncmp(tag, bufptr, len)) {
+			errno = 0;
+			val = strtol(bufptr + len, &tail, 10);
+			if ((errno == 0) && (tail != bufptr + len)) {
+				*value = val;
+				return TRUE;
+			}
 			else
-				return retval;
+				return FALSE;
 		}
-		bufptr = strchr (bufptr, '\n');
+		bufptr = strchr(bufptr, '\n');
 	}
-	return -1;
+	return FALSE;
 }
 
 int machine_get_battstat(int *acstat, int *battflag, int *percent)
@@ -182,8 +182,8 @@ int machine_get_battstat(int *acstat, int *battflag, int *percent)
 	char str[64];
 	int battstat;
 
-	if (batt_fd == -1)
-	{
+	/* no battery status available: fake one ;-) */
+	if (batt_fd < 0) {
 		*acstat   = LCDP_AC_ON;
 		*battflag = LCDP_BATT_ABSENT;
 		*percent  = 100;
@@ -201,8 +201,7 @@ int machine_get_battstat(int *acstat, int *battflag, int *percent)
 
 	if (*battflag == 0xff)
 		*battflag = LCDP_BATT_UNKNOWN;
-	else
-	{
+	else {
 		if (*battflag & 1)
 			*battflag = LCDP_BATT_HIGH;
 		if (*battflag & 2)
@@ -215,8 +214,7 @@ int machine_get_battstat(int *acstat, int *battflag, int *percent)
 			*battflag = LCDP_BATT_ABSENT;
 	}
 
-	switch(*acstat)
-	{
+	switch(*acstat) {
 		case 0:
 			*acstat = LCDP_AC_OFF;
 			break;
@@ -247,17 +245,15 @@ int machine_get_fs(mounts_type fs[], int *cnt)
 #ifdef MTAB_FILE
 	mtab_fd = fopen(MTAB_FILE, "r");
 #else
-#error "Can't find your mounted filesystem table file."
+# error "Can't find your mounted filesystem table file."
 #endif
 
 	// Get rid of old, unmounted filesystems...
 	memset(fs, 0, sizeof(mounts_type) * 256);
 
-	while (x < 256)
-	{
-		if (fgets(line, 256, mtab_fd) == NULL)
-		{
-			fclose (mtab_fd);
+	while (x < 256) {
+		if (fgets(line, 256, mtab_fd) == NULL) {
+			fclose(mtab_fd);
 			*cnt = x;
 			return(FALSE);
 		}
@@ -285,8 +281,7 @@ int machine_get_fs(mounts_type fs[], int *cnt)
 #endif
 
 			fs[x].blocks = fsinfo.f_blocks;
-			if (fs[x].blocks > 0)
-			{
+			if (fs[x].blocks > 0) {
 				fs[x].bsize = fsinfo.f_bsize;
 				fs[x].bfree = fsinfo.f_bfree;
 				fs[x].files = fsinfo.f_files;
@@ -306,8 +301,9 @@ int machine_get_load(load_type *curr_load)
 	static load_type last_load = { 0, 0, 0, 0, 0 };
 	load_type load;
 
-	reread(load_fd, "get_load:");
-	sscanf(procbuf, "%*s %lu %lu %lu %lu\n", &load.user, &load.nice, &load.system, &load.idle);
+	reread(load_fd, "get_load");
+
+	sscanf(procbuf, "cpu %lu %lu %lu %lu", &load.user, &load.nice, &load.system, &load.idle);
 	load.total = load.user + load.nice + load.system + load.idle;
 
 	curr_load->user   = load.user   - last_load.user;
@@ -315,6 +311,8 @@ int machine_get_load(load_type *curr_load)
 	curr_load->system = load.system - last_load.system;
 	curr_load->idle   = load.idle   - last_load.idle;
 	curr_load->total  = load.total  - last_load.total;
+
+	// struct assignment is legal in C89
 	last_load = load;
 
 	return(TRUE);
@@ -325,15 +323,13 @@ int machine_get_loadavg(double *load)
 #ifdef USE_GETLOADAVG
 	double loadavg[LOADAVG_NSTATS];
 
-	if (getloadavg(loadavg, LOADAVG_NSTATS) < 0)
-	{
-		perror("getloadavg");
-		*load = 1.;
+	if (getloadavg(loadavg, LOADAVG_NSTATS) <= LOADAVG_1MIN) {
+		perror("getloadavg");	/* ToDo: correct error reporting */
 		return(FALSE);
 	}
 	*load = loadavg[LOADAVG_1MIN];
 #else
-	reread(loadavg_fd, "get_load:");
+	reread(loadavg_fd, "get_loadavg");
 	sscanf(procbuf, "%lf", load);
 #endif
 	return(TRUE);
@@ -341,14 +337,16 @@ int machine_get_loadavg(double *load)
 
 int machine_get_meminfo(meminfo_type *result)
 {
-	reread(meminfo_fd, "get_meminfo:");
-	result[0].total   = getentry("MemTotal:", procbuf);
-	result[0].free    = getentry("MemFree:", procbuf);
-	result[0].shared  = getentry("MemShared:", procbuf);
-	result[0].buffers = getentry("Buffers:", procbuf);
-	result[0].cache   = getentry("Cached:", procbuf);
-	result[1].total   = getentry("SwapTotal:", procbuf);
-	result[1].free    = getentry("SwapFree:", procbuf);
+	long tmp;
+
+	reread(meminfo_fd, "get_meminfo");
+	result[0].total   = (getentry("MemTotal:", procbuf, &tmp)  == TRUE) ? tmp : 0L;
+	result[0].free    = (getentry("MemFree:", procbuf, &tmp)   == TRUE) ? tmp : 0L;
+	result[0].shared  = (getentry("MemShared:", procbuf, &tmp) == TRUE) ? tmp : 0L;
+	result[0].buffers = (getentry("Buffers:", procbuf, &tmp)   == TRUE) ? tmp : 0L;
+	result[0].cache   = (getentry("Cached:", procbuf, &tmp)    == TRUE) ? tmp : 0L;
+	result[1].total   = (getentry("SwapTotal:", procbuf, &tmp) == TRUE) ? tmp : 0L;
+	result[1].free    = (getentry("SwapFree:", procbuf, &tmp)  == TRUE) ? tmp : 0L;
 
 	return(TRUE);
 }
@@ -356,11 +354,9 @@ int machine_get_meminfo(meminfo_type *result)
 int machine_get_procs(LinkedList *procs)
 {
 	// Much of this code was ripped from "gmemusage"
-	char buf[128];
 	DIR *proc;
 	FILE *StatusFile;
 	struct dirent *procdir;
-	procinfo_type *p;
 
 	char	procName[16];
 	int		procSize, procRSS, procData, procStk, procExe;
@@ -372,7 +368,7 @@ int machine_get_procs(LinkedList *procs)
 			*VmStkLine	= "VmStk",
 			*VmExeLine	= "VmExe";
 	const int
-			NameLineLen		= strlen(NameLine),
+			NameLineLen	= strlen(NameLine),
 			VmSizeLineLen	= strlen(VmSizeLine),
 			VmDataLineLen	= strlen(VmDataLine),
 			VmStkLineLen	= strlen(VmStkLine),
@@ -380,81 +376,67 @@ int machine_get_procs(LinkedList *procs)
 			VmRSSLineLen	= strlen(VmRSSLine);
 	int threshold = 400, unique;
 
-	if ((proc = opendir("/proc")) == NULL)
-	{
-		perror("mem_top_screen: unable to open /proc");
+	if ((proc = opendir("/proc")) == NULL) {
+		perror("mem_top_screen: unable to open /proc"); /* ToDo: correct error reporting */
 		return(FALSE);
 	}
 
-	while ((procdir = readdir(proc)))
-	{
-		if (!index("1234567890", procdir->d_name[0]))
+	while ((procdir = readdir(proc))) {
+		char buf[128];
+
+		/* ignore everything in proc except process ids */
+		if (!strchr("1234567890", procdir->d_name[0]))
 			continue;
 
 		sprintf(buf, "/proc/%s/status", procdir->d_name);
-		if ((StatusFile = fopen(buf, "r")) == NULL)
-		{
+		if ((StatusFile = fopen(buf, "r")) == NULL) {
 			// Not a serious error; process has finished before we could
 			// examine it:
 			continue;
 		}
 
 		procRSS = procSize = procData = procStk = procExe = 0;
-		while (fgets(buf, sizeof(buf), StatusFile))
-		{
-			if (!strncmp(buf, NameLine, NameLineLen))
-			{
+		while (fgets(buf, sizeof(buf), StatusFile)) {
+			if (!strncmp(buf, NameLine, NameLineLen)) {
 				/* Name: procName */
 				sscanf(buf, "%*s %s", procName);
-			} else if (!strncmp(buf, VmSizeLine, VmSizeLineLen))
-			{
+			} else if (!strncmp(buf, VmSizeLine, VmSizeLineLen)) {
 				/* VmSize: procSize kB */
 				sscanf(buf, "%*s %d", &procSize);
-			} else if (!strncmp (buf, VmRSSLine, VmRSSLineLen))
-			{
+			} else if (!strncmp (buf, VmRSSLine, VmRSSLineLen)) {
 				/* VmRSS: procRSS kB */
 				sscanf(buf, "%*s %d", &procRSS);
-			} else if (!strncmp(buf, VmDataLine, VmDataLineLen))
-			{
+			} else if (!strncmp(buf, VmDataLine, VmDataLineLen)) {
 				/* VmData: procData kB */
 				sscanf(buf, "%*s %d", &procData);
-			} else if (!strncmp(buf, VmStkLine, VmStkLineLen))
-			{
+			} else if (!strncmp(buf, VmStkLine, VmStkLineLen)) {
 				/* VmStk: procStk kB */
 				sscanf(buf, "%*s %d", &procStk);
-			} else if (!strncmp(buf, VmExeLine, VmExeLineLen))
-			{
+			} else if (!strncmp(buf, VmExeLine, VmExeLineLen)) {
 				/* VmExe: procExe kB */
 				sscanf(buf, "%*s %d", &procExe);
 			}
 		}
 		fclose(StatusFile);
 
-		if (procSize > threshold)
-		{
+		if (procSize > threshold) {
 			// Figure out if it's sharing any memory...
 			unique = 1;
 			LL_Rewind(procs);
-			do
-			{
-				p = LL_Get (procs);
-				if (p)
-				{
-					if (0 == strcmp(p->name, procName))
-					{
-						unique = 0;
-						p->number++;
-						p->totl += procData + procStk + procExe;
-					}
+			do {
+				procinfo_type *p = LL_Get(procs);
+
+				if ((p != NULL) && (0 == strcmp(p->name, procName))) {
+					unique = 0;
+					p->number++;
+					p->totl += procData + procStk + procExe;
 				}
 			} while (LL_Next(procs) == 0);
 
 			// If this is the first one by this name...
-			if (unique)
-			{
-				p = malloc(sizeof(procinfo_type));
-				if (!p)
-				{
+			if (unique) {
+				procinfo_type *p = malloc(sizeof(procinfo_type));
+				if (p == NULL) {
 					perror("mem_top_screen: Error allocating process entry");
 					break;
 				}
@@ -476,35 +458,37 @@ int machine_get_smpload(load_type *result, int *numcpus)
 	char *token;
 	static load_type last_load[MAX_CPUS];
 	load_type curr_load[MAX_CPUS];
-
-	*numcpus = 0;
+	int ncpu = 0;
 
 	reread(load_fd, "get_load");
 
 	// Look for lines starting with "cpu0", "cpu1", etc.
 	token = strtok(procbuf, "\n");
-	while (token)
-	{
-		if ((strlen(token) > 3) && (!strncmp(token, "cpu", 3)) && isdigit(token[3]))
-		{
-			sscanf(token, "%*s %lu %lu %lu %lu", &curr_load[*numcpus].user, &curr_load[*numcpus].nice, &curr_load[*numcpus].system, &curr_load[*numcpus].idle);
+	while (token != NULL) {
+		if ((strlen(token) > 3) && (!strncmp(token, "cpu", 3)) && isdigit(token[3])) {
+			sscanf(token, "cpu%*d %lu %lu %lu %lu", &curr_load[ncpu].user, &curr_load[ncpu].nice, &curr_load[ncpu].system, &curr_load[ncpu].idle);
 
-			curr_load[*numcpus].total = curr_load[*numcpus].user + curr_load[*numcpus].nice + curr_load[*numcpus].system + curr_load[*numcpus].idle;
-			result[*numcpus].total	= curr_load[*numcpus].total - last_load[*numcpus].total;
-			result[*numcpus].user	= curr_load[*numcpus].user - last_load[*numcpus].user;
-			result[*numcpus].nice	= curr_load[*numcpus].nice - last_load[*numcpus].nice;
-			result[*numcpus].system	= curr_load[*numcpus].system - last_load[*numcpus].system;
-			result[*numcpus].idle	= curr_load[*numcpus].idle - last_load[*numcpus].idle;
-			last_load[*numcpus].total	= curr_load[*numcpus].total;
-			last_load[*numcpus].user	= curr_load[*numcpus].user;
-			last_load[*numcpus].nice	= curr_load[*numcpus].nice;
-			last_load[*numcpus].system	= curr_load[*numcpus].system;
-			last_load[*numcpus].idle	= curr_load[*numcpus].idle;
+			curr_load[ncpu].total = curr_load[ncpu].user + curr_load[ncpu].nice +
+						curr_load[ncpu].system + curr_load[ncpu].idle;
 
-			(*numcpus)++;
+			result[ncpu].total	= curr_load[ncpu].total - last_load[ncpu].total;
+			result[ncpu].user	= curr_load[ncpu].user - last_load[ncpu].user;
+			result[ncpu].nice	= curr_load[ncpu].nice - last_load[ncpu].nice;
+			result[ncpu].system	= curr_load[ncpu].system - last_load[ncpu].system;
+			result[ncpu].idle	= curr_load[ncpu].idle - last_load[ncpu].idle;
+			
+			// struct assignment is legal in C89
+			last_load[ncpu] = curr_load[ncpu];
+
+			// restrict # CPUs to min(*numcpus, MAX_CPUS)
+			ncpu++;
+			if ((ncpu >= *numcpus) || (ncpu >= MAX_CPUS))
+				break;
 		}
 		token = strtok(NULL, "\n");
 	}
+	*numcpus = ncpu;
+
 	return(TRUE);
 }
 
@@ -512,7 +496,7 @@ int machine_get_uptime(double *up, double *idle)
 {
 	double local_up, local_idle;
 
-	reread(uptime_fd, "get_uptime:");
+	reread(uptime_fd, "get_uptime");
 	sscanf(procbuf, "%lf %lf", &local_up, &local_idle);
 	if (up != NULL)
 			*up = local_up;
@@ -540,7 +524,7 @@ int machine_get_iface_stats (IfaceInfo *interface)
 
 	/* Open the file in read-only mode and parse */
 
-	if ((file = fopen(DEVFILE, "r")) != NULL) {
+	if ((file = fopen("/proc/net/dev", "r")) != NULL) {
 		/* Skip first 2 header lines of file */
 		fgets(buffer, sizeof(buffer), file);
 		fgets(buffer, sizeof(buffer), file);

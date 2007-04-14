@@ -14,14 +14,15 @@
 
 # local variables
 PATH=/sbin:/bin:/usr/sbin:/usr/bin
-DAEMON=/usr/bin/lcdproc
 NAME=lcdproc
+DAEMON=/usr/bin/$NAME
 DESC="LCDproc system status monitor"
 DEFAULTS=/etc/default/$NAME
+START=yes
 
 # Source defaults file; edit that file to configure this script.
 if [ -e "${DEFAULTS}" ]; then
-  . "${DEFAULTS}"
+    . "${DEFAULTS}"
 fi
 
 # If we're not to start the daemon, simply exit
@@ -37,23 +38,23 @@ test -x $DAEMON || exit 5
 
 
 case "$1" in
-  start)
+    start)
 	log_daemon_msg "Starting $DESC" "$NAME"
 	start_daemon $DAEMON $OPTIONS
 	log_end_msg $?
 	;;
-  stop)
+    stop)
 	log_daemon_msg "Stopping $DESC" "$NAME"
 	killproc $DAEMON
 	log_end_msg $?
 	;;
-  restart|reload|force-reload)
+    restart|reload|force-reload)
 	$0 stop
 	sleep 1
 	$0 start
 	;;
   *)
-	echo "Usage: /etc/init.d/$NAME {start|stop|restart|reload|force-reload}" >&2
+	echo "Usage: $0 {start|stop|restart|reload|force-reload}" >&2
 	exit 2
 	;;
 esac

@@ -1,177 +1,191 @@
+/*
+ * screen.c
+ * This file is part of LCDd, the lcdproc server.
+ *
+ * This file is released under the GNU General Public License. Refer to the
+ * COPYING file distributed with this package.
+ *
+ * Copyright (c) 1999, William Ferrell, Scott Scriven
+ *		 2003, Joris Robijn
+ *
+ *
+ * Does screen management
+ *
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
-#include "shared/debug.h"
+#include "shared/report.h"
 
-#include "drivers/lcd.h"
+#include "drivers.h"
 
 #include "clients.h"
-#include "client_data.h"
 #include "widget.h"
 #include "screenlist.h"
 #include "screen.h"
+#include "menuscreens.h"
 #include "main.h"
 #include "render.h"
 
 int  default_duration = 0;
 int  default_timeout  = -1;
 
-screen *
-screen_create ()
+char *pri_names[] = {
+	"hidden",
+	"background",
+	"info",
+	"foreground",
+	"alert",
+	"input",
+	NULL,
+};
+
+Screen *
+screen_create(char *id, Client *client)
 {
-	screen *s;
+	Screen *s;
 
-	s = malloc (sizeof (screen));
+	debug(RPT_DEBUG, "%s(id=\"%.40s\", client=[%d])", __FUNCTION__, id, (client?client->sock:-1));
+
+	s = malloc(sizeof(Screen));
 	if (!s) {
-		fprintf (stderr, "screen_create: Error allocating new screen\n");
+		report(RPT_ERR, "%s: Error allocating", __FUNCTION__);
+		return NULL;
+	}
+	if (!id) {
+		report(RPT_ERR, "%s: Need id string", __FUNCTION__);
+		return NULL;
+	}
+	/* Client can be NULL for serverscreens and other client-less screens */
+
+	s->id = strdup(id);
+	if (!s->id) {
+		report(RPT_ERR, "%s: Error allocating", __FUNCTION__);
 		return NULL;
 	}
 
-	s->id = NULL;
 	s->name = NULL;
-	s->priority = DEFAULT_SCREEN_PRIORITY;
+	s->priority = PRI_INFO;
 	s->duration = default_duration;
-	s->heartbeat = DEFAULT_HEARTBEAT;
-	s->wid = lcd_ptr->wid;
-	s->hgt = lcd_ptr->hgt;
+	s->backlight = BACKLIGHT_OPEN;
+	s->heartbeat = HEARTBEAT_OPEN;
+	s->width = display_props->width;
+	s->height = display_props->height;
 	s->keys = NULL;
-	s->parent = NULL;
-	s->widgets = NULL;
-	s->timeout = default_timeout; //ignored unless greater than 0. 
-	s->backlight_state = BACKLIGHT_NOTSET;	//Lets the screen do it's own
-						//or do what the client says.
-		
-	s->widgets = LL_new ();
-	if (!s->widgets) {
-		fprintf (stderr, "screen_create:  Error allocating widget list\n");
+	s->client = client;
+	s->widgetlist = NULL;
+	s->timeout = default_timeout; 	/*ignored unless greater than 0.*/
+	s->backlight = BACKLIGHT_OPEN;		/*Lets the screen do it's own*/
+						/*or do what the client says.*/
+	s->cursor = CURSOR_OFF;
+	s->cursor_x = 1;
+	s->cursor_y = 1;
+
+	s->widgetlist = LL_new();
+	if (!s->widgetlist) {
+		report(RPT_ERR, "%s: Error allocating", __FUNCTION__);
 		return NULL;
 	}
+
+	menuscreen_add_screen(s);
 
 	return s;
 }
 
 int
-screen_destroy (screen * s)
+screen_destroy(Screen *s)
 {
-	widget *w;
+	Widget *w;
 
-	if (!s)
-		return -1;
+	debug(RPT_DEBUG, "%s(s=[%.40s])", __FUNCTION__, s->id);
 
-	LL_Rewind (s->widgets);
-	do {
-		// Free a widget...
-		w = LL_Get (s->widgets);
-		widget_destroy (w);
-	} while (LL_Next (s->widgets) == 0);
-	LL_Destroy (s->widgets);
+	menuscreen_remove_screen(s);
+
+	screenlist_remove(s);
+
+	for (w = LL_GetFirst(s->widgetlist); w; w = LL_GetNext(s->widgetlist)) {
+		/* Free a widget...*/
+		widget_destroy(w);
+	}
+	LL_Destroy(s->widgetlist);
 
 	if (s->id)
-		free (s->id);
+		free(s->id);
 	if (s->name)
-		free (s->name);
-	if (s->keys)
-		free (s->keys);
+		free(s->name);
 
-	free (s);
+	free(s);
 
 	return 0;
 }
 
-screen *
-screen_find (client * c, char *id)
+int
+screen_add_widget(Screen *s, Widget *w)
 {
-	screen *s;
+	debug(RPT_DEBUG, "%s(s=[%.40s], widget=[%.40s])", __FUNCTION__, s->id, w->id);
 
-	if (!c)
+	LL_Push(s->widgetlist, (void *) w);
+
+	return 0;
+}
+
+int
+screen_remove_widget(Screen *s, Widget *w)
+{
+	debug(RPT_DEBUG, "%s(s=[%.40s], widget=[%.40s])", __FUNCTION__, s->id, w->id);
+
+	LL_Remove(s->widgetlist, (void *) w);
+
+	return 0;
+}
+
+Widget *
+screen_find_widget(Screen *s, char *id)
+{
+	Widget *w;
+
+	if (!s)
 		return NULL;
 	if (!id)
 		return NULL;
 
-	debug ("client_find_screen(%s)\n", id);
+	debug(RPT_DEBUG, "%s(s=[%.40s], id=\"%.40s\")", __FUNCTION__, s->id, id);
 
-	LL_Rewind (c->data->screenlist);
-	do {
-		s = LL_Get (c->data->screenlist);
-		if ((s) && (0 == strcmp (s->id, id))) {
-			debug ("client_find_screen:  Found %s\n", id);
-			return s;
+	for (w = LL_GetFirst(s->widgetlist); w; w = LL_GetNext(s->widgetlist)) {
+		if (0 == strcmp(w->id, id)) {
+			debug(RPT_DEBUG, "%s: Found %s", __FUNCTION__, id);
+			return w;
 		}
-	} while (LL_Next (c->data->screenlist) == 0);
-
+		/* Search subscreens recursively */
+		if (w->type == WID_FRAME) {
+			w = widget_search_subs(w, id);
+			if (w)
+				return w;
+		}
+	}
+	debug(RPT_DEBUG, "%s: Not found", __FUNCTION__);
 	return NULL;
 }
 
-int
-screen_add (client * c, char *id)
+Priority
+screen_pri_name_to_pri(char *priname)
 {
-	screen *s;
+	Priority pri = WID_NONE;
+	int i;
 
-	if (!c)
-		return -1;
-	if (!id)
-		return -1;
-
-	// Make sure this screen doesn't already exist...
-	s = screen_find (c, id);
-	if (s) {
-		return 1;
+	for (i = 0; pri_names[i]; i++) {
+		if (strcmp(pri_names[i], priname) == 0) {
+			pri = i;
+			break; /* it's valid: skip out...*/
+		}
 	}
-
-	s = screen_create ();
-	if (!s) {
-		fprintf (stderr, "screen_add:  Error creating screen\n");
-		return -1;
-	}
-
-	s->parent = c;
-
-	s->id = strdup (id);
-	if (!s->id) {
-		fprintf (stderr, "screen_add:  Error allocating name\n");
-		return -1;
-	}
-	// TODO:  Check for errors here?
-	LL_Push (c->data->screenlist, (void *) s);
-
-	// Now, add it to the screenlist...
-	if (screenlist_add (s) < 0) {
-		fprintf (stderr, "screen_add:  Error queueing new screen\n");
-		return -1;
-	}
-
-	return 0;
+	return pri;
 }
 
-int
-screen_remove (client * c, char *id)
+char *
+screen_pri_to_pri_name(Priority pri)
 {
-	screen *s;
-
-	if (!c)
-		return -1;
-	if (!id)
-		return -1;
-
-	// Make sure this screen *does* exist...
-	s = screen_find (c, id);
-	if (!s) {
-		fprintf (stderr, "screen_remove:  Error finding screen %s\n", id);
-		return 1;
-	}
-	// TODO:  Check for errors here?
-	LL_Remove (c->data->screenlist, (void *) s);
-
-	// Now, remove it from the screenlist...
-	if (screenlist_remove_all (s) < 0) {
-		// Not a serious error..
-		fprintf (stderr, "screen_remove:  Error dequeueing screen\n");
-		return 0;
-	}
-
-	// TODO:  Check for errors here too?
-	screen_destroy (s);
-
-	return 0;
+	return pri_names[pri];
 }

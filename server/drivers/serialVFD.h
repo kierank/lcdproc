@@ -54,7 +54,7 @@ MODULE_EXPORT int  serialVFD_cellwidth (Driver *drvthis);
 MODULE_EXPORT int  serialVFD_cellheight (Driver *drvthis);
 MODULE_EXPORT void serialVFD_clear (Driver *drvthis);
 MODULE_EXPORT void serialVFD_flush (Driver *drvthis);
-MODULE_EXPORT void serialVFD_string (Driver *drvthis, int x, int y, char string[]);
+MODULE_EXPORT void serialVFD_string (Driver *drvthis, int x, int y, const char string[]);
 MODULE_EXPORT void serialVFD_chr (Driver *drvthis, int x, int y, char c);
 
 MODULE_EXPORT void serialVFD_vbar (Driver *drvthis, int x, int y, int len, int promille, int options);
@@ -67,13 +67,13 @@ MODULE_EXPORT int  serialVFD_get_brightness (Driver *drvthis, int state);
 MODULE_EXPORT void serialVFD_set_brightness (Driver *drvthis, int state, int promille);
 MODULE_EXPORT void serialVFD_backlight (Driver *drvthis, int on);
 MODULE_EXPORT void serialVFD_output (Driver *drvthis, int state);
-MODULE_EXPORT void serialVFD_num (Driver * drvthis, int x, int num);
+MODULE_EXPORT void serialVFD_num (Driver *drvthis, int x, int num);
 MODULE_EXPORT int serialVFD_get_free_chars (Driver *drvthis);
 MODULE_EXPORT const char * serialVFD_get_info( Driver *drvthis );
 
 typedef struct driver_private_data {
 	int use_parallel;		// use parallel?
-	unsigned int port;		// Port in parallel mode
+	unsigned short port;		// Port in parallel mode
 	char device[200];		// Device in serial mode
 	int fd;
 	int speed;			// Speed in serial mode
@@ -96,9 +96,9 @@ typedef struct driver_private_data {
 	unsigned char charmap[128];
 	int display_type;		// display type
 	int last_custom;		// last custom character written
-	char custom_char[31][7]; 	// stored custom characters
-	char custom_char_store[31][7]; 	// custom characters backingstore
-	char hw_cmd[10][4]; 		// hardwarespecific commands
+	unsigned char custom_char[31][7]; 	// stored custom characters
+	unsigned char custom_char_store[31][7]; 	// custom characters backingstore
+	unsigned char hw_cmd[10][4]; 		// hardwarespecific commands
 	int usr_chr_dot_assignment[57];	// how to setup usercharacters
 	unsigned int usr_chr_mapping[31];// where to place the usercharacters (0..30) in the asciicode
 	int hbar_cc_offset;		// character offset of the bars

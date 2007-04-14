@@ -102,7 +102,8 @@ static void CFontz_raw_chr(Driver *drvthis, int x, int y, unsigned char c);
 /**
  * Initialize the driver.
  * \param drvthis  Pointer to driver structure.
- * \return  Information of success (0) or failure (non-0).
+ * \retval 0   Success.
+ * \retval <0  Error.
  */
 MODULE_EXPORT int
 CFontz_init(Driver *drvthis)
@@ -161,8 +162,8 @@ CFontz_init(Driver *drvthis)
 
 	/* Which backlight brightness */
 	tmp = drvthis->config_get_int(drvthis->name, "Brightness", 0, DEFAULT_BRIGHTNESS);
-	if ((tmp < 0) || (tmp > 255)) {
-		report(RPT_WARNING, "%s: Brightness must be between 0 and 255; using default %d",
+	if ((tmp < 0) || (tmp > 1000)) {
+		report(RPT_WARNING, "%s: Brightness must be between 0 and 1000; using default %d",
 				drvthis->name, DEFAULT_BRIGHTNESS);
 		tmp = DEFAULT_BRIGHTNESS;
 	}
@@ -170,8 +171,8 @@ CFontz_init(Driver *drvthis)
 
 	/* Which backlight-off "brightness" */
 	tmp = drvthis->config_get_int(drvthis->name, "OffBrightness", 0, DEFAULT_OFFBRIGHTNESS);
-	if ((tmp < 0) || (tmp > 255)) {
-		report(RPT_WARNING, "%s: OffBrightness must be between 0 and 255; using default %d",
+	if ((tmp < 0) || (tmp > 1000)) {
+		report(RPT_WARNING, "%s: OffBrightness must be between 0 and 1000; using default %d",
 				drvthis->name, DEFAULT_OFFBRIGHTNESS);
 		tmp = DEFAULT_OFFBRIGHTNESS;
 	}
@@ -373,10 +374,10 @@ CFontz_flush(Driver *drvthis)
 				unsigned char c = p->framebuf[(i * p->width) + j];
 
 				/* characters that need to be treated special */
-				if ((c < 0x20) || ((c >= 0xF0) && (c < 0xF8))) {
+				if ((c < 0x20) || ((c >= 0x80) && (c < 0x88))) {
 					if (c < 0x08) {
-						// custom chars are at position 0xF0 - 0xF7
-						c += 0xF0;
+						// custom chars are at position 0x80 - 0x87
+						c += 0x80;
 					}
 					else {
 						// send data directly to LCD
@@ -390,10 +391,10 @@ CFontz_flush(Driver *drvthis)
 		}
 	}
 	else {
-		// Custom characters start at 0xF0, not at 0.
+		// Custom characters start at 0x80, not at 0.
 		for (i = 0; i < p->width * p->height; i++) {
 			if (p->framebuf[i] < 32)
-				p->framebuf[i] += 128;
+				p->framebuf[i] += 0x80;
 		}
 
 		for (i = 0; i < p->height; i++) {
@@ -491,6 +492,48 @@ CFontz_set_contrast(Driver *drvthis, int promille)
 
 
 /**
+ * Retrieve brightness.
+ * \param drvthis  Pointer to driver structure.
+ * \param state    Brightness state (on/off) for which we want the value.
+ * \return Stored brightness in promille.
+ */
+MODULE_EXPORT int
+CFontz_get_brightness(Driver *drvthis, int state)
+{
+	PrivateData *p = drvthis->private_data;
+
+	return (state == BACKLIGHT_ON) ? p->brightness : p->offbrightness;
+}
+
+
+/**
+ * Set on/off brightness.
+ * \param drvthis  Pointer to driver structure.
+ * \param state    Brightness state (on/off) for which we want to store the value.
+ * \param promille New brightness in promille.
+ */
+MODULE_EXPORT void
+CFontz_set_brightness(Driver *drvthis, int state, int promille)
+{
+	PrivateData *p = drvthis->private_data;
+
+	/* Check it */
+	if (promille < 0 || promille > 1000)
+		return;
+
+	/* store the software value since there is not get */
+	if (state == BACKLIGHT_ON) {
+		p->brightness = promille;
+		//CFontz_backlight(drvthis, BACKLIGHT_ON);
+	}
+	else {
+		p->offbrightness = promille;
+		//CFontz_backlight(drvthis, BACKLIGHT_OFF);
+	}
+}
+
+
+/**
  * Turn the LCD backlight on or off.
  * \param drvthis  Pointer to driver structure.
  * \param on       New backlight status.
@@ -499,9 +542,11 @@ MODULE_EXPORT void
 CFontz_backlight(Driver *drvthis, int on)
 {
 	PrivateData *p = drvthis->private_data;
-	char out[4] = { CFONTZ_Backlight_Control, 0 };
+	unsigned char out[4] = { CFONTZ_Backlight_Control, 0 };
+	int promille = (on == BACKLIGHT_ON) ? p->brightness : p->offbrightness;
 
-	out[1] = (on) ? p->brightness : p->offbrightness;
+	/* map range [0, 1000] -> [0, 100] that the hardware understands */
+	out[1] = (unsigned char) (promille / 10);
 	write(p->fd, out, 2);
 }
 
@@ -696,14 +741,14 @@ int do_init = 0;
 	}
 
 	// Lib_adv_bignum does everything needed to show the bignumbers.
-	lib_adv_bignum(drvthis, x, num, do_init, NUM_CCs);
+	lib_adv_bignum(drvthis, x, num, 0, do_init);
 }
 
 
 /**
- * Get number of custom chars available.
+ * Get total number of custom characters available.
  * \param drvthis  Pointer to driver structure.
- * \returns  Number of custom characters (always NUM_CCs).
+ * \return  Number of custom characters (always NUM_CCs).
  */
 MODULE_EXPORT int
 CFontz_get_free_chars(Driver *drvthis)

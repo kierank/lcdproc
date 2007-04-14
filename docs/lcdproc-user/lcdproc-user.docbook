@@ -19,6 +19,7 @@
   <!ENTITY CFontzPacket SYSTEM "drivers/CFontzPacket.docbook">
   <!ENTITY curses SYSTEM "drivers/curses.docbook">
   <!ENTITY CwLnx SYSTEM "drivers/CwLnx.docbook">
+  <!ENTITY ea65 SYSTEM "drivers/ea65.docbook">
   <!ENTITY EyeboxOne SYSTEM "drivers/eyeboxone.docbook">
   <!ENTITY g15 SYSTEM "drivers/g15.docbook">
   <!ENTITY glcdlib SYSTEM "drivers/glcdlib.docbook">
@@ -38,9 +39,11 @@
   <!ENTITY mtc_s16209x SYSTEM "drivers/mtc_s16209x.docbook">
   <!ENTITY MtxOrb SYSTEM "drivers/mtxorb.docbook">
   <!ENTITY NoritakeVFD SYSTEM "drivers/NoritakeVFD.docbook">
+  <!ENTITY picolcd SYSTEM "drivers/picolcd.docbook">
   <!ENTITY pylcd SYSTEM "drivers/pylcd.docbook">
   <!ENTITY sed1330 SYSTEM "drivers/sed1330.docbook">
   <!ENTITY sed1520 SYSTEM "drivers/sed1520.docbook">
+  <!ENTITY serialPOS SYSTEM "drivers/serialPOS.docbook">
   <!ENTITY serialVFD SYSTEM "drivers/serialVFD.docbook">
   <!ENTITY sli SYSTEM "drivers/sli.docbook">
   <!ENTITY stv5730 SYSTEM "drivers/stv5730.docbook">

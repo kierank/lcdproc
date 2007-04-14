@@ -15,6 +15,7 @@
  *
  * Copyright (c) 2001-2003, Joris Robijn <joris@robijn.net>
  * 		 2003, Michael Rohde <Micha.R@online.de>
+ * 		 2006, Benjamin Wiedmann <benjamin.wiedmann@gmx.net>
  *
  *
  * Changelog:
@@ -41,7 +42,19 @@
  * - added function sed1330_icon to get correct display of full blocks
  * May 2003, Joris Robijn
  * - Made bars have spaces between them (I hope people like this)
- *
+ * December 2006, Benjamin Wiedmann
+ * - added support for Hitachi SP14Q002 gLCD (320x240) with ccfl inverter
+ * - built for parport version of this interface: Wallbraun Electronics lcdinterface
+ *   (specifications here: http://wallbraun-electronics.de/produkte/lcdinterface/index.html)
+ * - wiring scheme used: "bitshaker" (called "yasedw" in serdisplib)
+ *   --> classic   wiring: wr=16; a0=17; rd=01; cs=14
+ *   --> bitshaker wiring: wr=01; a0=14; rd=16; cs=17
+ * December 2006, Benjamin Wiedmann (additional changes, fixup)
+ * - wiring scheme can now be changed at run time using "ConnectionType" config parameter
+ *   in sed1330 driver section
+ * Usage of ConnectionType in LCDd.conf:
+ *   ConnectionType=<classic|bitshaker>
+ * - if no ConnectionType is set it defaults to "classic" wiring
  *
  * IMPORTANT: MODULES OTHER THAN G321D
  * ===================================
@@ -173,11 +186,17 @@
  *
  * With the display= option you should specify what display module you have.
  * Accepted values are:
- * display=G121C
- * display=G242C
- * display=G321D
- * display=G191D
- * display=G2446
+ * type=G121C
+ * type=G242C
+ * type=G321D
+ * type=G191D
+ * type=G2446
+ * type=SP14Q002
+ * 
+ * You can also change the wiring scheme by using the ConnectionType= option:
+ * ConnectionType=<classic|bitshaker>
+ * If not set, classic wiring is used.
+ * 
  * The port= value should be set to the LPT port address that the LCD is
  * connected to. Examples:
  * port=0x378
@@ -209,11 +228,6 @@
 #define KEYPAD_AUTOREPEAT_DELAY 500
 #define KEYPAD_AUTOREPEAT_FREQ 15
 
-// LPT lines
-#define A0	SEL
-#define nRESET	STRB
-#define nWR	INIT
-
 // Command definitions
 #define CMD_SYSTEM_SET	0x40
 #define CMD_SLEEP_IN	0x53
@@ -237,11 +251,12 @@
 #define KEYPAD_MAXX 5
 #define KEYPAD_MAXY 8
 
-#define TYPE_G321D 1
-#define TYPE_G121C 2
-#define TYPE_G242C 3
-#define TYPE_G191D 4
-#define TYPE_G2446 5
+#define TYPE_G321D    1
+#define TYPE_G121C    2
+#define TYPE_G242C    3
+#define TYPE_G191D    4
+#define TYPE_G2446    5
+#define TYPE_SP14Q002 6
 
 #define SCR1_L 0x00 // Memory locations
 #define SCR1_H 0x00
@@ -249,12 +264,23 @@
 #define SCR2_H 0x06
 
 typedef struct p {
+
+	// display type
 	int type;
+
+	// wiring scheme variables to be set by sed1330_init()
+	int A0;	
+	int nRESET;
+	int nWR;
+
+	// which lpt port to use
 	int port;
+
 	unsigned char * framebuf_text;
 	unsigned char * lcd_contents_text;
 	unsigned char * framebuf_graph;
 	unsigned char * lcd_contents_graph;
+
 	int width, height;
 	int cellwidth, cellheight;
 	int graph_width, graph_height;
@@ -275,7 +301,6 @@ typedef struct p {
 	struct timeval pressed_key_time;
 
 	int stuckinputs;
-
 } PrivateData;
 
 static char *defaultKeyMapDirect[KEYPAD_MAXX] = { "Enter", "Up", "Down", "Escape", "F1" };
@@ -378,12 +403,42 @@ sed1330_init( Driver * drvthis )
 		p->type = TYPE_G2446;
 		p->graph_width = 240;
 		p->graph_height = 64;
-
+	} else if(strcmp(s, "SP14Q002") == 0) {
+		p->type = TYPE_SP14Q002;
+		p->graph_width = 320;
+		p->graph_height = 240;
 	} else {
 		report(RPT_ERR, "%s: Unknown display type %s", drvthis->name, s);
 		return -1;
 	}
 	report(RPT_INFO, "%s: Using LCD type %s", drvthis->name, s);
+
+	// Set wiring scheme to be used
+	//
+	// Valid ConnectionTypes:
+	// - classic (default)
+	// - bitshaker
+	//
+	// Get ConnectionType, if no type is set, default to "classic" wiring so it even
+        // works with config files missing that ConnectionType entry in sed1330 driver section
+	s = drvthis->config_get_string(drvthis->name, "ConnectionType", 0, "classic");
+
+	// Set wiring initialization parameters based on ConnectionType
+	if (strcmp(s, "classic") == 0) {
+		// Use classic wiring
+		p->A0     = SEL;  // port 17
+		p->nRESET = STRB; // port 1
+		p->nWR    = INIT; // port 16 
+	} else if(strcmp(s, "bitshaker") == 0) {
+		// Use bitshaker wiring
+		p->A0     = nLF;  // port 14
+		p->nRESET = INIT; // port 16
+		p->nWR    = STRB; // port 1
+	} else {
+		report(RPT_ERR, "%s: Unknown ConnectionType %s", drvthis->name, s);
+		return -1;
+	}		
+	report(RPT_INFO, "%s: Using ConnectionType %s", drvthis->name, s);
 
 	// Keypad ?
 	p->have_keypad = drvthis->config_get_bool(drvthis->name, "keypad", 0, 0);
@@ -486,16 +541,19 @@ sed1330_init( Driver * drvthis )
 	// INITIALIZE THE LCD
 	// End reset-state
 	debug(RPT_DEBUG, "%s: initializing LCD", __FUNCTION__);
-	port_out(p->port+2, (nWR) ^ OUTMASK);	// raise ^RD and ^WR
-	port_out(p->port+2, (nRESET|nWR) ^ OUTMASK);	// lower RESET
+	port_out(p->port+2, (p->nWR) ^ OUTMASK);	// raise ^RD and ^WR
+	port_out(p->port+2, (p->nRESET|p->nWR) ^ OUTMASK);	// lower RESET
 	uPause(200);
-	port_out(p->port+2, (nWR) ^ OUTMASK);	// raise RESET
+	port_out(p->port+2, (p->nWR) ^ OUTMASK);	// raise RESET
 	uPause(200);
-	port_out(p->port+2, (nRESET|nWR) ^ OUTMASK);	// lower RESET
+	port_out(p->port+2, (p->nRESET|p->nWR) ^ OUTMASK);	// lower RESET
 	uPause(4000);
 
 	switch (p->type) {
 	  case TYPE_G321D:
+		data[4] = 0x38;
+		break;
+	  case TYPE_SP14Q002:
 		data[4] = 0x38;
 		break;
 	  case TYPE_G121C:
@@ -556,16 +614,16 @@ sed1330_command( PrivateData * p, char command, int datacount, unsigned char * d
 	int i;
 	int port = p->port;
 
-	port_out(port+2, (nRESET|nWR|A0) ^ OUTMASK);		// set A0 to indicate command
+	port_out(port+2, (p->nRESET|p->nWR|p->A0) ^ OUTMASK);		// set A0 to indicate command
 	port_out(port, command);				// set up p
-	port_out(port+2, (nRESET|A0) ^ OUTMASK);		// activate ^WR
-	port_out(port+2, (nRESET|nWR|A0) ^ OUTMASK);		// deactivate ^WR again
-	port_out(port+2, (nRESET|nWR) ^ OUTMASK);		// clear A0 to indicate p
+	port_out(port+2, (p->nRESET|p->A0) ^ OUTMASK);		// activate ^WR
+	port_out(port+2, (p->nRESET|p->nWR|p->A0) ^ OUTMASK);		// deactivate ^WR again
+	port_out(port+2, (p->nRESET|p->nWR) ^ OUTMASK);		// clear A0 to indicate p
 
 	for (i = 0; i < datacount; i++) {
 		port_out(port, data[i]);			// set up data
-		port_out(port+2, (nRESET) ^ OUTMASK);		// activate ^WR
-		port_out(port+2, (nRESET|nWR) ^ OUTMASK);	// deactivate ^WR again
+		port_out(port+2, (p->nRESET) ^ OUTMASK);		// activate ^WR
+		port_out(port+2, (p->nRESET|p->nWR) ^ OUTMASK);	// deactivate ^WR again
 	}
 }
 
@@ -632,6 +690,38 @@ sed1330_height( Driver * drvthis )
 	debug(RPT_INFO, "%s()", __FUNCTION__);
 
 	return p->height;
+}
+
+
+/**
+ * Return the width of a character in pixels.
+ * \param drvthis  Pointer to driver structure.
+ * \return  Number of pixel columns a character cell is wide.
+ */
+MODULE_EXPORT int 
+sed1330_cellwidth(Driver *drvthis)
+{
+PrivateData *p = drvthis->private_data;
+
+	debug(RPT_DEBUG, "%s: returning cellwidth", drvthis->name);
+
+	return p->cellwidth;
+}
+
+
+/**
+ * Return the height of a character in pixels.
+ * \param drvthis  Pointer to driver structure.
+ * \return  Number of pixel lines a character cell is high.
+ */
+MODULE_EXPORT int 
+sed1330_cellheight(Driver *drvthis)
+{
+PrivateData *p = drvthis->private_data;
+
+	debug(RPT_DEBUG, "%s: returning cellheight", drvthis->name);
+
+	return p->cellheight;
 }
 
 

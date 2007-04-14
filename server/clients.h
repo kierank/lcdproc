@@ -1,38 +1,36 @@
+/*
+ * client.h
+ * This file is part of LCDd, the lcdproc server.
+ *
+ * This file is released under the GNU General Public License. Refer to the
+ * COPYING file distributed with this package.
+ *
+ * Copyright (c) 1999, William Ferrell, Scott Scriven
+ *
+ */
+
 #ifndef CLIENTS_H
 #define CLIENTS_H
 
-#include "client_data.h"
+#include "client.h"
 #include "shared/LL.h"
 
-typedef struct client {
-	int sock;
-	char addr[64];
-	int backlight_state;
-	LinkedList *messages;
-	client_data *data;
+/* extern LinkedList *clientlist;   Not needed outside ? */
 
-} client;
+/* Initialize and kill client list...*/
+int clients_init(void);
+int clients_shutdown(void);
 
-extern LinkedList *clients;
+/* Add/remove clients (return -1 for error) */
+int clients_add_client(Client *c);
+int clients_remove_client(Client *c);
 
-// Initialize and kill client list...
-int client_init ();
-int client_shutdown ();
+/* List functions */
+Client *clients_getfirst(void);
+Client *clients_getnext(void);
+int clients_client_count(void);
 
-// Create and destroy clients....
-client *client_create (int sock);
-int client_destroy (client * c);
-
-// Add and remove messages from the client's queue...
-int client_add_message (client * c, char *message);
-char *client_get_message (client * c);
-
-// Get and set the client's data...
-// Not used at all yet, and may never be.  Oh, well.
-int client_set (client * c, void *data);
-void *client_get (client * c);
-
-// Search for a client with a particular filedescriptor...
-client *client_find_sock (int sock);
+/* Search for a client with a particular filedescriptor...*/
+Client * clients_find_client_by_sock(int sock);
 
 #endif

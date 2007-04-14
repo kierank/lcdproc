@@ -163,6 +163,7 @@ Peter Marschall: (current maintainer)
 	- bwctusb connectiontype for the HD44780 driver
 	- extensions to CFontz* drivers: support CF631 & CF635
 	- various fixes in preparation of 0.5
+	- lcd2usb connectiontype for the HD44780 driver
 
 Markus Dolze:
 	- various fixes (especially for *BSD)
@@ -175,6 +176,7 @@ Lucian Muresan:
 
 Matteo Pillon:
 	- lcdserializer connectiontype to the hd44780 driver
+	- various improvements to the serial connections of the hd44780 driver
 
 Laurent Arnal:
 	- connectiontype for LIS2 displays from VLSystem (http://www.vlsys.co.kr)
@@ -206,6 +208,21 @@ John Sanders:
 
 Eric Pooch:
 	- Mac OS X / Darwin support
+	- serialPOS driver
+
+Benjamin Wiedmann
+	- Added functionality for HITACHI SP14Q002 gLCD (320x240)
+	- Implemented dynamic wiring scheme selection for SED1330 driver ("ConnectionType")
+
+Frank Jepsen
+	- vdr-wakeup support in hd44780 driver (originally for v0.4.5)
+	- new options for the hd44780 driver
+
+Karsten Festag
+	- ea65 driver
+
+Gatewood Green
+	- picolcd driver
 
 
 Further developers in the sourceforge lcdproc team:

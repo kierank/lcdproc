@@ -99,6 +99,9 @@ Standard video display using the (n)curses library
 .B CwLnx
 serial/USB displays by Cwlinux (http://www.cwlinux.com)
 .TP
+.B ea65
+VFD front panel display on Aopen XC Cube EA65 media barebone
+.TP
 .B EyeboxOne
 LCD display on the EyeboxOne (http://www.rightvision.com)
 .TP
@@ -140,11 +143,20 @@ LCD driven by an Atmel AVR based board, connected to a serial port
 .B vdr-lcd
 ???, connected to a serial port
 .TP
+.B vdr-wakeup
+VDR-Wake module by Frank Jepsen (http://www.jepsennet.de/vdr/)
+.TP
+.B pertelian
+Pertelian X2040 module (http://pertelian.com/)
+.TP
 .B lis2
 LIS2 from VLSystem (http://www.vlsys.co.kr), connected to USB
 .TP
 .B bwctusb
 USB-to-HD44780 converter by BWCT (http://www.bwct.de)
+.TP
+.B lcd2usb
+Till Harbaum's open source/open hardware LCD2USB (http://www.harbaum.org/till/lcd2usb/)
 .TP
 .B i2c
 LCD in 4-bit mode driven by PCF8574(A) / PCA9554(A), connected via I2C bus
@@ -191,6 +203,9 @@ Matrix Orbital displays (except Matrix Orbital GLK displays)
 .TP
 .B NoritakeVFD
 Noritake VFD Device CU20045SCPB-T28A
+.TP
+.B picolcd
+Mini-box.com USB LCD (picoLCD 20x2)
 .TP
 .B pyramid
 LCD displays from Pyramid (http://www.pyramid.de) 

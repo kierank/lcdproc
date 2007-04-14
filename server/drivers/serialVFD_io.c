@@ -33,6 +33,7 @@
 #include "serialVFD_io.h"
 #include "serialVFD.h"
 #include "lcd.h"
+
 #define WR_on  0x10
 #define WR_off 0x11
 #define Busy   0x80
@@ -41,30 +42,32 @@
 #define MAXBUSY 300
 
 void
-serialVFD_write_serial (Driver *drvthis, char *dat, size_t length)
+serialVFD_write_serial (Driver *drvthis, unsigned char *dat, size_t length)
 {
 	PrivateData *p = drvthis->private_data;
-	write (p->fd,dat,length);
+	write(p->fd,dat,length);
 }
 
 void
-serialVFD_write_parallel (Driver *drvthis, char *dat, size_t length)
+serialVFD_write_parallel (Driver *drvthis, unsigned char *dat, size_t length)
 {
+#ifdef HAVE_PCSTYLE_LPT_CONTROL
 	PrivateData *p = drvthis->private_data;
 	int i_para, j_para;
 
-	for(i_para = 0; i_para < length; i_para++) {
+	for (i_para = 0; i_para < length; i_para++) {
 		port_out(p->port, dat[i_para]);
-		port_in(p->port+1);
+//		port_in(p->port+1);
 		port_out(p->port+2, WR_on);
 		port_in(p->port+1);
 		port_out(p->port+2, WR_off);
-
-		for(j_para=0; j_para < MAXBUSY; j_para++) {
-			if((port_in(p->port+1)) & Busy)
+		port_in(p->port+1);
+		for (j_para = 0; j_para < MAXBUSY; j_para++) {
+			if ((port_in(p->port+1)) & Busy)
 				break;
 		}
 	}
+#endif
 }
 
 int
@@ -75,14 +78,14 @@ serialVFD_init_serial (Driver *drvthis)
 
 	/* Set up io port correctly, and open it...*/
 	debug( RPT_DEBUG, "%s: Opening device: %s", __FUNCTION__, p->device);
-	p->fd = open (p->device, O_RDWR | O_NOCTTY | O_NDELAY);
+	p->fd = open(p->device, O_RDWR | O_NOCTTY | O_NDELAY);
 
 	if (p->fd == -1) {
-		report (RPT_ERR, "%s: open() of %s failed (%s)\n", __FUNCTION__, p->device, strerror (errno));
+		report(RPT_ERR, "%s: open() of %s failed (%s)\n", __FUNCTION__, p->device, strerror(errno));
 		return -1;
 	}
 
-	tcgetattr (p->fd, &portset);
+	tcgetattr(p->fd, &portset);
 
 	// We use RAW mode
 #ifdef HAVE_CFMAKERAW
@@ -99,29 +102,48 @@ serialVFD_init_serial (Driver *drvthis)
 #endif
 
 	// Set port speed
-	cfsetospeed (&portset, p->speed);
-	cfsetispeed (&portset, B0);
+	cfsetospeed(&portset, p->speed);
+	cfsetispeed(&portset, B0);
 
 	// Do it...
-	tcsetattr (p->fd, TCSANOW, &portset);
+	tcsetattr(p->fd, TCSANOW, &portset);
 	return 0;
 }
 
 int
 serialVFD_init_parallel (Driver *drvthis)
 {
-	int ret=0;
 	PrivateData *p = drvthis->private_data;
-	debug( RPT_DEBUG, "%s: Opening parallelport at: 0x%X", __FUNCTION__, p->port);
-//	if(port_access_multiple(p->port,3)) return -1;
-	if(port_access(p->port) != 0) ret=-1;
-	if(port_access(p->port+1) != 0) ret=-1;
-	if(port_access(p->port+2) != 0) ret=-1;
-	if(ret == -1) {
-		report (RPT_ERR, "%s: port_access() of 0x%X failed (%s)\n", __FUNCTION__, p->port, strerror (errno));
+#ifdef HAVE_PCSTYLE_LPT_CONTROL
+	debug(RPT_DEBUG, "%s: Opening parallelport at: 0x%X", __FUNCTION__, p->port);
+	if (port_access_multiple(p->port,3)) {
+		report(RPT_ERR, "%s: port_access_multiple() of 0x%X failed (%s)\n", __FUNCTION__, p->port, strerror(errno));
 		return -1;
 	}
 	return 0;
+#else
+	report(RPT_ERR, "%s: LCDproc was compiled without PCstyle LPT support\n", __FUNCTION__);
+	return -1;
+#endif
 }
 
+void
+serialVFD_close_serial (Driver *drvthis)
+{
+	PrivateData *p = drvthis->private_data;
+	if (p->fd >= 0)
+		close(p->fd);
+}
 
+void
+serialVFD_close_parallel (Driver *drvthis)
+{
+#ifdef HAVE_PCSTYLE_LPT_CONTROL
+	PrivateData *p = drvthis->private_data;
+
+	debug(RPT_DEBUG, "%s: Closing parallelport at: 0x%X", __FUNCTION__, p->port);
+	if (port_deny_multiple(p->port,3)) {
+		report(RPT_ERR, "%s: port_deny_multiple() of 0x%X failed (%s)\n", __FUNCTION__, p->port, strerror(errno));
+	}
+#endif
+}

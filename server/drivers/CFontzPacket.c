@@ -162,7 +162,8 @@ static void CFontzPacket_hardware_clear (Driver *drvthis);
 /**
  * Initialize the driver.
  * \param drvthis  Pointer to driver structure.
- * \return  Information of success (0) or failure (non-0).
+ * \retval 0   Success.
+ * \retval <0  Error.
  */
 MODULE_EXPORT int
 CFontzPacket_init (Driver *drvthis)
@@ -530,7 +531,7 @@ CFontzPacket_flush (Driver *drvthis)
 
       /* there are differences, ... */
       if (length > 0) {
-        unsigned char out[23];
+        unsigned char out[length + 3];
 
 	/* ... send then to the LCD */
 	out[0] = j;	// column
@@ -951,14 +952,14 @@ int do_init = 0;
 	}
 
 	// Lib_adv_bignum does everything needed to show the bignumbers.
-	lib_adv_bignum(drvthis, x, num, do_init, NUM_CCs);
+	lib_adv_bignum(drvthis, x, num, 0, do_init);
 }
 
 
 /**
- * Get number of custom chars available.
+ * Get total number of custom characters available.
  * \param drvthis  Pointer to driver structure.
- * \returns  Number of custom characters (always NUM_CCs).
+ * \return  Number of custom characters (always NUM_CCs).
  */
 MODULE_EXPORT int
 CFontzPacket_get_free_chars (Driver *drvthis)
@@ -1286,7 +1287,7 @@ CFontzPacket_hardware_clear (Driver *drvthis)
  * \param string   String that gets written.
  */
 MODULE_EXPORT void
-CFontzPacket_string (Driver *drvthis, int x, int y, char string[])
+CFontzPacket_string (Driver *drvthis, int x, int y, const char string[])
 {
 	PrivateData *p = drvthis->private_data;
 	int i;

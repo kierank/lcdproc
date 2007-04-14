@@ -14,12 +14,13 @@ It is also known to work on FUTABA VFDs.
 
 <para>
 The driver should operate most of NEC, Futaba and Noritake 7x5 dot VFDs with
- serial(rs232) and/or parallel interface. See the following table for testing-status.
-  Feedback is welcome.
+serial(RS-232) and/or parallel interface. See the following table for testing-status.
+Feedback is welcome.
 
 
-<table><title>serialVFD: Display Status</title>
-<tgroup cols="5">
+<table id="serialVFD-howto.status">
+<title>serialVFD: Display Status</title>
+<tgroup cols="6">
   <thead>
     <row>
       <entry>Display</entry>
@@ -71,7 +72,7 @@ The driver should operate most of NEC, Futaba and Noritake 7x5 dot VFDs with
       <entry>Ok</entry>
       <entry>Yes</entry>
       <entry>(* perhaps no compatible baudrate, not tested)
- The display has no user-characters set  <command>Custom-Characters=0</command>
+ The display has no user-characters: set <command>Custom-Characters=0</command>
  in <filename>LCDd.conf.</filename></entry>
     </row>
     <row>
@@ -88,7 +89,7 @@ The driver should operate most of NEC, Futaba and Noritake 7x5 dot VFDs with
       <entry>Ok</entry>
       <entry>Ok</entry>
       <entry>Yes</entry>
-      <entry>The display is FUTABA compatible (hard and software). Set <command>Custom-Characters=0</command>
+      <entry>The display is FUTABA compatible (hard- and software). Set <command>Custom-Characters=0</command>
  in <filename>LCDd.conf.</filename> </entry>
     </row>
 
@@ -112,19 +113,21 @@ The driver should operate most of NEC, Futaba and Noritake 7x5 dot VFDs with
   </tbody>
 </tgroup>
 </table>
-() feature not tested.
+
+<literal>(</literal>&hellip;<literal>)</literal>: Feature not tested.
 </para>
 
 <para>
 If your display isn't working 100% satisfactorily you can add a new device with modified hardware
-commands to the driver if you want. To do that you have to add a new section to the display-
+commands to the driver if you want. To do that you have to add a new section to the display
 <command>Type=</command>-switch-case in <filename>./server/drivers/serialVFD-displays.c</filename>
-and to write a new "load"function with the correct commands for the display.(Try which display-<command>Type=</command>
-works best with your display, copy, rename and modify this function that is the easiest way I guess.)
+and to write a new "load" function with the correct commands for the display.
+(Try which display <command>Type=</command> works best with your display, 
+then copy, rename and modify this function to your needs - that is the easiest way I guess.)
 </para>
 
 <para>
-On this page you may find pictures and datasheets of the VFDs:
+On Malte Poeggel's page you may find pictures and datasheets of the VFDs:
 <ulink url="http://www.maltepoeggel.de/html/vfd/index.html"></ulink>
 </para>
 
@@ -143,7 +146,7 @@ the display show everything correctly.
 <warning>
 <para>
 Always cross-check with your datasheet, before connecting your display!
-Displays of same manufacturer may have different pin assignments!
+Different displays of even the same manufacturer may have different pin assignments!
 </para></warning>
 
 <para>
@@ -156,12 +159,12 @@ the datasheet.
 <title>Serial Connections</title>
 
 <para>
-It is NOT possible to connect most of the displays directly to the
-serialport. The signal has to be inverted. I use the following
+It is <emphasis>not</emphasis> possible to connect most of the displays directly to the
+serial port. The signal has to be inverted. I use the following
 circuit to do that job.
 </para>
 
-<figure>
+<figure id="serialVFD-serial-connections.circuit">
 <title>serialVFD: Serial Inverter</title>
 <screen>
 <![CDATA[
@@ -170,27 +173,26 @@ Computer                                          Display
 HDD Powerconnector
 color(Voltage)
 
-red(+5V)    --------------------------------o----- +5V
-					    |
-black(GND)  --------------------o           |
-				|           R
-				|           R 10k
-Serial(SUB-D 9Pin female)       V*          R
-pin(signal)                                 |
-					    |
-3(TxD)  --RRRR--o--o      o-----------------o----- RxD
-	  10k   |  |      |
-		|  |     C|
-		|  |   -----  BC547c (or similar NPN)
-		R  | B|  /  |
-	    10k R  o--|-|   |
-		R     |  \  |
-		|      --->-    A*
-		|         E|    |
-		|          |    |
-5(GND)  --------o----------o----o--------------o-- GND
-					       |*
-Shield  ---------------------------------------o
+red(+5V)    ----------------------------------o----- +5V
+                                              |
+black(GND)  ----------------------o          .-.
+                                  |          | | 10k
+Serial(SUB-D  9Pin female)        |          | |
+pin(signal)                       V*         '-'
+           ___                                |
+3(TxD)  --|___|--o---o      o-----------------o----- RxD
+           10k   |   |      |
+                 |   |     C|
+                .-.  |   -----  BC547c (or similar NPN)
+                | |  | B|  /  |
+            10k | |  o--|-|   |
+                '-'     |  \  |
+                 |       --->-    A*
+                 |          E|    |
+                 |           |    |
+5(GND)  ---------o-----------o----o--------------o-- GND
+                                                 |*
+Shield  -----------------------------------------o
 optional
 
 *connect near display
@@ -232,7 +234,7 @@ The blue connector (6pin in a row) (the important one!):
 <tip>
   <para>
   Hold the display in that position where you can read
-  the "KD Rev 2.1" marking normally!
+  the <literal>KD Rev 2.1</literal> marking normally!
   </para>
 </tip>
 
@@ -394,7 +396,7 @@ optional
     <arg choice="plain"><replaceable>CUSTOM-CHARACTERS</replaceable></arg>
   </term>
   <listitem><para>
-    Number of Custom-Characters [default: Display-<command>Type</command> dependent].
+Number of Custom-Characters [default: Display-<command>Type</command> dependent].
   </para></listitem>
 </varlistentry>
 
@@ -420,7 +422,7 @@ optional
   </term>
   <listitem>
     <para>
-    Specifies the display type.[default: <literal>0</literal>]
+    Specifies the display type.[default: 0]
     The following type codes are available:
     </para>
     <informaltable>
@@ -463,7 +465,7 @@ optional
     <arg choice="plain"><replaceable>BRIGHTNESS</replaceable></arg>
   </term>
   <listitem><para>
-Set the initial brightness [default: <literal>1000</literal>; legal: <literal>0</literal> - <literal>1000</literal>]
+Set the initial brightness [default: 1000; legal: 0 - 1000]
  (4 steps 0-250, 251-500, 501-750, 751-1000)
   </para></listitem>
 </varlistentry>
@@ -474,7 +476,7 @@ Set the initial brightness [default: <literal>1000</literal>; legal: <literal>0<
     <arg choice="plain"><replaceable>OFFBRIGHTNESS</replaceable></arg>
   </term>
   <listitem><para>
-Set the initial off-brightness [default: <literal>0</literal>; legal: <literal>0</literal> - <literal>1000</literal>].
+Set the initial off-brightness [default: 0; legal: 0 - 1000].
  This value is used when the display is normally
  switched off in case LCDd is inactive.
  (4 steps 0-250, 251-500, 501-750, 751-1000)

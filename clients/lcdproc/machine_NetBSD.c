@@ -69,7 +69,8 @@ static int pageshift;
 #define pagetok(size) ((size) << pageshift)
 #define PROCSIZE(pp) ((pp)->p_vm_tsize + (pp)->p_vm_dsize + (pp)->p_vm_ssize)
 
-int machine_init()
+
+int machine_init(void)
 {
 	/* get the page size with "getpagesize" and calculate pageshift from it */
 	int pagesize = getpagesize();
@@ -86,7 +87,7 @@ int machine_init()
 	return(TRUE);
 }
 
-int machine_close()
+int machine_close(void)
 {
 	return(TRUE);
 }
@@ -229,12 +230,12 @@ int machine_get_load(load_type *curr_load)
 
 int machine_get_loadavg(double *load)
 {
-	double loadavg[1];
+	double loadavg[LOADAVG_NSTATS];
 
-	if (getloadavg(loadavg, 1) == -1)
+	if (getloadavg(loadavg, LOADAVG_NSTATS) <= LOADAVG_1MIN)
 		return(FALSE);
 
-	*load = loadavg[0];
+	*load = loadavg[LOADAVG_1MIN];
 
 	return(TRUE);
 }
@@ -325,8 +326,7 @@ int machine_get_smpload(load_type *result, int *numcpus)
 	mib[1] = HW_NCPU;
 	size = sizeof(int);
 
-	if (sysctl(mib, 2, &num, &size, NULL, 0) < 0)
-	{
+	if (sysctl(mib, 2, &num, &size, NULL, 0) < 0) {
 		perror("sysctl hw.ncpu");
 		return(FALSE);
 	}
@@ -334,11 +334,15 @@ int machine_get_smpload(load_type *result, int *numcpus)
 	if (machine_get_load(&curr_load) == FALSE)
 		return(FALSE);
 
+	if (numcpus == NULL)
+		return(FALSE);
+
+	/* restrict #CPUs to max. *numcpus */
+	num = (*numcpus >= num) ? num : *numcpus;
 	*numcpus = num;
-	num = num > 8 ? 8 : num;
+
 	/* Don't know how to get per-cpu-load values */
-	for (i = 0; i < num; i++)
-	{
+	for (i = 0; i < num; i++) {
 		result[i] = curr_load;
 	}
 

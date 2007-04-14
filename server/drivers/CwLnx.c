@@ -6,7 +6,7 @@
 
         Copyright (C) 2002, Andrew Ip
                       2003, David Glaude
-                      2006, Peter Marschall
+                      2006,7 Peter Marschall
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@
 #include "report.h"
 #include "lcd_lib.h"
 
-/* for the icon definitions */
+/* for the icon definitions & the big numbers */
 #include "adv_bignum.h"
 
 #define ValidX(x) if ((x) > p->width) { (x) = p->width; } else (x) = (x) < 1 ? 1 : (x);
@@ -145,31 +145,25 @@ static void CwLnx_hidecursor(int fd);
 #define LCD_PUT_PIXEL		112
 #define LCD_CLEAR_PIXEL		113
 
-#define DELAY			20
-#define UPDATE_DELAY		0	/* 1 sec */
-#define SETUP_DELAY		1	/* 2 sec */
+#define DELAY			2000	/* 2 milli sec */
+#define UPDATE_DELAY		0	/* 1 imicro sec */
+#define SETUP_DELAY		1	/* 2 micro sec */
 
 
 
 static int Write_LCD(int fd, char *c, int size)
 {
     int rc;
+    int retries = 30;
 
-    rc = write(fd, c, size);
-/* Debuging code to be cleaned when very stable */
-/* 
-    if (size == 1) {
-	if (*c >= 0) 
-	    printf("%3d ", *c);
-	else {
-	    if (*c+256==254)
-		printf("\n%3d ", *c+256);
-	    else
-		printf("%3d ", *c+256);
-	}
-    }
-*/
-/*    usleep(DELAY); */
+    do {
+	rc = write(fd, c, size);
+        if (rc == size)
+	    break;
+	usleep(DELAY);
+        
+    } while (--retries > 0);
+
     return rc;
 }
 
@@ -183,94 +177,58 @@ static int Write_LCD(int fd, char *c, int size)
 /* Hardware function */
 static void Enable_Backlight(int fd)
 {
-    char c;
-    int rc;
+    char cmd[] = { LCD_CMD, LCD_LIGHT_ON, LCD_CMD_END };
 
-    c = LCD_CMD;
-    rc = Write_LCD(fd, &c, 1);
-    c = LCD_LIGHT_ON;
-    rc = Write_LCD(fd, &c, 1);
-    c = LCD_CMD_END;
-    rc = Write_LCD(fd, &c, 1);
+    Write_LCD(fd, cmd, 3);
 }
 
 
 /* Hardware function */
 static void Disable_Backlight(int fd)
 {
-    char c;
-    int rc;
+    char cmd[] = { LCD_CMD, LCD_LIGHT_OFF, LCD_CMD_END };
 
-    c = LCD_CMD;
-    rc = Write_LCD(fd, &c, 1);
-    c = LCD_LIGHT_OFF;
-    rc = Write_LCD(fd, &c, 1);
-    c = LCD_CMD_END;
-    rc = Write_LCD(fd, &c, 1);
+    Write_LCD(fd, cmd, 3);
 }
 
 
 /* Hardware function */
 static void Enable_Pixel(int fd, int x, int y)
 {
-    char c;
-    int rc;
+    char cmd[] = { LCD_CMD, LCD_PUT_PIXEL, 0, 0, LCD_CMD_END };
 
-    c = LCD_CMD;
-    rc = Write_LCD(fd, &c, 1);
-    c = LCD_PUT_PIXEL;
-    rc = Write_LCD(fd, &c, 1);
+    cmd[2] = (char) x;
+    cmd[3] = (char) y;
 
-    c = x;
-    rc = Write_LCD(fd, &c, 1);
-    c = y;
-    rc = Write_LCD(fd, &c, 1);
-
-    c = LCD_CMD_END;
-    rc = Write_LCD(fd, &c, 1);
+    Write_LCD(fd, cmd, 5);
 }
 
 
 /* Hardware function */
 static void Disable_Pixel(int fd, int x, int y)
 {
-    char c;
-    int rc;
+    char cmd[] = { LCD_CMD, LCD_CLEAR_PIXEL, 0, 0, LCD_CMD_END };
 
-    c = LCD_CMD;
-    rc = Write_LCD(fd, &c, 1);
-    c = LCD_CLEAR_PIXEL;
-    rc = Write_LCD(fd, &c, 1);
+    cmd[2] = (char) x;
+    cmd[3] = (char) y;
 
-    c = x;
-    rc = Write_LCD(fd, &c, 1);
-    c = y;
-    rc = Write_LCD(fd, &c, 1);
-
-    c = LCD_CMD_END;
-    rc = Write_LCD(fd, &c, 1);
+    Write_LCD(fd, cmd, 5);
 }
 
 
 /* Hardware function */
 static void Backlight_Brightness(int fd, int brightness)
 {
-    char c;
-    int rc;
-
     if (brightness == 1) {
 	Disable_Backlight(fd);
     } else if (brightness == 7) {
 	Enable_Backlight(fd);
     } else {
-	c = LCD_CMD;
-	rc = Write_LCD(fd, &c, 1);
-	c = LCD_LIGHT_BRIGHTNESS;
-	rc = Write_LCD(fd, &c, 1);
-	c = (char) brightness;
-	rc = Write_LCD(fd, &c, 1);
-	c = LCD_CMD_END;
-	rc = Write_LCD(fd, &c, 1);
+	char cmd[] = { LCD_CMD, LCD_LIGHT_BRIGHTNESS, 0, LCD_CMD_END };
+
+	cmd[2] = (char) brightness;
+
+	Write_LCD(fd, cmd, 4);
     }
 }
 
@@ -278,45 +236,27 @@ static void Backlight_Brightness(int fd, int brightness)
 /* Hardware function */
 static void Enable_Scroll(int fd)
 {
-    char c;
-    int rc;
+    char cmd[] = { LCD_CMD, LCD_ENABLE_SCROLL, LCD_CMD_END };
 
-    c = LCD_CMD;
-    rc = Write_LCD(fd, &c, 1);
-    c = LCD_ENABLE_SCROLL;
-    rc = Write_LCD(fd, &c, 1);
-    c = LCD_CMD_END;
-    rc = Write_LCD(fd, &c, 1);
+    Write_LCD(fd, cmd, 3);
 }
 
 
 /* Hardware function */
 static void Disable_Scroll(int fd)
 {
-    char c;
-    int rc;
+    char cmd[] = { LCD_CMD, LCD_DISABLE_SCROLL, LCD_CMD_END };
 
-    c = LCD_CMD;
-    rc = Write_LCD(fd, &c, 1);
-    c = LCD_DISABLE_SCROLL;
-    rc = Write_LCD(fd, &c, 1);
-    c = LCD_CMD_END;
-    rc = Write_LCD(fd, &c, 1);
+    Write_LCD(fd, cmd, 3);
 }
 
 
 /* Hardware function */
 static void Clear_Screen(int fd)
 {
-    char c;
-    int rc;
+    char cmd[] = { LCD_CMD, LCD_CLEAR, LCD_CMD_END };
 
-    c = LCD_CMD;
-    rc = Write_LCD(fd, &c, 1);
-    c = LCD_CLEAR;
-    rc = Write_LCD(fd, &c, 1);
-    c = LCD_CMD_END;
-    rc = Write_LCD(fd, &c, 1);
+    Write_LCD(fd, cmd, 3);
     usleep(UPDATE_DELAY);
 }
 
@@ -324,45 +264,27 @@ static void Clear_Screen(int fd)
 /* Hardware function */
 static void Enable_Wrap(int fd)
 {
-    char c;
-    int rc;
+    char cmd[] = { LCD_CMD, LCD_ENABLE_WRAP, LCD_CMD_END };
 
-    c = LCD_CMD;
-    rc = Write_LCD(fd, &c, 1);
-    c = LCD_ENABLE_WRAP;
-    rc = Write_LCD(fd, &c, 1);
-    c = LCD_CMD_END;
-    rc = Write_LCD(fd, &c, 1);
+    Write_LCD(fd, cmd, 3);
 }
 
 
 /* Hardware function */
 static void Disable_Wrap(int fd)
 {
-    char c;
-    int rc;
+    char cmd[] = { LCD_CMD, LCD_DISABLE_WRAP, LCD_CMD_END };
 
-    c = LCD_CMD;
-    rc = Write_LCD(fd, &c, 1);
-    c = LCD_DISABLE_WRAP;
-    rc = Write_LCD(fd, &c, 1);
-    c = LCD_CMD_END;
-    rc = Write_LCD(fd, &c, 1);
+    Write_LCD(fd, cmd, 3);
 }
 
 
 /* Hardware function */
 static void Disable_Cursor(int fd)
 {
-    char c;
-    int rc;
+    char cmd[] = { LCD_CMD, LCD_OFF_CURSOR, LCD_CMD_END };
 
-    c = LCD_CMD;
-    rc = Write_LCD(fd, &c, 1);
-    c = LCD_OFF_CURSOR;
-    rc = Write_LCD(fd, &c, 1);
-    c = LCD_CMD_END;
-    rc = Write_LCD(fd, &c, 1);
+    Write_LCD(fd, cmd, 3);
 }
 
 
@@ -404,59 +326,37 @@ static void Setup_Port(int fd, speed_t speed)
 /* Hardware function */
 static void Set_9600(int fd)
 {
-    char c;
-    int rc;
+    char cmd[] = { LCD_CMD, LCD_SET_BAUD, 0x20, LCD_CMD_END };
 
-    c = LCD_CMD;
-    rc = Write_LCD(fd, &c, 1);
-    c = LCD_SET_BAUD;
-    rc = Write_LCD(fd, &c, 1);
-    c = 0x20;
-    rc = Write_LCD(fd, &c, 1);
-    c = LCD_CMD_END;
-    rc = Write_LCD(fd, &c, 1);
+    Write_LCD(fd, cmd, 4);
 }
 
 
 /* Hardware function */
 static void Set_19200(int fd)
 {
-    char c;
-    int rc;
+    char cmd[] = { LCD_CMD, LCD_SET_BAUD, 0x0F, LCD_CMD_END };
 
-    c = LCD_CMD;
-    rc = Write_LCD(fd, &c, 1);
-    c = LCD_SET_BAUD;
-    rc = Write_LCD(fd, &c, 1);
-    c = 0xf;
-    rc = Write_LCD(fd, &c, 1);
-    c = LCD_CMD_END;
-    rc = Write_LCD(fd, &c, 1);
+    Write_LCD(fd, cmd, 4);
 }
 
 
 /* Hardware function */
 static void Set_Insert(int fd, int row, int col)
 {
-    char c;
-    int rc;
-
-    c = LCD_CMD;
-    rc = Write_LCD(fd, &c, 1);
     if (row == 0 && col == 0) {
-    	c = LCD_INIT_INSERT;
-    	rc = Write_LCD(fd, &c, 1);
+        char cmd[] = { LCD_CMD, LCD_INIT_INSERT, LCD_CMD_END };
+
+    	Write_LCD(fd, cmd, 3);
     }
     else {
-	c = LCD_SET_INSERT;
-	rc = Write_LCD(fd, &c, 1);
-	c = col;
-	rc = Write_LCD(fd, &c, 1);
-	c = row;
-	rc = Write_LCD(fd, &c, 1);
+	char cmd[] = { LCD_CMD, LCD_SET_INSERT, 0, 0, LCD_CMD_END };
+
+	cmd[2] = (char) col;
+	cmd[3] = (char) row;
+
+	Write_LCD(fd, cmd, 5);
     }
-    c = LCD_CMD_END;
-    rc = Write_LCD(fd, &c, 1);
 }
 
 
@@ -504,7 +404,8 @@ CwLnx_hidecursor(int fd)
 /**
  * Initialize the driver.
  * \param drvthis  Pointer to driver structure.
- * \return  Information of success (0) or failure (non-0).
+ * \retval 0   Success.
+ * \retval <0  Error.
  */
 MODULE_EXPORT int
 CwLnx_init(Driver *drvthis)
@@ -524,7 +425,7 @@ CwLnx_init(Driver *drvthis)
 
     PrivateData *p;
 
-    /* Alocate and store private data */
+    /* Allocate and store private data */
     p = (PrivateData *) malloc(sizeof(PrivateData));
     if (p == NULL)
         return -1;
@@ -1017,21 +918,37 @@ CwLnx_hbar(Driver *drvthis, int x, int y, int len, int promille, int options)
  * \param x        Horizontal character position (column).
  * \param num      Character to write (0 - 10 with 10 representing ':')
  */
-/*
 MODULE_EXPORT void
 CwLnx_num(Driver *drvthis, int x, int num)
 {
-    // needs work in bignum library: accept offset for the custom characters
-    // similar to lib_{h,v}bar_static().
-    return;
+    PrivateData *p = drvthis->private_data;
+    int do_init = 0;
+
+    if ((num < 0) || (num > 10))
+	return;
+
+    if (p->ccmode != bignum) {
+	if (p->ccmode != standard) {
+	    /* Not supported (yet) */
+	    report(RPT_WARNING, "%s: num: cannot combine two modes using user-defined characters",
+				drvthis->name);
+	    return;
+	}
+
+	p->ccmode = bignum;
+
+	do_init = 1;
+    }
+
+    // Lib_adv_bignum does everything needed to show the bignumbers.
+    lib_adv_bignum(drvthis, x, num, 1, do_init);
 }
-*/
 
 
 /**
- * Get number of custom chars available.
+ * Get total number of custom characters available.
  * \param drvthis  Pointer to driver structure.
- * \returns  Number of custom characters (always NUM_CCs).
+ * \return  Number of custom characters (always NUM_CCs).
  */
 MODULE_EXPORT int
 CwLnx_get_free_chars(Driver *drvthis)
@@ -1079,8 +996,7 @@ CwLnx_set_char(Driver *drvthis, int n, unsigned char *dat)
 	    c = dat[row] & mask;
 	    Write_LCD(p->fd, &c, 1);
 	}
-    }
-    else {			// the graphical model
+    } else if (p->model == 12232) {	// the graphical model
 	int col;
 
 	for (col = p->cellwidth - 1; col >= 0; col--) {
@@ -1092,7 +1008,9 @@ CwLnx_set_char(Driver *drvthis, int n, unsigned char *dat)
 		letter |= ((dat[row] >> col) & 1);
 	    }
 
-	    c = letter;
+	    /* restrict width to 5 pixels */
+	    c = (col < p->cellwidth - 1) ? letter : '\0';
+
 	    Write_LCD(p->fd, &c, 1);
 	}
     }
@@ -1315,7 +1233,7 @@ CwLnx_clear(Driver *drvthis)
  * \param string   String that gets written.
  */
 MODULE_EXPORT void
-CwLnx_string(Driver *drvthis, int x, int y, char *string)
+CwLnx_string(Driver *drvthis, int x, int y, const char string[])
 {
     PrivateData *p = drvthis->private_data;
 

@@ -9,13 +9,18 @@
 #define UNSET_INT -1
 #define UNSET_STR "\01"
 
+#ifndef TRUE
+# define TRUE    1
+#endif
+#ifndef FALSE
+# define FALSE   0
+#endif
+
 extern char *vcs_device;
 extern char *vcsa_device;
 
 extern char *keys[4];
 
 extern char *progname;
-
-int split(char * str, char delim, char * parts[], int maxparts);
 
 #endif

@@ -433,7 +433,7 @@ EyeboxOne_height (Driver *drvthis)
  * Display a string at x,y
  */
 	MODULE_EXPORT void
-EyeboxOne_string (Driver *drvthis, int x, int y, char *string)
+EyeboxOne_string (Driver *drvthis, int x, int y, const char string[])
 {
 	int offset, siz;
 	int bar,level;
@@ -637,7 +637,7 @@ EyeboxOne_get_key (Driver *drvthis)
 		else if (in == p->escape_key)
 			return "Escape";
 		else {
-			report(RPT_INFO, "%s: untreated key 0x%02X", drvthis->name, in);
+			//report(RPT_INFO, "%s: untreated key 0x%02X", drvthis->name, in);
 			return NULL;
 		}
 	}

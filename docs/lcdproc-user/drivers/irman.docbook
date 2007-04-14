@@ -11,7 +11,7 @@ and/or clients that can handle input.
 
 The keys are mapped according to the following table:
 
-<table>
+<table id="irman-howto.mapping">
 <title>Mapping between LCDproc keys and IrMan commands</title>
 <tgroup cols="2">
   <thead>
@@ -51,8 +51,8 @@ The keys are mapped according to the following table:
 
 <tip>
 <para>
-If you have trouble using the IrMan driver, you might try the lirc driver.
-lirc supports Irman as well.
+If you have trouble using the <code>irman</code> driver, you might try the <code>lirc</code> driver.
+lirc supports IrMan as well.
 </para>
 </tip>
 

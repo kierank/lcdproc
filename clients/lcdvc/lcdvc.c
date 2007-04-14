@@ -34,7 +34,7 @@
 #define DEFAULT_CONFIGFILE	SYSCONFDIR "/lcdvc.conf"
 
 
-char * help_text =
+char *help_text =
 "lcdvc - LCDproc virtual console\n"
 "\n"
 "Copyright (c) 2002, Joris Robijn, 2006 Peter Marschall.\n"
@@ -54,7 +54,7 @@ char *progname = "lcdvc";
 char *configfile = UNSET_STR;
 
 /* Variables set by config */
-int foreground_mode = UNSET_INT;
+int foreground = FALSE;
 static int report_level = UNSET_INT;
 static int report_dest = UNSET_INT;
 char *vcsa_device = UNSET_STR;
@@ -62,14 +62,12 @@ char *vcs_device = UNSET_STR;
 char *keys[4];
 
 /* Function prototypes */
-int process_command_line(int argc, char ** argv);
-int process_configfile(char * configfile);
-int connect_and_setup();
-int update_display();
-int process_response(char * str);
-int main_loop();
+static int process_command_line(int argc, char **argv);
+static int process_configfile(char *configfile);
+static int main_loop(void);
 
-int main( int argc, char ** argv )
+
+int main(int argc, char **argv)
 {
 	int e = 0;
 
@@ -88,7 +86,7 @@ int main( int argc, char ** argv )
 	CHAIN( e, connect_and_setup() );
 	CHAIN_END( e );
 
-	if (!foreground_mode) {
+	if (foreground != TRUE) {
 		if (daemon(1,1) != 0) {
 			report(RPT_ERR, "Error: daemonize failed");
 		}
@@ -99,7 +97,8 @@ int main( int argc, char ** argv )
 	return 0;
 }
 
-int process_command_line( int argc, char ** argv )
+
+static int process_command_line(int argc, char **argv)
 {
 	int c;
 	int error = 0;
@@ -132,7 +131,7 @@ int process_command_line( int argc, char ** argv )
 			}
 			break;
 		  case 'f':
-			foreground_mode = 1;
+			foreground = TRUE;
 			break;
 		  case 'r':
 			temp_int = strtol(optarg, &end, 0);
@@ -166,7 +165,8 @@ int process_command_line( int argc, char ** argv )
 	return error;
 }
 
-int process_configfile( char * configfile )
+
+static int process_configfile(char *configfile)
 {
 	if (strcmp(configfile, UNSET_STR) == 0) {
 		configfile = DEFAULT_CONFIGFILE;
@@ -191,51 +191,22 @@ int process_configfile( char * configfile )
 			report_dest = RPT_DEST_STDERR;
 		}
 	}
-	if (foreground_mode == UNSET_INT) {
-		foreground_mode = config_get_bool(progname, "Foreground", 0, 0);
+	if (foreground != TRUE) {
+		foreground = config_get_bool(progname, "Foreground", 0, FALSE);
 	}
 	vcs_device = strdup(config_get_string(progname, "vcsDevice", 0, "/dev/vcs"));
 	vcsa_device = strdup(config_get_string(progname, "vcsaDevice", 0, "/dev/vcsa"));
 
-	keys[0] = strdup( config_get_string( progname, "UpKey", 0, "Up" ));
-	keys[1] = strdup( config_get_string( progname, "DownKey", 0, "Down" ));
-	keys[2] = strdup( config_get_string( progname, "LeftKey", 0, "Left" ));
-	keys[3] = strdup( config_get_string( progname, "RightKey", 0, "Right" ));
+	keys[0] = strdup(config_get_string( progname, "UpKey", 0, "Up"));
+	keys[1] = strdup(config_get_string( progname, "DownKey", 0, "Down"));
+	keys[2] = strdup(config_get_string( progname, "LeftKey", 0, "Left"));
+	keys[3] = strdup(config_get_string( progname, "RightKey", 0, "Right"));
 
 	return 0;
 }
 
-int split( char * str, char delim, char * parts[], int maxparts )
-/* Splits a string into parts, to which pointers will be returned in &parts.
- * The return value is the number of parts.
- * maxparts is the maximum number of parts returned. If more parts exist
- * they are (unsplit) in the last part.
- * The parts are split at the character delim.
- * No new space will be allocated, the string str will be mutated !
- */
-{
-	char * p1 = str;
-	char * p2;
-	int part_nr = 0;
 
-	/* Find the delim char to end the current part */
-	while (part_nr < maxparts - 1 && (p2 = strchr(p1, delim))) {
-
-		/* subsequent parts... */
-		*p2 = 0;
-		parts[part_nr] = p1;
-
-		p1 = p2 + 1; /* Just after the delim char */
-		part_nr ++;
-	}
-	/* and the last part... */
-	parts[part_nr] = p1;
-	part_nr ++;
-
-	return part_nr;
-}
-
-int main_loop()
+static int main_loop(void)
 {
 	int num_bytes;
 	char buf[80];

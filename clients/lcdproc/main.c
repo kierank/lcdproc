@@ -60,7 +60,7 @@ static struct utsname unamebuf;
 
 static void HelpScreen(int exit_state);
 static void exit_program(int val);
-static void main_loop();
+static void main_loop(void);
 static int process_configfile(char *cfgfile);
 
 
@@ -108,32 +108,32 @@ static int islow = -1;
 char *progname = "lcdproc";
 char *server 	= NULL;
 int port	= LCDPORT;
-int foreground 	= UNSET_INT;
+int foreground 	= FALSE;
 static int report_level = UNSET_INT;
 static int report_dest 	= UNSET_INT;
 char *configfile = NULL;
 char *displayname = NULL;
 
 
-const char *get_hostname()
+const char *get_hostname(void)
 {
 	return(unamebuf.nodename);
 }
 
 
-const char *get_sysname()
+const char *get_sysname(void)
 {
 	return(unamebuf.sysname);
 }
 
 
-const char *get_sysrelease()
+const char *get_sysrelease(void)
 {
 	return(unamebuf.release);
 }
 
 
-int set_mode(int shortname, char *longname, int state)
+static int set_mode(int shortname, char *longname, int state)
 {
 	int k;
 
@@ -158,7 +158,7 @@ int set_mode(int shortname, char *longname, int state)
 }
 
 
-void clear_modes()
+static void clear_modes(void)
 {
 	int k;
 
@@ -301,7 +301,7 @@ main(int argc, char **argv)
 	lcd_cellwid = 5;
 	lcd_cellhgt = 8;
 
-	if (foreground == 0) {
+	if (foreground != TRUE) {
 		if (daemon(1,0) != 0) {
 			fprintf(stderr, "Error: daemonize failed");
 			return(EXIT_FAILURE);
@@ -359,18 +359,18 @@ process_configfile(char *configfile)
 		port = config_get_int(progname, "Port", 0, LCDPORT);
 	}
 
-	if(report_level == UNSET_INT) {
+	if (report_level == UNSET_INT) {
 		report_level = config_get_int(progname, "ReportLevel", 0, RPT_WARNING);
 	}
-	if(report_dest == UNSET_INT) {
+	if (report_dest == UNSET_INT) {
 		if (config_get_bool(progname, "ReportToSyslog", 0, 0)) {
 			report_dest = RPT_DEST_SYSLOG;
 		} else {
 			report_dest = RPT_DEST_STDERR;
 		}
 	}
-	if (foreground == UNSET_INT) {
-		foreground = config_get_bool(progname, "Foreground", 0, 0);
+	if (foreground != TRUE) {
+		foreground = config_get_bool(progname, "Foreground", 0, FALSE);
 	}
 	if (islow < 0) {
 		islow = config_get_int(progname, "Delay", 0, -1);
@@ -466,42 +466,41 @@ menus_init ()
 
 	for (k = 0; sequence[k].which ; k++) {
 		if (sequence[k].longname) {
-			sprintf (buffer, "menu_add_item {} %c checkbox {%s} -value %s\n",
+			sock_printf(sock, "menu_add_item {} %c checkbox {%s} -value %s\n",
 				 	 sequence[k].which, sequence[k].longname,
 					 (sequence[k].flags & ACTIVE) ? "on" : "off");
-			sock_send_string (sock, buffer);
 		}
 	}
 
 #ifdef LCDPROC_CLIENT_TESTMENUS
 //	  # to be entered on escape from test_menu (but overwritten
 //	  # for test_{checkbox,ring}
-	sock_send_string (sock,  "menu_add_item {} ask menu {Leave menus?} -is_hidden true\n");
-	sock_send_string (sock, "menu_add_item {ask} ask_yes action {Yes} -next _quit_\n");
-	sock_send_string (sock, "menu_add_item {ask} ask_no action {No} -next _close_\n");
-	sock_send_string (sock, "menu_add_item {} test menu {Test}\n");
-	sock_send_string (sock, "menu_add_item {test} test_action action {Action}\n");
-	sock_send_string (sock, "menu_add_item {test} test_checkbox checkbox {Checkbox}\n");
-	sock_send_string (sock, "menu_add_item {test} test_ring ring {Ring} -strings {one\ttwo\tthree}\n");
-	sock_send_string (sock, "menu_add_item {test} test_slider slider {Slider} -mintext < -maxtext > -value 50\n");
-	sock_send_string (sock, "menu_add_item {test} test_numeric numeric {Numeric} -value 42\n");
-	sock_send_string (sock, "menu_add_item {test} test_alpha alpha {Alpha} -value abc\n");
-	sock_send_string (sock, "menu_add_item {test} test_ip ip {IP} -v6 false -value 192.168.1.1\n");
-	sock_send_string (sock, "menu_add_item {test} test_menu menu {Menu}\n");
-	sock_send_string (sock, "menu_add_item {test_menu} test_menu_action action {Submenu's action}\n");
+	sock_send_string(sock, "menu_add_item {} ask menu {Leave menus?} -is_hidden true\n");
+	sock_send_string(sock, "menu_add_item {ask} ask_yes action {Yes} -next _quit_\n");
+	sock_send_string(sock, "menu_add_item {ask} ask_no action {No} -next _close_\n");
+	sock_send_string(sock, "menu_add_item {} test menu {Test}\n");
+	sock_send_string(sock, "menu_add_item {test} test_action action {Action}\n");
+	sock_send_string(sock, "menu_add_item {test} test_checkbox checkbox {Checkbox}\n");
+	sock_send_string(sock, "menu_add_item {test} test_ring ring {Ring} -strings {one\ttwo\tthree}\n");
+	sock_send_string(sock, "menu_add_item {test} test_slider slider {Slider} -mintext < -maxtext > -value 50\n");
+	sock_send_string(sock, "menu_add_item {test} test_numeric numeric {Numeric} -value 42\n");
+	sock_send_string(sock, "menu_add_item {test} test_alpha alpha {Alpha} -value abc\n");
+	sock_send_string(sock, "menu_add_item {test} test_ip ip {IP} -v6 false -value 192.168.1.1\n");
+	sock_send_string(sock, "menu_add_item {test} test_menu menu {Menu}\n");
+	sock_send_string(sock, "menu_add_item {test_menu} test_menu_action action {Submenu's action}\n");
 
 //	  # no successor for menus. Since test_checkbox and test_ring have their
 //	  # own predecessors defined the "ask" rule will not work for them
-	sock_send_string (sock, "menu_set_item {} test -prev {ask}\n");
+	sock_send_string(sock, "menu_set_item {} test -prev {ask}\n");
 
-	sock_send_string (sock, "menu_set_item {test} test_action -next {test_checkbox}\n");
-	sock_send_string (sock, "menu_set_item {test} test_checkbox -next {test_ring} -prev test_action\n");
-	sock_send_string (sock, "menu_set_item {test} test_ring -next {test_slider} -prev {test_checkbox}\n");
-	sock_send_string (sock, "menu_set_item {test} test_slider -next {test_numeric} -prev {test_ring}\n");
-	sock_send_string (sock, "menu_set_item {test} test_numeric -next {test_alpha} -prev {test_slider}\n");
-	sock_send_string (sock, "menu_set_item {test} test_alpha -next {test_ip} -prev {test_numeric}\n");
-	sock_send_string (sock, "menu_set_item {test} test_ip -next {test_menu} -prev {test_alpha}\n");
-	sock_send_string (sock, "menu_set_item {test} test_menu_action -next {_close_}\n");
+	sock_send_string(sock, "menu_set_item {test} test_action -next {test_checkbox}\n");
+	sock_send_string(sock, "menu_set_item {test} test_checkbox -next {test_ring} -prev test_action\n");
+	sock_send_string(sock, "menu_set_item {test} test_ring -next {test_slider} -prev {test_checkbox}\n");
+	sock_send_string(sock, "menu_set_item {test} test_slider -next {test_numeric} -prev {test_ring}\n");
+	sock_send_string(sock, "menu_set_item {test} test_numeric -next {test_alpha} -prev {test_slider}\n");
+	sock_send_string(sock, "menu_set_item {test} test_alpha -next {test_ip} -prev {test_numeric}\n");
+	sock_send_string(sock, "menu_set_item {test} test_ip -next {test_menu} -prev {test_alpha}\n");
+	sock_send_string(sock, "menu_set_item {test} test_menu_action -next {_close_}\n");
 #endif //LCDPROC_CLIENT_TESTMENUS
 
 	return 0;
@@ -513,7 +512,7 @@ menus_init ()
 // Main program loop...
 //
 void
-main_loop()
+main_loop(void)
 {
 	int i = 0, j;
 	int connected = 0;

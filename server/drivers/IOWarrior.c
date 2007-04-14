@@ -209,7 +209,8 @@ static int iowled_on_off(usb_dev_handle *udh,int type, unsigned int pattern)
 /**
  * Initialize the driver.
  * \param drvthis  Pointer to driver structure.
- * \return  Information of success (0) or failure (non-0).
+ * \retval 0   Success.
+ * \retval <0  Error.
  */
 MODULE_EXPORT int
 IOWarrior_init(Driver *drvthis)
@@ -629,7 +630,7 @@ PrivateData *p = drvthis->private_data;
  * \param string   String that gets written.
  */
 MODULE_EXPORT void
-IOWarrior_string(Driver *drvthis, int x, int y, char *string)
+IOWarrior_string(Driver *drvthis, int x, int y, const char string[])
 {
 PrivateData *p = drvthis->private_data;
 int i;
@@ -778,7 +779,7 @@ int do_init = 0;
 	}
 
 	// Lib_adv_bignum does everything needed to show the bignumbers.
-	lib_adv_bignum(drvthis, x, num, do_init, NUM_CCs);
+	lib_adv_bignum(drvthis, x, num, 0, do_init);
 }
 
 
@@ -816,9 +817,9 @@ PrivateData *p = drvthis->private_data;
 
 
 /**
- * Get number of custom chars available.
+ * Get total number of custom characters available.
  * \param drvthis  Pointer to driver structure.
- * \returns  Number of custom characters (always NUM_CCs).
+ * \return  Number of custom characters (always NUM_CCs).
  */
 MODULE_EXPORT int
 IOWarrior_get_free_chars (Driver *drvthis)

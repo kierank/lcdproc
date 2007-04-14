@@ -39,23 +39,22 @@
 # include "config.h"
 #endif
 
-
-void lis2_HD44780_senddata (PrivateData *p, unsigned char displayID, unsigned char flags, unsigned char ch);
-void lis2_HD44780_backlight (PrivateData *p, unsigned char state);
-unsigned char lis2_HD44780_scankeypad (PrivateData *p);
-void SetMatrice(PrivateData *p,int fd, int matriceNum, int ligne, int point);
-void SetFan(int fd, int fan1, int fan2, int fan3, int fan4);
-void gotoXY(int fd, int x, int y);
-void test(PrivateData *p, int a);
-void clear(int fd);
-
-
 #define DEFAULT_DEVICE		"/dev/ttyUSB0"
 
-void writeChar(int fd, int code);
+
+void lis2_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char flags, unsigned char ch);
+void lis2_HD44780_backlight(PrivateData *p, unsigned char state);
+unsigned char lis2_HD44780_scankeypad(PrivateData *p);
+
+static void SetMatrice(PrivateData *p,int fd, int matriceNum, int ligne, int point);
+static void SetFan(int fd, int fan1, int fan2, int fan3, int fan4);
+static void gotoXY(int fd, int x, int y);
+
+static void writeChar(int fd, int code);
+
 
 // initialise the driver
-int hd_init_lis2 (Driver *drvthis)
+int hd_init_lis2(Driver *drvthis)
 {
 	PrivateData *p = (PrivateData*) drvthis->private_data;
 
@@ -100,13 +99,13 @@ int hd_init_lis2 (Driver *drvthis)
 	p->hd44780_functions->backlight = lis2_HD44780_backlight;
 	p->hd44780_functions->scankeypad = lis2_HD44780_scankeypad;
 
-	common_init (p, IF_8BIT);
+	common_init(p, IF_8BIT);
 
 	return 0;
 }
 
 
-void SetMatrice(PrivateData *p, int fd, int matriceNum, int ligne, int point)
+static void SetMatrice(PrivateData *p, int fd, int matriceNum, int ligne, int point)
 {
 	// char from 0 to 7
 	// line from 0 to 7 from top to bottom
@@ -118,7 +117,7 @@ void SetMatrice(PrivateData *p, int fd, int matriceNum, int ligne, int point)
 	writeChar(fd, point);
 }
 
-void SetFan(int fd, int fan1, int fan2, int fan3, int fan4)
+static void SetFan(int fd, int fan1, int fan2, int fan3, int fan4)
 {
 	writeChar(fd, 0);
 	writeChar(fd, 174);
@@ -135,7 +134,7 @@ void SetFan(int fd, int fan1, int fan2, int fan3, int fan4)
 	writeChar(fd, 0);
 }
 
-void gotoXY(int fd, int x, int y)
+static void gotoXY(int fd, int x, int y)
 {
 	writeChar(fd, 0);
 	writeChar(fd, 160+y);
@@ -143,43 +142,40 @@ void gotoXY(int fd, int x, int y)
 	writeChar(fd, 167);
 }
 
-void writeChar(int fd, int code)
+static void writeChar(int fd, int code)
 {
 	char buf = code;
 
 	write(fd, &buf, 1);
 }
 
-int mode = 0;
-int charNum = 0;
-int rowNum = 0;
 
-void lis2_HD44780_senddata (PrivateData *p, unsigned char displayID, unsigned char flags, unsigned char ch)
+static int mode = 0;
+static int charNum = 0;
+static int rowNum = 0;
+
+void lis2_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char flags, unsigned char ch)
 {
 	if (flags == RS_DATA) {
-		if (mode == SETCHAR)
-		{
-			writeChar( p->fd, 0);
-			writeChar( p->fd, 171);
-			writeChar( p->fd, charNum);
-			writeChar( p->fd, rowNum);
-			writeChar( p->fd, ch);
-			rowNum = rowNum + 1;
-			if (rowNum==p->cellheight)
-			{
+		if (mode == SETCHAR) {
+			writeChar(p->fd, 0);
+			writeChar(p->fd, 171);
+			writeChar(p->fd, charNum);
+			writeChar(p->fd, rowNum);
+			writeChar(p->fd, ch);
+			rowNum++;
+			if (rowNum == p->cellheight) {
 				mode = 0;
 				rowNum = 0;
 			}
 		}
-		else
-		{
-			if (ch<7) ch=ch+1;
-			write( p->fd, &ch, 1 );
+		else {
+			if (ch < 7) ch++;
+			write(p->fd, &ch, 1);
 		}
 	}
 	else {
-		if ((ch & POSITION)!=0)		
-		{
+		if ((ch & POSITION) != 0) {
 			int x = 0;
 			int y = 0;
 			int pos = 0;
@@ -187,41 +183,38 @@ void lis2_HD44780_senddata (PrivateData *p, unsigned char displayID, unsigned ch
 			pos = (ch & ~POSITION);
 
 			if (p->ext_mode) {				
-				y = pos/0x20;
-				x = pos-(y*0x20);
+				y = pos / 0x20;
+				x = pos - (y * 0x20);
 			}
 			else {
-				y = pos/0x40;
-				x = pos-(y*0x40);
+				y = pos / 0x40;
+				x = pos - (y * 0x40);
 			}
 
-			writeChar( p->fd, 0);
-			writeChar( p->fd, 161 + y);
-			writeChar( p->fd, x);
-			writeChar( p->fd, 167);
+			writeChar(p->fd, 0);
+			writeChar(p->fd, 161 + y);
+			writeChar(p->fd, x);
+			writeChar(p->fd, 167);
 
 		}
-		else if ((ch & SETCHAR)!=0)		
-		{
+		else if ((ch & SETCHAR) != 0) {
 			mode = SETCHAR;
 			charNum = ((ch & ~SETCHAR)/8) + 1;
-			if (charNum==8) charNum = 7;
+			if (charNum == 8) charNum = 7;
 		}
-	 	else write( p->fd, &ch, 1 );
+	 	else write(p->fd, &ch, 1);
 	}
 
 }
 
-void lis2_HD44780_backlight (PrivateData *p, unsigned char state)
+void lis2_HD44780_backlight(PrivateData *p, unsigned char state)
 {
 	/* No backlight control */
 }
 
-unsigned char lis2_HD44780_scankeypad (PrivateData *p)
+unsigned char lis2_HD44780_scankeypad(PrivateData *p)
 {
 	return 0;
 }
-
-
 
 

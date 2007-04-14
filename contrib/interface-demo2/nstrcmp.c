@@ -1,6 +1,6 @@
 /* Copyright 1998 by Andi Kleen. Subject to the GPL. */
 /* rewritten by bernd eckenfels because of complicated alias semantic */
-/* $Id: nstrcmp.c,v 1.1.2.2 2006/10/04 15:16:22 marschap Exp $ */ 
+/* $Id: nstrcmp.c,v 1.1.2.3 2007/04/14 18:07:42 marschap Exp $ */ 
 #include <ctype.h>
 #include <stdlib.h>
 #include <string.h>

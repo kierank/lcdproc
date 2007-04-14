@@ -57,22 +57,11 @@
 
 #include "report.h"
 
-// Use the new key mapping code
-#define MTXORB_NEW_KEYMAP
+
+/* MO displays allow 25 keys that map by default to 'A' - 'Y' */
+#define MAX_KEY_MAP	25
 // Don't forget to define key mappings in LCDd.conf: KeyMap_A=Enter, ...
 // otherwise you will not get your keypad working.
-
-#ifdef MTXORB_NEW_KEYMAP 
-/* MO displays allow 25 keys that map by default to 'A' - 'Y' */
-# define MAX_KEY_MAP	25
-#else
-# define MTXORB_DEFAULT_Left     'A'
-# define MTXORB_DEFAULT_Right    'B'
-# define MTXORB_DEFAULT_Up       'C'
-# define MTXORB_DEFAULT_Down     'D'
-# define MTXORB_DEFAULT_Enter    'E'
-# define MTXORB_DEFAULT_Escape   'F'
-#endif
 
 #define IS_LCD_DISPLAY	(p->MtxOrb_type == MTXORB_LCD)
 #define IS_LKD_DISPLAY	(p->MtxOrb_type == MTXORB_LKD)
@@ -141,27 +130,19 @@ typedef struct {
 
 	int output_state;	/* static data from MtxOrb_output */
 	int contrast;		/* static data from set/get_contrast */
-	int backlight_state;	/* static data from MtxOrb_backlight */
-	int backlightenabled;
+	int brightness;
+	int offbrightness;
 
 	MtxOrb_type_type MtxOrb_type;
 
-#ifdef MTXORB_NEW_KEYMAP
 	/* the keymap */
 	char *keymap[MAX_KEY_MAP];
 	int keys;
-#else	
-	char left_key;
-	char right_key;
-	char up_key;
-	char down_key;
-	char enter_key;
-	char escape_key;
-#endif	
 	int keypad_test_mode;
 
 	char info[255];		/* static data from MtxOrb_get_info */
 } PrivateData;
+
 
 /* Vars for the server core */
 MODULE_EXPORT char *api_version = API_VERSION;
@@ -169,9 +150,10 @@ MODULE_EXPORT int stay_in_foreground = 0;
 MODULE_EXPORT int supports_multiple = 1;
 MODULE_EXPORT char *symbol_prefix = "MtxOrb_";
 
-static void MtxOrb_linewrap (Driver *drvthis, int on);
-static void MtxOrb_autoscroll (Driver *drvthis, int on);
-static void MtxOrb_cursorblink (Driver *drvthis, int on);
+static void MtxOrb_hardware_clear(Driver *drvthis);
+static void MtxOrb_linewrap(Driver *drvthis, int on);
+static void MtxOrb_autoscroll(Driver *drvthis, int on);
+static void MtxOrb_cursorblink(Driver *drvthis, int on);
 static void MtxOrb_cursor_goto(Driver *drvthis, int x, int y);
 
 
@@ -198,14 +180,14 @@ MtxOrb_parse_keypad_setting (Driver *drvthis, char *keyname, char default_value)
 /**
  * Initialize the driver.
  * \param drvthis  Pointer to driver structure.
- * \return  Information of success (0) or failure (non-0).
+ * \retval 0   Success.
+ * \retval <0  Error.
  */
 MODULE_EXPORT int
 MtxOrb_init (Driver *drvthis)
 {
 	struct termios portset;
 
-	int contrast = DEFAULT_CONTRAST;
 	char device[256] = DEFAULT_DEVICE;
 	int speed = DEFAULT_SPEED;
 	char size[256] = DEFAULT_SIZE;
@@ -233,19 +215,7 @@ MtxOrb_init (Driver *drvthis)
 	p->framebuf = NULL;
 	p->backingstore = NULL;
 
-	p->contrast = DEFAULT_CONTRAST;
 	p->output_state = -1;	/* static data from MtxOrb_output */
-	p->backlight_state = 1; /* static data from MtxOrb_backlight */
-	p->backlightenabled = DEFAULT_BACKLIGHT;
-
-#ifndef MTXORB_NEW_KEYMAP
-	p->left_key = MTXORB_DEFAULT_Left;
-	p->right_key = MTXORB_DEFAULT_Right;
-	p->up_key = MTXORB_DEFAULT_Up;
-	p->down_key = MTXORB_DEFAULT_Down;
-	p->enter_key = MTXORB_DEFAULT_Enter;
-	p->escape_key = MTXORB_DEFAULT_Escape;
-#endif	
 	p->keypad_test_mode = 0;
 
 	debug(RPT_INFO, "MtxOrb: init(%p)", drvthis);
@@ -277,7 +247,27 @@ MtxOrb_init (Driver *drvthis)
 				drvthis->name, DEFAULT_CONTRAST);
 		tmp = DEFAULT_CONTRAST;
 	}
-	contrast = tmp;
+	p->contrast = tmp;
+
+	/* Which backlight brightness */
+	tmp = drvthis->config_get_int(drvthis->name, "Brightness", 0, DEFAULT_BRIGHTNESS);
+	debug(RPT_INFO, "%s: Brightness (in config) is '%d'", __FUNCTION__, tmp);
+	if ((tmp < 0) || (tmp > 1000)) {
+		report(RPT_WARNING, "%s: Brightness must be between 0 and 1000; using default %d",
+			drvthis->name, DEFAULT_BRIGHTNESS);
+		tmp = DEFAULT_BRIGHTNESS;
+	}
+	p->brightness = tmp;
+
+	/* Which backlight-off "brightness" */
+	tmp = drvthis->config_get_int(drvthis->name, "OffBrightness", 0, DEFAULT_OFFBRIGHTNESS);
+	debug(RPT_INFO, "%s: OffBrightness (in config) is '%d'", __FUNCTION__, tmp);
+	if ((tmp < 0) || (tmp > 1000)) {
+		report(RPT_WARNING, "%s: OffBrightness must be between 0 and 1000; using default %d",
+			drvthis->name, DEFAULT_OFFBRIGHTNESS);
+		tmp = DEFAULT_OFFBRIGHTNESS;
+	}
+	p->offbrightness = tmp;
 
 	/* Get speed */
 	tmp = drvthis->config_get_int(drvthis->name, "Speed", 0, DEFAULT_SPEED);
@@ -299,9 +289,6 @@ MtxOrb_init (Driver *drvthis)
 			report(RPT_WARNING, "%s: Speed must be 1200, 2400, 9600 or 19200; using default %d",
 					drvthis->name, tmp);
 	}
-
-	/* Get backlight setting */
-	p->backlightenabled = drvthis->config_get_bool(drvthis->name, "Backlight", 0, DEFAULT_BACKLIGHT);
 
 	/* Get display type */
 	strncpy(buf, drvthis->config_get_string(drvthis->name, "Type", 0, DEFAULT_TYPE), sizeof(buf));
@@ -335,7 +322,6 @@ MtxOrb_init (Driver *drvthis)
 		 * test mode.
 		 */
 
-#ifdef MTXORB_NEW_KEYMAP 
 		int i;
 
 		/* assume no mapped keys */
@@ -361,32 +347,6 @@ MtxOrb_init (Driver *drvthis)
 					drvthis->name, i+'A', s );
 			}
 		}
-#else	
-		/* left_key */
-		p->left_key = MtxOrb_parse_keypad_setting(drvthis, "LeftKey", MTXORB_DEFAULT_Left);
-		report(RPT_DEBUG, "%s: Using \"%c\" as Leftkey.", drvthis->name, p->left_key);
-
-		/* right_key */
-		p->right_key = MtxOrb_parse_keypad_setting(drvthis, "RightKey", MTXORB_DEFAULT_Right);
-		report(RPT_DEBUG, "%s: Using \"%c\" as RightKey.", drvthis->name, p->right_key);
-
-		/* up_key */
-		p->up_key = MtxOrb_parse_keypad_setting(drvthis, "UpKey", MTXORB_DEFAULT_Up);
-		report(RPT_DEBUG, "%s: Using \"%c\" as UpKey.", drvthis->name, p->up_key);
-
-		/* down_key */
-		p->down_key = MtxOrb_parse_keypad_setting(drvthis, "DownKey", MTXORB_DEFAULT_Down);
-		report(RPT_DEBUG, "%s: Using \"%c\" as DownKey.", drvthis->name, p->down_key);
-
-		/* right_key */
-		p->enter_key = MtxOrb_parse_keypad_setting(drvthis, "EnterKey", MTXORB_DEFAULT_Enter);
-		report(RPT_DEBUG, "%s: Using \"%c\" as EnterKey.", drvthis->name, p->enter_key);
-
-		/* escape_key */
-		p->escape_key = MtxOrb_parse_keypad_setting(drvthis, "EscapeKey", MTXORB_DEFAULT_Escape);
-		report(RPT_DEBUG, "%s: Using \"%c\" as EscapeKey.", drvthis->name, p->escape_key);
-#endif		
-
 	}
 	/* End of config file parsing */
 
@@ -442,40 +402,17 @@ MtxOrb_init (Driver *drvthis)
 	}
 	memset(p->backingstore, ' ', p->width * p->height);
 
-	/*
-	 * Configure display
-	 */
-
+	/* set initial LCD configuration */
+	MtxOrb_hardware_clear(drvthis);
 	MtxOrb_linewrap(drvthis, DEFAULT_LINEWRAP);
 	MtxOrb_autoscroll(drvthis, DEFAULT_AUTOSCROLL);
 	MtxOrb_cursorblink(drvthis, DEFAULT_CURSORBLINK);
-	MtxOrb_set_contrast(drvthis, contrast);
+	MtxOrb_set_contrast(drvthis, p->contrast);
+	MtxOrb_backlight(drvthis, DEFAULT_BACKLIGHT);
 
 	report(RPT_DEBUG, "%s: init() done", drvthis->name);
 
 	return 1;
-}
-
-
-/**
- * Clear the screen.
- * \param drvthis  Pointer to driver structure.
- */
-MODULE_EXPORT void
-MtxOrb_clear (Driver *drvthis)
-{
-        PrivateData *p = drvthis->private_data;
-
-	/* set hbar/vbar/bignum mode back to normal character display */
-	p->ccmode = standard;
-
-	/* replace all chars in framebuf with spaces */
-	memset(p->framebuf, ' ', (p->width * p->height));
-
-	/* make backing store differ from framebuf so it all gets cleared by MtxOrb_flush */
-	memset(p->backingstore, 0xFE, (p->width * p->height));
-
-	debug(RPT_DEBUG, "MtxOrb: cleared screen");
 }
 
 
@@ -572,7 +509,7 @@ MtxcOrb_cellheight (Driver *drvthis)
  * \param string   String that gets written.
  */
 MODULE_EXPORT void
-MtxOrb_string (Driver *drvthis, int x, int y, char string[])
+MtxOrb_string (Driver *drvthis, int x, int y, const char string[])
 {
 	PrivateData *p = drvthis->private_data;
 	int i;
@@ -595,6 +532,28 @@ MtxOrb_string (Driver *drvthis, int x, int y, char string[])
 
 
 /**
+ * Clear the screen.
+ * \param drvthis  Pointer to driver structure.
+ */
+MODULE_EXPORT void
+MtxOrb_clear (Driver *drvthis)
+{
+        PrivateData *p = drvthis->private_data;
+
+	/* set hbar/vbar/bignum mode back to normal character display */
+	p->ccmode = standard;
+
+	/* replace all chars in framebuf with spaces */
+	memset(p->framebuf, ' ', (p->width * p->height));
+
+	/* make backing store differ from framebuf so it all gets cleared by MtxOrb_flush */
+	//memset(p->backingstore, 0xFE, (p->width * p->height));
+
+	debug(RPT_DEBUG, "MtxOrb: cleared screen");
+}
+
+
+/**
  * Flush data on screen to the LCD.
  * \param drvthis  Pointer to driver structure.
  */
@@ -602,36 +561,56 @@ MODULE_EXPORT void
 MtxOrb_flush (Driver *drvthis)
 {
         PrivateData *p = drvthis->private_data;
-	unsigned char *xp = p->framebuf;
-	unsigned char *xq = p->backingstore;
-	int i;
+	int modified = 0;
+	int i, j;
 
-	/* Note: this implementation is not optimal as it does 1 write per char */
-	for (i = 1; i <= p->height; i++) {
-		int j;
-		int move = 1;	/* need to move to the 1st char of each line */
+	for (i = 0; i < p->height; i++) {
+		// set  pointers to start of the line in frame buffer & backing store
+		unsigned char *sp = p->framebuf + (i * p->width);
+		unsigned char *sq = p->backingstore + (i * p->width);
 
-		for (j = 1; j <= p->width; j++) {
+		debug(RPT_DEBUG, "Framebuf: '%.*s'", p->width, sp);
+		debug(RPT_DEBUG, "Backingstore: '%.*s'", p->width, sq);
 
-			if (*xp == *xq)
-				move++;		/* skip a char => need to move cursor */
-			else {
-				/* Draw characters that have changed */
+		/* Strategy:
+		 * - not more than one update command per line
+		 * - leave out leading and trailing parts that are identical
+		 */
 
-				/* don't send the command character to the display */
-				unsigned char c = (*xp == 0xFE) ?  ' ': *xp;
+		// set  pointers to end of the line in frame buffer & backing store
+		unsigned char *ep = sp + (p->width - 1);
+		unsigned char *eq = sq + (p->width - 1);
+		int length = 0;
 
-				if (move != 0) {
-					MtxOrb_cursor_goto(drvthis, j, i);
-					move = 0;
-				}
-				write(p->fd, &c, 1);
-			}
-			xp++;
-			xq++;
-		}
-	}
-	memcpy(p->backingstore, p->framebuf, p->width * p->height);
+		// skip over leading identical portions of the line
+		for (j = 0; (sp <= ep) && (*sp == *sq); sp++, sq++, j++)
+			;
+
+		// skip over trailing identical portions of the line
+		for (length = p->width - j; (length > 0) && (*ep == *eq); ep--, eq--, length--)
+			;
+
+		/* there are differences, ... */
+		if (length > 0) {
+			unsigned char out[length+2];
+			unsigned char *byte;
+
+			memcpy(out, sp, length);
+			// replace command character \xFE by space
+			while ((byte = memchr(out, '\xFE', length)) != NULL)
+				*byte = ' ';
+
+			debug(RPT_DEBUG, "%s: l=%d c=%d count=%d string='%.*s'",
+			      __FUNCTION__, i, j, length, length, sp);
+
+			MtxOrb_cursor_goto(drvthis, j+1, i+1);
+			write(p->fd, out, length);
+			modified++;
+		}      
+	}	// i < p->height
+
+	if (modified)
+		memcpy(p->backingstore, p->framebuf, p->width * p->height);
 
 	debug(RPT_DEBUG, "MtxOrb: frame buffer flushed");
 }
@@ -716,39 +695,78 @@ MtxOrb_set_contrast (Driver *drvthis, int promille)
 
 
 /**
+ * Retrieve brightness.
+ * \param drvthis  Pointer to driver structure.
+ * \param state    Brightness state (on/off) for which we want the value.
+ * \return Stored brightness in promille.
+ */
+MODULE_EXPORT int
+MtxOrb_get_brightness(Driver *drvthis, int state)
+{
+	PrivateData *p = drvthis->private_data;
+
+	return (state == BACKLIGHT_ON) ? p->brightness : p->offbrightness;
+}
+
+
+/**
+ * Set on/off brightness.
+ * \param drvthis  Pointer to driver structure.
+ * \param state    Brightness state (on/off) for which we want to store the value.
+ * \param promille New brightness in promille.
+ */
+MODULE_EXPORT void
+MtxOrb_set_brightness(Driver *drvthis, int state, int promille)
+{
+	PrivateData *p = drvthis->private_data;
+
+	/* Check it */
+	if (promille < 0 || promille > 1000)
+		return;
+
+	/* store the software value since there is no get */
+	if (state == BACKLIGHT_ON) {
+		p->brightness = promille;
+		MtxOrb_backlight(drvthis, BACKLIGHT_ON);
+	}
+	else {
+		p->offbrightness = promille;
+		MtxOrb_backlight(drvthis, BACKLIGHT_OFF);
+	}
+}
+
+
+/**
  * Turn the LCD backlight on or off.
  * \param drvthis  Pointer to driver structure.
  * \param on       New backlight status.
- *
- * \warning on=0 switches vfd/vkd displays off entirely 
- *
- * \warning There seems to be a movement afoot to add more functions than just on/off to this..
  */
 MODULE_EXPORT void
 MtxOrb_backlight (Driver *drvthis, int on)
 {
-        PrivateData *p = drvthis->private_data;
+	PrivateData *p = drvthis->private_data;
+	int promille = (on == BACKLIGHT_ON)
+			     ? p->brightness
+			     : p->offbrightness;
 
-	p->backlight_state = on;
+	if (IS_VKD_DISPLAY) {
+		unsigned char out[5] = { '\xFE', '\x89', 0 };
 
-	switch (on) {
-		case BACKLIGHT_ON:
-			debug(RPT_DEBUG, "MtxOrb: display timer set to leave display on indefinitely");
-			write(p->fd, "\xFE" "B" "\0", 3);  /* 0 minutes == never turn display off */
-			break;
-		case BACKLIGHT_OFF:
-			if (IS_VKD_DISPLAY || IS_VFD_DISPLAY) {
-				debug(RPT_DEBUG, "MtxOrb: backlight off ignored - not LCD or LKD display");
-				; /* turns display off entirely (whoops!) */
-			} else {
-				debug(RPT_DEBUG, "MtxOrb: backlight turned off");
-				write(p->fd, "\xFE" "F", 2);
-			}
-			break;
-		default: /* ignored... */
-			debug(RPT_DEBUG, "MtxOrb: backlight - invalid setting");
-			break;
-		}
+		/* map range [0, 1000] -> [0, 3] that the hardware understands */
+		out[2] = (unsigned char) ((long) promille * 3 / 1000);
+
+		write(p->fd, out, 3);
+	}
+	else {
+		unsigned char out[5] = { '\xFE', '\x99', 0 };
+
+		/* map range [0, 1000] -> [0, 255] that the hardware understands */
+		out[2] = (unsigned char) ((long) promille * 255 / 1000);
+
+		write(p->fd, out, 3);
+	}
+
+	debug(RPT_DEBUG, "MtxOrb: changed brightness to %d", promille);
 }
 
 
@@ -788,6 +806,21 @@ MtxOrb_output (Driver *drvthis, int state)
 			write(p->fd, out, 3);
 		}
 	}
+}
+
+
+/**
+ * Clear the LCD using ints hardware command
+ * \param drvthis  Pointer to driver structure.
+ */
+static void
+MtxOrb_hardware_clear (Driver *drvthis)
+{
+        PrivateData *p = drvthis->private_data;
+
+	write(p->fd, "\xFE" "X", 2);
+
+	debug(RPT_DEBUG, "MtxOrb: cleared LCD");
 }
 
 
@@ -1032,7 +1065,7 @@ MtxOrb_get_info (Driver *drvthis)
  * \param options  Options (currently unused).
  */
 MODULE_EXPORT void
-MtxOrb_vbar (Driver * drvthis, int x, int y, int len, int promille, int options)
+MtxOrb_vbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 {
 	PrivateData *p = drvthis->private_data;
 
@@ -1071,7 +1104,7 @@ MtxOrb_vbar (Driver * drvthis, int x, int y, int len, int promille, int options)
  * \param options  Options (currently unused).
  */
 MODULE_EXPORT void
-MtxOrb_hbar (Driver * drvthis, int x, int y, int len, int promille, int options)
+MtxOrb_hbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 {
 	PrivateData *p = drvthis->private_data;
 
@@ -1129,14 +1162,14 @@ MtxOrb_num (Driver *drvthis, int x, int num)
 	}
 
 	// Lib_adv_bignum does everything needed to show the bignumbers.
-	lib_adv_bignum(drvthis, x, num, do_init, NUM_CCs);
+	lib_adv_bignum(drvthis, x, num, 0, do_init);
 }
 
 
 /**
- * Get number of custom chars available.
+ * Get total number of custom characters available.
  * \param drvthis  Pointer to driver structure.
- * \returns  Number of custom characters (always NUM_CCs).
+ * \return  Number of custom characters (always NUM_CCs).
  */
 MODULE_EXPORT int
 MtxOrb_get_free_chars (Driver *drvthis)
@@ -1404,11 +1437,9 @@ MtxOrb_get_key (Driver *drvthis)
 	char key = 0;
 	struct pollfd fds[1];
 
-#ifdef MTXORB_NEW_KEYMAP
 	/* don't query the keyboard if there are no mapped keys; see \todo above */
 	if ((p->keys == 0) && (!p->keypad_test_mode))
 		return NULL;
-#endif		
 
 	/* poll for data or return */
 	fds[0].fd = p->fd;
@@ -1425,7 +1456,6 @@ MtxOrb_get_key (Driver *drvthis)
 		return NULL;
 
 	if (!p->keypad_test_mode) {
-#ifdef MTXORB_NEW_KEYMAP 
 		/* we assume standard key mapping here */
 		if ((key >= 'A') && (key <= 'A' + MAX_KEY_MAP)) {
 			return p->keymap[key-'A'];
@@ -1434,24 +1464,6 @@ MtxOrb_get_key (Driver *drvthis)
 			report(RPT_INFO, "%s: Untreated key 0x%02X", drvthis->name, key);
 			return NULL;
 		}
-#else	
-	        if (key == p->left_key)
-			return "Left";
-		else if (key == p->right_key)
-			return "Right";
-		else if (key == p->up_key)
-			return "Up";
-		else if (key == p->down_key)
-			return "Down";
-		else if (key == p->enter_key)
-			return "Enter"; 
-		else if (key == p->escape_key)
-			return "Escape";
-		else {
-        		report(RPT_INFO, "%s: untreated key 0x%02X", drvthis->name, key);
-			return NULL;
-	        }
-#endif		
 	}
 	else {
 		fprintf(stdout, "MtxOrb: Received character %c\n", key);
