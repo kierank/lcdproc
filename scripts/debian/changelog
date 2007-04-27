@@ -1,3 +1,9 @@
+lcdproc (0.5.2+cvs20070427) UNRELEASED; urgency=low
+
+  * New snapshot from upstream CVS
+
+   -- Peter Marschall <peter@adpm.de>  Sat, 27 Apr 2007 15:30:00 +0200
+
 lcdproc (0.5.2) unstable; urgency=low
 
   * New upstream release
