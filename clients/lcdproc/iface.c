@@ -61,7 +61,7 @@ iface_process_configfile(void)
 		char iface_label[12];
 		
 		sprintf(iface_label, "Interface%i", iface_count);
-		debug(RPT_DEBUG, "Label %s count %i\n", iface_label, iface_count);
+		debug(RPT_DEBUG, "Label %s count %i", iface_label, iface_count);
 		iface[iface_count].name = strdup(config_get_string("Iface", iface_label, 0, ""));
 		if (iface[iface_count].name == NULL) {
 			report(RPT_CRIT, "malloc failure");
@@ -74,7 +74,7 @@ iface_process_configfile(void)
 		if (iface[iface_count].alias == NULL)
 			// make alia the same as the interface name in case strdup() failed
 			iface[iface_count].alias = iface[iface_count].name;
-		debug(RPT_DEBUG, "Interface %i: %s alias %s\n",
+		debug(RPT_DEBUG, "Interface %i: %s alias %s",
 			iface_count, iface[iface_count].name, iface[iface_count].alias);
 	}
 	
@@ -239,12 +239,14 @@ initialize_speed_screen(void)
 void
 format_value (char *buff, double value, char *unit)
 {
+	char *mag;
+
 	/* Convert bytes to bits, if necessary */
 	if (strstr(unit, "b"))
 		value *= 8;
 
 	/* If units are bytes, then divide by 2^10, otherwise by 10^3 */
-	char *mag = convert_double(&value, (strstr(unit, "B")) ? 1024 : 1000, 1.0f);
+	mag = convert_double(&value, (strstr(unit, "B")) ? 1024 : 1000, 1.0f);
 
 	/* Formatting rules:
 	 * - if original value was < 1000, output decimal value only
@@ -266,10 +268,12 @@ format_value (char *buff, double value, char *unit)
 void
 format_value_multi_interface (char *buff, double value, char *unit)
 {
+	char *mag;
+
 	if (strstr(unit, "b"))
 		value *= 8;
 
-	char *mag = convert_double(&value, (strstr(unit, "B")) ? 1024 : 1000, 1.0f);
+	mag = convert_double(&value, (strstr(unit, "B")) ? 1024 : 1000, 1.0f);
 
 	/* Formatting rules:
 	 * - if original value was < 1000, output decimal value only
@@ -281,7 +285,7 @@ format_value_multi_interface (char *buff, double value, char *unit)
 	else if (value < 10)
 		sprintf(buff, "%3.1f%s", value, mag);
 	else
-		sprintf(buff, "%3.f%s", value, mag);
+		sprintf(buff, "%3.0f%s", value, mag);
 
 } /* format_value_multi_interface() */
 

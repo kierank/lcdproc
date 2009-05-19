@@ -1,15 +1,4 @@
-/*
- * menu.c
- * This file is part of LCDd, the lcdproc server.
- *
- * This file is released under the GNU General Public License. Refer to the
- * COPYING file distributed with this package.
- *
- * Copyright (c) 1999, William Ferrell, Scott Scriven
- *               2002, Joris Robijn
- *               2004, F5 Networks, Inc. - IP-address input
- *               2005, Peter Marschall - error checks, ...
- *
+/** \file server/menu.c
  * Handles a menu and all actions that can be performed on it. Note that a
  * menu is itself also a menuitem.
  *
@@ -20,7 +9,17 @@
  * The servermenu is created from servermenu.c
  *
  * For separation this file should never need to include menuscreen.h.
+ */
+
+/* This file is part of LCDd, the lcdproc server.
  *
+ * This file is released under the GNU General Public License.
+ * Refer to the COPYING file distributed with this package.
+ *
+ * Copyright (c) 1999, William Ferrell, Scott Scriven
+ *               2002, Joris Robijn
+ *               2004, F5 Networks, Inc. - IP-address input
+ *               2005, Peter Marschall - error checks, ...
  */
 
 #include <stdlib.h>
@@ -29,7 +28,9 @@
 #include <unistd.h>
 #include <assert.h>
 
-#include "config.h"
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include "menuitem.h"
 #include "menu.h"
@@ -42,8 +43,13 @@
 
 extern Menu *custom_main_menu;
 
-/** Basicly a patched version of LL_GetByIndex() that ignores hidden
- * entries completely. (But it takes a menu as an argument.) */
+
+/**
+ * Search a menu for an entry by index, ignoring hidden entries.
+ * \param menu   Pointer to menu to search in.
+ * \param index  Index to search for.
+ * \return  Pointer to entry found, NULL otherwise.
+ */
 static void *
 menu_get_subitem(Menu *menu, int index)
 {
@@ -54,24 +60,24 @@ menu_get_subitem(Menu *menu, int index)
 			((menu != NULL) ? menu->id : "(null)"), index);
 	for (item = LL_GetFirst(menu->data.menu.contents);
 	     item != NULL;
-	     item = LL_GetNext(menu->data.menu.contents))
-	{
-		if (! item->is_hidden)
-		{
+	     item = LL_GetNext(menu->data.menu.contents)) {
+		/* hidden items don't count at all... */
+		if (! item->is_hidden) {
 			if (i == index)
 				return item;
-			/* hidden items don't count at all... */
 			++i;
 		}
 	}
 	return NULL;
 }
 
+
 /**
- * Searches for a subitem with id item_id. This function ignores hidden
- * entries completely.
- *
- * @return index of subitem if found and -1 otherwise. */
+ * Search a menu for an entry by its ID, ignoring hidden entries.
+ * \param menu     Pointer to menu to search in.
+ * \param item_id  ID to search for.
+ * \return  Index of subitem if found, and -1 otherwise.r
+ */
 static int
 menu_get_index_of(Menu *menu, char *item_id)
 {
@@ -82,19 +88,23 @@ menu_get_index_of(Menu *menu, char *item_id)
 			((menu != NULL) ? menu->id : "(null)"), item_id);
 	for (item = LL_GetFirst(menu->data.menu.contents);
 	     item != NULL;
-	     item = LL_GetNext(menu->data.menu.contents))
-	{
-		if (! item->is_hidden)
-		{
+	     item = LL_GetNext(menu->data.menu.contents)) {
+		/* hidden items don't count at all... */
+		if (! item->is_hidden) {
 			if (strcmp(item_id, item->id) == 0)
 				return i;
-			/* hidden items don't count at all... */
 			++i;
 		}
 	}
 	return -1;
 }
 
+
+/**
+ * Count entries in a menu, ignoring invisible ones.
+ * \param menu     Pointer to menu to search in.
+ * \return  Number of visible entries in the menu.
+ */
 static int
 menu_visible_item_count(Menu *menu)
 {
@@ -109,6 +119,79 @@ menu_visible_item_count(Menu *menu)
 			++i;
 	}
 	return i;
+}
+
+
+#define LV_LABEL_ONLY	1	/**< Fill string with label only */
+#define LV_VALUE_ONLY	2	/**< Fill string with value only */
+#define LV_LABEL_VALU	3	/**< Fill string with label & beginning of value */
+#define LV_LABEL_ALUE	4	/**< Fill string with label & end of value */
+
+/**
+ * Fill string with left-aligned label and right-aligned value,
+ * with different modes on overflow.
+ * \param string  String to fill with label and value.
+ * \param len     Length of string (=no. of bytes).
+ * \param text    Label to use.
+ * \param value   Value to use.
+ * \param mode    Flag governing behaviour on overflow.
+ * \return Filled string, or \c NULL in case of problems.
+ */
+char *
+fill_labeled_value(char *string, int len, const char *text, const char *value, int mode)
+{
+	if ((string != NULL)  && (text != NULL) && (len > 0)) {
+		int textlen = strlen(text);
+
+		len--;	// make calculations nicer ;-)))
+
+		debug(RPT_DEBUG, "%s(string=[%p], len=%d, text=\"%s\", value=\"%s\", mode=%d)", __FUNCTION__,
+				string, len, text, ((value != NULL) ? value : "(null)"), mode);
+
+		if ((value != NULL) &&
+		    (textlen + strlen(value) < len - 1)) {
+			memset(string, ' ', len);
+			strncpy(string, text, textlen);
+			strcpy(string + len - strlen(value), value);
+		}
+		else {
+			// safeguard against missing value or too long labels
+			if ((value == NULL) || (textlen >= len-3))
+				mode = LV_LABEL_ONLY;
+
+			switch (mode) {
+			  case LV_LABEL_VALU:	// show fist chars in value
+				memset(string, ' ', len);
+			  	strncpy(string, text, textlen);
+				strncpy(string + textlen + 2, value, len - textlen - 2);
+				strcpy(string + len - 2, "..");
+				string[len] = '\0';
+				break;
+			  case LV_LABEL_ALUE:	// show last chars in value
+				memset(string, ' ', len);
+			  	strncpy(string, text, textlen);
+				strcpy(string + textlen + 2, "..");
+				strcpy(string + textlen + 4,
+				       value + strlen(value) - len + textlen + 4);
+				string[len] = '\0';
+				break;
+			  case LV_VALUE_ONLY:
+				/* indent by one to indicate it's a value */
+				strcpy(string, " ");
+				strncpy(string + 1, value, len-1);
+				string[len] = '\0';
+				break;
+			  case LV_LABEL_ONLY:
+			  default:
+				strncpy(string, text, len);
+				string[len] = '\0';
+				break;
+			}
+
+		}
+		return(string);
+	}
+	return NULL;
 }
 
 
@@ -131,6 +214,7 @@ menu_create(char *id, MenuEventFunc(*event_func),
 	return new_menu;
 }
 
+
 void
 menu_destroy(Menu *menu)
 {
@@ -150,6 +234,7 @@ menu_destroy(Menu *menu)
 	/* After this the general menuitem routine destroys the rest... */
 }
 
+
 void
 menu_add_item(Menu *menu, MenuItem *item)
 {
@@ -164,6 +249,7 @@ menu_add_item(Menu *menu, MenuItem *item)
 	LL_Push(menu->data.menu.contents, item);
 	item->parent = menu;
 }
+
 
 void
 menu_remove_item(Menu *menu, MenuItem *item)
@@ -183,7 +269,7 @@ menu_remove_item(Menu *menu, MenuItem *item)
 	     item2 != NULL;
 	     item2 = LL_GetNext(menu->data.menu.contents), i++) {
 		if (item == item2) {
-			LL_DeleteNode(menu->data.menu.contents);
+			LL_DeleteNode(menu->data.menu.contents, NEXT);
 			if (menu->data.menu.selector_pos >= i) {
 				menu->data.menu.selector_pos--;
 				if (menu->data.menu.scroll > 0)
@@ -193,6 +279,7 @@ menu_remove_item(Menu *menu, MenuItem *item)
 		}
 	}
 }
+
 
 void
 menu_destroy_all_items(Menu *menu)
@@ -207,9 +294,10 @@ menu_destroy_all_items(Menu *menu)
 
 	for (item = menu_getfirst_item(menu); item != NULL; item = menu_getfirst_item(menu)) {
 		menuitem_destroy(item);
-		LL_Remove(menu->data.menu.contents, item);
+		LL_Remove(menu->data.menu.contents, item, NEXT);
 	}
 }
+
 
 MenuItem *menu_get_current_item(Menu *menu)
 {
@@ -217,6 +305,7 @@ MenuItem *menu_get_current_item(Menu *menu)
 			    ? menu_get_subitem(menu, menu->data.menu.selector_pos)
 			    : NULL);
 }
+
 
 MenuItem *menu_find_item(Menu *menu, char *id, bool recursive)
 {
@@ -234,21 +323,22 @@ MenuItem *menu_find_item(Menu *menu, char *id, bool recursive)
 		if (strcmp(item->id, id) == 0) {
 			return item;
 		}
-		else if (recursive && item->type == MENUITEM_MENU) {
-			MenuItem *res;
-			res = menu_find_item(item, id, recursive);
-			if (res) {
+		if (recursive && (item->type == MENUITEM_MENU)) {
+			MenuItem *res = menu_find_item(item, id, recursive);
+
+			if (res != NULL)
 				return res;
-			}
 		}
 	}
 	return NULL;
 }
 
+
 void menu_set_association(Menu *menu, void *assoc)
 {
 	menu->data.menu.association = assoc;
 }
+
 
 void menu_reset(Menu *menu)
 {
@@ -261,6 +351,7 @@ void menu_reset(Menu *menu)
 	menu->data.menu.selector_pos = 0;
 	menu->data.menu.scroll = 0;
 }
+
 
 void menu_build_screen(MenuItem *menu, Screen *s)
 {
@@ -296,7 +387,7 @@ void menu_build_screen(MenuItem *menu, Screen *s)
 		if (subitem->is_hidden)
 			continue;
 		snprintf(buf, sizeof(buf)-1, "text%d", itemnr);
-		buf[sizeof(buf)-1] = 0;
+		buf[sizeof(buf)-1] = '\0';
 		w = widget_create(buf, WID_STRING, s);
 					/* (buf will be copied) */
 		if (w != NULL) {
@@ -308,13 +399,12 @@ void menu_build_screen(MenuItem *menu, Screen *s)
 
 				/* Limit string length */
 				w->text = strdup(subitem->text);
-				if (strlen(subitem->text) >= display_props->width-2) {
-					(w->text)[display_props->width-2] = 0;
-				}
+				if (strlen(subitem->text) >= display_props->width-2)
+					w->text[display_props->width-2] = '\0';
 
 				/* Add icon for checkbox */
 				snprintf(buf, sizeof(buf)-1, "icon%d", itemnr);
-				buf[sizeof(buf)-1] = 0;
+				buf[sizeof(buf)-1] = '\0';
 				w = widget_create(buf, WID_ICON, s);
 						/* (buf will be copied) */
 				screen_add_widget(s, w);
@@ -330,9 +420,8 @@ void menu_build_screen(MenuItem *menu, Screen *s)
 				w->text = malloc(strlen(subitem->text) + 4);
 				strcpy(w->text, subitem->text);
 				strcat(w->text, " >");
-				if (strlen(subitem->text) >= display_props->width-1) {
-					(w->text)[display_props->width-1] = '\0';
-				}
+				if (strlen(subitem->text) >= display_props->width-1)
+					w->text[display_props->width-1] = '\0';
 				break;
 			  case MENUITEM_ACTION:
 			  case MENUITEM_SLIDER:
@@ -340,10 +429,9 @@ void menu_build_screen(MenuItem *menu, Screen *s)
 			  case MENUITEM_ALPHA:
 			  case MENUITEM_IP:
 				/* Limit string length */
-				w->text = strdup(subitem->text);
-				if (strlen(subitem->text) >= display_props->width-1) {
-					(w->text)[display_props->width-1] = '\0';
-				}
+				w->text = malloc(display_props->width);
+				strncpy(w->text, subitem->text, display_props->width);
+				w->text[display_props->width-1] = '\0';
 				break;
 			 default:
 				assert(!"unexpected menuitem type");
@@ -379,6 +467,7 @@ void menu_build_screen(MenuItem *menu, Screen *s)
 
 }
 
+
 void menu_update_screen(MenuItem *menu, Screen *s)
 {
 	Widget *w;
@@ -395,90 +484,79 @@ void menu_update_screen(MenuItem *menu, Screen *s)
 
 	/* Update widgets for the title */
 	w = screen_find_widget(s, "title");
-	if (!w)	report(RPT_ERR, "%s: could not find widget: %s", __FUNCTION__, "title");
+	if (w == NULL)
+		report(RPT_ERR, "%s: could not find widget: %s", __FUNCTION__, "title");
 	w->y = 1 - menu->data.menu.scroll;
 
-	/* TODO: remove next 5 limes when rendering is safe */
-	if (w->y > 0 && w->y <= display_props->height) {
-		w->type = WID_TITLE;
-	} else {
-		w->type = WID_NONE; /* make invisible */
-	}
+	/* TODO: remove next 3 limes when rendering is safe */
+	w->type = ((w->y > 0) && (w->y <= display_props->height))
+		  ? WID_TITLE
+		  : WID_NONE;	/* make invisible */
 
 	/* Update widgets for each subitem in the menu */
 	for (subitem = LL_GetFirst(menu->data.menu.contents), itemnr = 0;
-	     subitem;
+	     subitem != NULL;
 	     subitem = LL_GetNext(menu->data.menu.contents), itemnr ++)
 	{
-		char buf[10];
+		char buf[LCD_MAX_WIDTH];	// long enough for "icon%d" and such
 		char *p;
+		int len = display_props->width - 1;
 
-		if (subitem->is_hidden)
-		{
+		if (subitem->is_hidden) {
 			debug(RPT_DEBUG, "%s: menu %s has hidden menu: %s",
 			      __FUNCTION__, menu->id, subitem->id);
-			++hidden_count;
+			hidden_count++;
 			continue;
 		}
 		snprintf(buf, sizeof(buf)-1, "text%d", itemnr);
-		buf[sizeof(buf)-1] = 0;
+		buf[sizeof(buf)-1] = '\0';
 		w = screen_find_widget(s, buf);
-		if (!w)	report(RPT_ERR, "%s: could not find widget: %s", __FUNCTION__, buf);
+		if (w == NULL)
+			report(RPT_ERR, "%s: could not find widget: %s", __FUNCTION__, buf);
 		w->y = 2 + itemnr - hidden_count - menu->data.menu.scroll;
 
-		/* TODO: remove next 5 lines when rendering is safe */
-		if (w->y > 0 && w->y <= display_props->height) {
-			w->type = WID_STRING;
-		} else {
-			w->type = WID_NONE; /* make invisible */
-		}
+		/* TODO: remove next 3 lines when rendering is safe */
+		w->type = ((w->y > 0) && (w->y <= display_props->height))
+			  ? WID_STRING
+			  : WID_NONE;	/* make invisible */
 
 		switch (subitem->type) {
 		  case MENUITEM_CHECKBOX:
-
 			/* Update icon value for checkbox */
 			snprintf(buf, sizeof(buf)-1, "icon%d", itemnr);
-			buf[sizeof(buf)-1] = 0;
+			buf[sizeof(buf)-1] = '\0';
 			w = screen_find_widget(s, buf);
-			if (!w)	report(RPT_ERR, "%s: could not find widget: %s", __FUNCTION__, buf);
+			if (w == NULL)
+				report(RPT_ERR, "%s: could not find widget: %s", __FUNCTION__, buf);
 			w->y = 2 + itemnr - menu->data.menu.scroll;
 			w->length = ((int[]){ICON_CHECKBOX_OFF,ICON_CHECKBOX_ON,ICON_CHECKBOX_GRAY})[subitem->data.checkbox.value];
 
-			/* TODO: remove next 5 lines when rendering is safe */
-			if (w->y > 0 && w->y <= display_props->height) {
-				w->type = WID_ICON;
-			} else {
-				w->type = WID_NONE; /* make invisible */
-			}
+			/* TODO: remove next 3 lines when rendering is safe */
+			w->type = ((w->y > 0) && (w->y <= display_props->height))
+				  ? WID_ICON
+				  : WID_NONE;	/* make invisible */
 			break;
 		  case MENUITEM_RING:
-			if (subitem->data.ring.value >= LL_Length(subitem->data.ring.strings)) {
-				/* No strings available */
-				memcpy(w->text, subitem->text, display_props->width - 2);
-				w->text[ display_props->width - 2 ] = 0;
-			}
-			else {
-				/* Limit string length and add ringstring */
-				p = LL_GetByIndex(subitem->data.ring.strings, subitem->data.ring.value);
-				assert(p != NULL);
-				if (strlen(p) > display_props->width - 3) {
-					short a = display_props->width - 3;
-					/* We need to limit the ring string and DON'T
-					 * display the item text */
-					strcpy(w->text, " ");
-					memcpy(w->text + 1, p, a);
-					w->text[a + 1] = 0;
-				}
-				else {
-					short b = display_props->width - 2 - strlen(p);
-					short c = min(strlen(subitem->text), b - 1);
-					/* We don't limit the ring string */
-					memset(w->text, ' ', b);
-					memcpy(w->text, subitem->text, c);
-					strcpy(w->text + b, p);
-				}
-			}
+			p = LL_GetByIndex(subitem->data.ring.strings, subitem->data.ring.value);
+			fill_labeled_value(w->text, len, subitem->text, p, LV_VALUE_ONLY);
+
 			break;
+		    case MENUITEM_SLIDER:
+			snprintf(buf, display_props->width, "%d", subitem->data.slider.value);
+			buf[display_props->width-1] = '\0';
+			fill_labeled_value(w->text, len, subitem->text, buf, LV_LABEL_VALU);
+		    	break;
+		    case MENUITEM_NUMERIC:
+			snprintf(buf, display_props->width, "%d", subitem->data.numeric.value);
+			buf[display_props->width-1] = '\0';
+			fill_labeled_value(w->text, len, subitem->text, buf, LV_LABEL_VALU);
+		    	break;
+		    case MENUITEM_ALPHA:
+			fill_labeled_value(w->text, len, subitem->text, subitem->data.alpha.value, LV_LABEL_VALU);
+		    	break;
+		    case MENUITEM_IP:
+			fill_labeled_value(w->text, len, subitem->text, subitem->data.ip.value, LV_LABEL_ALUE);
+		    	break;
 		  default:
                       break;
 		}
@@ -507,15 +585,17 @@ void menu_update_screen(MenuItem *menu, Screen *s)
 		report(RPT_ERR, "%s: could not find widget: %s", __FUNCTION__, "downscroller");
 }
 
+
 MenuItem *menu_get_item_for_predecessor_check(Menu *menu)
 {
 	MenuItem *subitem = menu_get_subitem(menu, menu->data.menu.selector_pos);
-	if (! subitem)
+
+	if (subitem == NULL)
 		return NULL;
 	switch (subitem->type) {
-	case MENUITEM_ACTION:
-	case MENUITEM_CHECKBOX:
-	case MENUITEM_RING:
+	  case MENUITEM_ACTION:
+	  case MENUITEM_CHECKBOX:
+	  case MENUITEM_RING:
 		// for types without own screen: look for menu's
 		// predecessor if its subitem doesn't have one. (Since
 		// menus can't have successors this problem arises
@@ -523,39 +603,42 @@ MenuItem *menu_get_item_for_predecessor_check(Menu *menu)
 		if (subitem->predecessor_id == NULL)
 			return menu;
 		return subitem;
-	case MENUITEM_MENU:
-	case MENUITEM_SLIDER:
-	case MENUITEM_NUMERIC:
-	case MENUITEM_ALPHA:
-	case MENUITEM_IP:
+	  case MENUITEM_MENU:
+	  case MENUITEM_SLIDER:
+	  case MENUITEM_NUMERIC:
+	  case MENUITEM_ALPHA:
+	  case MENUITEM_IP:
 		return menu;
-	default:
+	  default:
 		return NULL;
 	}
 }
+
 
 MenuItem *menu_get_item_for_successor_check(Menu *menu)
 {
 	MenuItem *subitem = menu_get_subitem(menu, menu->data.menu.selector_pos);
-	if (! subitem)
+
+	if (subitem == NULL)
 		return NULL;
 	switch (subitem->type) {
-	case MENUITEM_ACTION:
-	case MENUITEM_CHECKBOX:
-	case MENUITEM_RING:
+	  case MENUITEM_ACTION:
+	  case MENUITEM_CHECKBOX:
+	  case MENUITEM_RING:
 		return subitem;
-	case MENUITEM_MENU:
-	case MENUITEM_SLIDER:
-	case MENUITEM_NUMERIC:
-	case MENUITEM_ALPHA:
-	case MENUITEM_IP:
+	  case MENUITEM_MENU:
+	  case MENUITEM_SLIDER:
+	  case MENUITEM_NUMERIC:
+	  case MENUITEM_ALPHA:
+	  case MENUITEM_IP:
 		return menu;
-	default:
+	  default:
 		return NULL;
 	}
 }
 
-MenuResult menu_process_input(Menu *menu, MenuToken token, const char *key, bool extended)
+
+MenuResult menu_process_input(Menu *menu, MenuToken token, const char *key, unsigned int keymask)
 {
 	MenuItem *subitem;
 	debug(RPT_DEBUG, "%s(menu=[%s], token=%d, key=\"%s\")", __FUNCTION__,
@@ -567,7 +650,7 @@ MenuResult menu_process_input(Menu *menu, MenuToken token, const char *key, bool
 	switch (token) {
 	  case MENUTOKEN_MENU:
 		subitem = menu_get_item_for_predecessor_check(menu);
-		if (! subitem)
+		if (subitem == NULL)
 			return MENURESULT_ERROR;
 		return menuitem_predecessor2menuresult(
 			subitem->predecessor_id, MENURESULT_CLOSE);
@@ -582,18 +665,17 @@ MenuResult menu_process_input(Menu *menu, MenuToken token, const char *key, bool
 			return menuitem_successor2menuresult(
 				subitem->successor_id, MENURESULT_NONE);
 		  case MENUITEM_CHECKBOX:
-			if (subitem->data.checkbox.allow_gray) {
-				subitem->data.checkbox.value = (subitem->data.checkbox.value + 1) % 3;
-			}
-			else {
-				subitem->data.checkbox.value = (subitem->data.checkbox.value + 1) % 2;
-			}
+			subitem->data.checkbox.value++;
+			subitem->data.checkbox.value %= (subitem->data.checkbox.allow_gray) ? 3 : 2;
+
 			if (subitem->event_func)
 				subitem->event_func(subitem, MENUEVENT_UPDATE);
 			return menuitem_successor2menuresult(
 				subitem->successor_id, MENURESULT_NONE);
 		  case MENUITEM_RING:
-			subitem->data.ring.value = (subitem->data.ring.value + 1) % LL_Length(subitem->data.ring.strings);
+			subitem->data.ring.value++;
+			subitem->data.ring.value %= LL_Length(subitem->data.ring.strings);
+
 			if (subitem->event_func)
 				subitem->event_func(subitem, MENUEVENT_UPDATE);
 			return menuitem_successor2menuresult(
@@ -610,9 +692,9 @@ MenuResult menu_process_input(Menu *menu, MenuToken token, const char *key, bool
 		return MENURESULT_ERROR;
 	  case MENUTOKEN_UP:
 		if (menu->data.menu.selector_pos > 0) {
-			menu->data.menu.selector_pos --;
-			if (menu->data.menu.selector_pos + 1 < menu->data.menu.scroll)
-				menu->data.menu.scroll --;
+			if (menu->data.menu.selector_pos < menu->data.menu.scroll)
+				menu->data.menu.scroll--;
+			menu->data.menu.selector_pos--;
 		}
 		else if (menu->data.menu.selector_pos == 0) {
 			// wrap around to last menu entry
@@ -622,9 +704,9 @@ MenuResult menu_process_input(Menu *menu, MenuToken token, const char *key, bool
 		return MENURESULT_NONE;
 	  case MENUTOKEN_DOWN:
 		if (menu->data.menu.selector_pos < menu_visible_item_count(menu) - 1) {
-			menu->data.menu.selector_pos ++;
+			menu->data.menu.selector_pos++;
 			if (menu->data.menu.selector_pos - menu->data.menu.scroll + 2 > display_props->height)
-				menu->data.menu.scroll ++;
+				menu->data.menu.scroll++;
 		}
 		else {
 			// wrap araound to 1st menu entry
@@ -633,7 +715,7 @@ MenuResult menu_process_input(Menu *menu, MenuToken token, const char *key, bool
 		}	
 		return MENURESULT_NONE;
 	  case MENUTOKEN_LEFT:
-		if (!extended)
+		if (!(keymask & MENUTOKEN_LEFT))
 			return MENURESULT_NONE;
 
 		subitem = menu_get_subitem(menu, menu->data.menu.selector_pos);
@@ -641,22 +723,19 @@ MenuResult menu_process_input(Menu *menu, MenuToken token, const char *key, bool
 			break;
 		switch (subitem->type) {
 		  case MENUITEM_CHECKBOX:
-			/* note: this dangerous looking code works since
-			 * CheckboxValue is an enum >= 0. */
-			if (subitem->data.checkbox.allow_gray) {
-				subitem->data.checkbox.value = (subitem->data.checkbox.value - 1) % 3;
-			}
-			else {
-				subitem->data.checkbox.value = (subitem->data.checkbox.value - 1) % 2;
-			}
+			/* Note: this works as CheckboxValue is an enum >= 0. */
+			subitem->data.checkbox.value--;
+			subitem->data.checkbox.value %= (subitem->data.checkbox.allow_gray) ? 3 : 2;
+
 			if (subitem->event_func)
 				subitem->event_func(subitem, MENUEVENT_UPDATE);
 			return MENURESULT_NONE;
 		  case MENUITEM_RING:
 			/* ring: jump to the end if beginning is reached */
-			subitem->data.ring.value = (subitem->data.ring.value < 1)
-				? LL_Length(subitem->data.ring.strings) - 1
-				: (subitem->data.ring.value - 1) % LL_Length(subitem->data.ring.strings);
+			/* Note: this works as data.ring.value is a short >= 0 */
+			subitem->data.ring.value--;
+			subitem->data.ring.value %= LL_Length(subitem->data.ring.strings);
+
 			if (subitem->event_func)
 				subitem->event_func(subitem, MENUEVENT_UPDATE);
 			return MENURESULT_NONE;
@@ -665,7 +744,7 @@ MenuResult menu_process_input(Menu *menu, MenuToken token, const char *key, bool
 		}
 		return MENURESULT_NONE;
 	  case MENUTOKEN_RIGHT:
-		if (!extended)
+		if (!(keymask & MENUTOKEN_RIGHT))
 			return MENURESULT_NONE;
 
 		subitem = menu_get_subitem(menu, menu->data.menu.selector_pos);
@@ -673,17 +752,16 @@ MenuResult menu_process_input(Menu *menu, MenuToken token, const char *key, bool
 			break;
 		switch (subitem->type) {
 		  case MENUITEM_CHECKBOX:
-			if (subitem->data.checkbox.allow_gray) {
-				subitem->data.checkbox.value = (subitem->data.checkbox.value + 1) % 3;
-			}
-			else {
-				subitem->data.checkbox.value = (subitem->data.checkbox.value + 1) % 2;
-			}
+			subitem->data.checkbox.value++;
+			subitem->data.checkbox.value %= (subitem->data.checkbox.allow_gray) ? 3 : 2;
+
 			if (subitem->event_func)
 				subitem->event_func(subitem, MENUEVENT_UPDATE);
 			return MENURESULT_NONE;
 		  case MENUITEM_RING:
-			subitem->data.ring.value = (subitem->data.ring.value + 1) % LL_Length(subitem->data.ring.strings);
+			subitem->data.ring.value++;
+			subitem->data.ring.value %= LL_Length(subitem->data.ring.strings);
+
 			if (subitem->event_func)
 				subitem->event_func(subitem, MENUEVENT_UPDATE);
 			return MENURESULT_NONE;
@@ -695,30 +773,40 @@ MenuResult menu_process_input(Menu *menu, MenuToken token, const char *key, bool
 		return MENURESULT_NONE;
 	  case MENUTOKEN_OTHER:
 		/* TODO: move to the selected number and enter it */
+	  default:	
 		return MENURESULT_NONE;
 	}
 	return MENURESULT_ERROR;
 }
 
-/** positions current item pointer on subitem subitem_id. If subitem_id is
- * hidden or not valid subitem of menu this function does nothing. */
-void menu_select_subitem(Menu *menu, char *subitem_id)
+
+/**
+ * Position current item pointer on entry with given ID in given menu.
+ * If entry is hidden or no valid subitem of menu do nothing.
+ * \param menu     Pointer to menu to position pointer in.
+ * \param item_id  Sub-Menu ID to position menu pointer on.
+ */
+void menu_select_subitem(Menu *menu, char *item_id)
 {
+	int position;
+
 	assert(menu != NULL);
-	debug(RPT_DEBUG, "%s(menu=[%s], subitem_id=\"%s\")", __FUNCTION__,
-	       menu->id, subitem_id);
-	int position = menu_get_index_of(menu, subitem_id);
-	if (position < 0)
-	{
-		debug(RPT_DEBUG, "%s: subitem \"%s\" not found"
+	position = menu_get_index_of(menu, item_id);
+	debug(RPT_DEBUG, "%s(menu=[%s], item_id=\"%s\")", __FUNCTION__,
+	       menu->id, item_id);
+
+	if (position < 0) {
+		debug(RPT_DEBUG, "%s: item \"%s\" not found"
 		      " or hidden in \"%s\", ignored",
-		      __FUNCTION__, subitem_id, menu->id);
+		      __FUNCTION__, item_id, menu->id);
 		return;
 	}
 	// debug(RPT_DEBUG, "%s: %s->%s is at position %d,"
 	//       " current item is at menu position: %d, scroll: %d",
-	//       __FUNCTION__, menu->id, subitem_id, position,
+	//       __FUNCTION__, menu->id, item_id, position,
 	//       menu->data.menu.selector_pos, menu->data.menu.scroll);
 	menu->data.menu.selector_pos = position;
 	menu->data.menu.scroll = position;
 }
+
+/* EOF */

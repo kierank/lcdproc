@@ -1,3 +1,7 @@
+/** \file server/drivers/joy.c
+ * LCDd \c joy input driver for inputting data using joysticks.
+ */
+
 /*
  * Joystick input driver for LCDd
  *
@@ -44,8 +48,8 @@
 #define JOY_DEFAULT_BUTTONMAP	"BDACEFGHIJKLMNOP"
 
 
-
-typedef struct driver_private_data {
+/** private data for the \c joy driver */
+typedef struct joy_private_data {
 	char device[256];
 	int fd;
 
@@ -66,9 +70,12 @@ MODULE_EXPORT int supports_multiple = 0;
 MODULE_EXPORT char *symbol_prefix = "joy_";
 
 
-////////////////////////////////////////////////////////////
-// init() should set up any device-specific stuff, and
-// point all the function pointers.
+/**
+ * Initialize the driver.
+ * \param drvthis  Pointer to driver structure.
+ * \retval 0   Success.
+ * \retval <0  Error.
+ */
 MODULE_EXPORT int
 joy_init (Driver *drvthis)
 {
@@ -173,6 +180,10 @@ joy_init (Driver *drvthis)
 }
 
 
+/**
+ * Close the driver (do necessary clean-up).
+ * \param drvthis  Pointer to driver structure.
+ */
 MODULE_EXPORT void
 joy_close (Driver *drvthis)
 {
@@ -193,11 +204,13 @@ joy_close (Driver *drvthis)
 }
 
 
-//////////////////////////////////////////////////////////////////////
-// Tries to read a character from an input device...
-//
-// Return NULL0 for "nothing available".
-//
+/**
+ * Get key from the joystick.
+ * Map the joystick events (move, button press) to a key.
+ * \param drvthis  Pointer to driver structure.
+ * \return         String representation of the key;
+ *                 \c NULL for nothing available / error.
+ */
 MODULE_EXPORT const char *
 joy_get_key (Driver *drvthis)
 {

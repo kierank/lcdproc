@@ -1,4 +1,7 @@
-/*icp_a106.c*/
+/** \file server/drivers/icp_a106.c
+ * LCDd \c icp_a106 for the ICP A106 alarm/LCD board used in 19" rack cases by ICP.
+ */
+
 /*
   This is the LCDproc driver for the ICP A106 alarm/LCD board,
   used in 19" rack cases by ICP
@@ -48,8 +51,9 @@
 #include "icp_a106.h"
 #include "report.h"
 
-typedef struct
-{
+
+/** private data for the \c icp_a106 driver */
+typedef struct icp_a106_private_data {
   unsigned char *framebuf;
   unsigned char *last_framebuf;
   int width;

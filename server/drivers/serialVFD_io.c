@@ -1,3 +1,9 @@
+/** \file server/drivers/serialVFD_io.c
+ * Hardware dependent routines for the \c serialVFD driver.
+ * Here are the routines for initializing, writing to, and closing the
+ * serial resp. parallel port for the \c serialVFD driver.
+ */
+
 /* 	This file is part the LCDproc driver for various serial VFD Devices.
 
 	It contains the hardwaredependent commands ach characterset.
@@ -44,6 +50,9 @@
 void
 serialVFD_write_serial (Driver *drvthis, unsigned char *dat, size_t length)
 {
+	if (length <= 0)
+		return;
+
 	PrivateData *p = drvthis->private_data;
 	write(p->fd,dat,length);
 }
@@ -51,21 +60,37 @@ serialVFD_write_serial (Driver *drvthis, unsigned char *dat, size_t length)
 void
 serialVFD_write_parallel (Driver *drvthis, unsigned char *dat, size_t length)
 {
+	if (length <= 0)
+		return;
+
 #ifdef HAVE_PCSTYLE_LPT_CONTROL
 	PrivateData *p = drvthis->private_data;
 	int i_para, j_para;
 
 	for (i_para = 0; i_para < length; i_para++) {
 		port_out(p->port, dat[i_para]);
-//		port_in(p->port+1);
+
+		if (p->para_wait > 2)	// some displays need a little time to rest
+			port_in(p->port+1);
+
 		port_out(p->port+2, WR_on);
-		port_in(p->port+1);
+
+		if (p->para_wait > 1)	// some displays need a little time to rest
+			port_in(p->port+1);
+
 		port_out(p->port+2, WR_off);
-		port_in(p->port+1);
+
+		if (p->para_wait > 0)	// some displays need a little time to rest
+			port_in(p->port+1);
+
 		for (j_para = 0; j_para < MAXBUSY; j_para++) {
 			if ((port_in(p->port+1)) & Busy)
 				break;
 		}
+
+		for (j_para = 3; j_para < p->para_wait; j_para++) // some displays need a little longer time to rest
+			port_in(p->port+1);
+
 	}
 #endif
 }
@@ -81,7 +106,7 @@ serialVFD_init_serial (Driver *drvthis)
 	p->fd = open(p->device, O_RDWR | O_NOCTTY | O_NDELAY);
 
 	if (p->fd == -1) {
-		report(RPT_ERR, "%s: open() of %s failed (%s)\n", __FUNCTION__, p->device, strerror(errno));
+		report(RPT_ERR, "%s: open() of %s failed (%s)", __FUNCTION__, p->device, strerror(errno));
 		return -1;
 	}
 
@@ -117,12 +142,12 @@ serialVFD_init_parallel (Driver *drvthis)
 #ifdef HAVE_PCSTYLE_LPT_CONTROL
 	debug(RPT_DEBUG, "%s: Opening parallelport at: 0x%X", __FUNCTION__, p->port);
 	if (port_access_multiple(p->port,3)) {
-		report(RPT_ERR, "%s: port_access_multiple() of 0x%X failed (%s)\n", __FUNCTION__, p->port, strerror(errno));
+		report(RPT_ERR, "%s: port_access_multiple() of 0x%X failed (%s)", __FUNCTION__, p->port, strerror(errno));
 		return -1;
 	}
 	return 0;
 #else
-	report(RPT_ERR, "%s: LCDproc was compiled without PCstyle LPT support\n", __FUNCTION__);
+	report(RPT_ERR, "%s: LCDproc was compiled without PCstyle LPT support", __FUNCTION__);
 	return -1;
 #endif
 }
@@ -143,7 +168,7 @@ serialVFD_close_parallel (Driver *drvthis)
 
 	debug(RPT_DEBUG, "%s: Closing parallelport at: 0x%X", __FUNCTION__, p->port);
 	if (port_deny_multiple(p->port,3)) {
-		report(RPT_ERR, "%s: port_deny_multiple() of 0x%X failed (%s)\n", __FUNCTION__, p->port, strerror(errno));
+		report(RPT_ERR, "%s: port_deny_multiple() of 0x%X failed (%s)", __FUNCTION__, p->port, strerror(errno));
 	}
 #endif
 }

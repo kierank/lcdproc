@@ -7,10 +7,33 @@ SUBDIRS = shared clients server docs scripts
 
 sysconf_DATA = LCDd.conf
 
-EXTRA_DIST = $(sysconf_DATA) CREDITS README.IRman contrib
+EXTRA_DIST = $(sysconf_DATA) CREDITS contrib
+
+
+dist-hook:
+	rm -rf `find $(distdir)/contrib -name CVS`
 
 
 ## convenience targets
+
+.PHONY: $(SUBDIRS) install-server install-clients 
+	            
+$(SUBDIRS):
+	$(MAKE) -C $@
+
+clients server: shared	
+
+install-server: server
+	$(MAKE) -C server install
+	$(MAKE) -C docs install-server-man
+
+install-clients: clients
+	$(MAKE) -C clients install
+	$(MAKE) -C docs install-client-man
+
+
+.PHONY: install-html-guides install-html-developerguide install-html-userguide
+
 install-html-guides: install-html-developerguide install-html-userguide
 
 install-html-developerguide:
@@ -18,6 +41,9 @@ install-html-developerguide:
 
 install-html-userguide:
 	$(MAKE) -C docs $@
+
+
+.PHONY: dox topleveltags
 
 dox:
 	$(MAKE) -C docs $@

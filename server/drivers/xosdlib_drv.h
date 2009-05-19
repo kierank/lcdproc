@@ -5,6 +5,7 @@
 
 #define DEFAULT_FONT		"fixed"
 #define DEFAULT_SIZE		"20x4"
+#define DEFAULT_OFFSET		"0x0"
 #define DEFAULT_CONTRAST	500
 #define DEFAULT_BRIGHTNESS	1000
 #define DEFAULT_OFFBRIGHTNESS	500
@@ -13,12 +14,11 @@
 #define CELLWIDTH	6
 #define CELLHEIGHT	8
 
-typedef struct driver_private_data {
-	/* xosd handle */
-	xosd *osd;
+/** private data for the \c xosd driver */
+typedef struct xosd_private_data {
+	xosd *osd;		/**< xosd handle */
 
-	/* xosd properties */
-	char font[256];
+	char font[256];		/**< xosd font properties */
 
 	/* dimensions */
 	int width, height;

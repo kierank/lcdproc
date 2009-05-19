@@ -1,3 +1,7 @@
+/** \file server/drivers/svgalib_drv.c
+ * LCDd \c svga driver for displaying on SVGA screens.
+ */
+
 /*
    This is a hack of the curses driver.  It's my first attempt at SVGALIB
    programming so please send comments to <smh@remove_this@dr.com>.
@@ -29,7 +33,9 @@
 #include <vga.h>
 #include <vgagl.h>
 
-#include "config.h"
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include "lcd.h"
 #include "report.h"
@@ -322,7 +328,7 @@ svga_init (Driver *drvthis)
 
 	/* switch to selected VGA mode if it is available */
 	if (!vga_hasmode (p->mode)) {
-		report(RPT_ERR, "%s: VGA mode %s not available.", drvthis->name, modestr);
+		report(RPT_ERR, "%s: VGA mode %s not available", drvthis->name, modestr);
 		return -1;
 	}
 

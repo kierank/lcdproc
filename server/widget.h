@@ -1,12 +1,13 @@
-/*
- * widget.h
- * This file is part of LCDd, the lcdproc server.
+/** \file server/widget.h
+ * Public interface to the widget methods.
+ */
+
+/* This file is part of LCDd, the lcdproc server.
  *
- * This file is released under the GNU General Public License. Refer to the
- * COPYING file distributed with this package.
+ * This file is released under the GNU General Public License.
+ * Refer to the COPYING file distributed with this package.
  *
  * Copyright (c) 1999, William Ferrell, Scott Scriven
- *
  */
 
 #include "screen.h"
@@ -30,17 +31,19 @@ typedef enum WidgetType {
 	WID_NUM
 } WidgetType;
 
+
+/** Widget structure */
 typedef struct Widget {
-	char *id;
-	WidgetType type;
-	Screen *screen;			/* What screen is this widget in ? */
-	int x, y;			/* Position */
-	int width, height;		/* Visible size */
-	int left, top, right, bottom;	/* bounding rectangle */
-	int length;			/* size or direction */
-	int speed;			/* For scroller... */
-	char *text;			/* text or binary data */
-	struct Screen *frame_screen;	/* frame widget get an associated screen */
+	char *id;			/**< the widget's name */
+	WidgetType type;		/**< the widget's type */
+	Screen *screen;			/**< What screen is this widget in ? */
+	int x, y;			/**< Position */
+	int width, height;		/**< Visible size */
+	int left, top, right, bottom;	/**< bounding rectangle */
+	int length;			/**< size or direction */
+	int speed;			/**< For scroller... */
+	char *text;			/**< text or binary data */
+	struct Screen *frame_screen;	/**< frame widget get an associated screen */
 	//LinkedList *kids;		/* Frames can contain more widgets...*/
 } Widget;
 

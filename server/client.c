@@ -1,20 +1,23 @@
-/*
- * client.c
- * This file is part of LCDd, the lcdproc server.
+/** \file server/client.c
+ * Define all the client data and actions.
+ */
+
+/* This file is part of LCDd, the lcdproc server.
  *
- * This file is released under the GNU General Public License. Refer to the
- * COPYING file distributed with this package.
+ * This file is released under the GNU General Public License.
+ * Refer to the COPYING file distributed with this package.
  *
  * Copyright (c) 1999, William Ferrell, Scott Scriven
  *               2002, Joris Robijn
- *
  */
 
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
 
-#include "config.h"
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include "client.h"
 #include "screenlist.h"
@@ -51,7 +54,7 @@ Client *client_create(int sock)
 		return NULL;
 	}
 
-	c->ack = 0;
+	c->state = NEW;
 	c->name = NULL;
 	c->menu = NULL;
 
@@ -108,7 +111,7 @@ client_destroy(Client *c)
 	input_release_client_keys(c);
 
 	/* Free client's other data */
-	c->ack = 0;
+	c->state = GONE;
 
 	/* Clean up the name...*/
 	if (c->name)
@@ -226,7 +229,7 @@ client_remove_screen(Client *c, Screen *s)
 	debug(RPT_DEBUG, "%s(c=[%d], s=[%s])", __FUNCTION__, c->sock, s->id);
 
 	/* TODO:  Check for errors here?*/
-	LL_Remove(c->screenlist, (void *) s);
+	LL_Remove(c->screenlist, (void *) s, NEXT);
 
 	/* Now, remove it from the screenlist...*/
 	screenlist_remove(s);

@@ -1,16 +1,15 @@
-/*
- * menu.h
- * This file is part of LCDd, the lcdproc server.
+/** \file server/menu.h
+ * Defines all the menu data and actions.
+ */
+
+/* This file is part of LCDd, the lcdproc server.
  *
- * This file is released under the GNU General Public License. Refer to the
- * COPYING file distributed with this package.
+ * This file is released under the GNU General Public License.
+ * Refer to the COPYING file distributed with this package.
  *
  * Copyright (c) 1999, William Ferrell, Scott Scriven
  *               2004, F5 Networks, Inc. - IP-address input
  *               2005, Peter Marschall - error checks, ...
- *
- * Defines all the menu data and actions.
- *
  */
 
 #include "menuitem.h"
@@ -123,8 +122,8 @@ MenuItem *menu_get_item_for_successor_check(Menu *menu);
  * key is only used if token is MENUTOKEN_OTHER.
  * DO NOT CALL THIS FUNCTION, CALL menuitem_process_input INSTEAD !
  */
-MenuResult menu_process_input(Menu *menu, MenuToken token, const char *key, bool extended);
+MenuResult menu_process_input(Menu *menu, MenuToken token, const char *key, unsigned int keymask);
 
-/** positions current item pointer on subitem subitem_id. */
-void menu_select_subitem(Menu *menu, char *subitem_id);
+/** positions current item pointer on subitem item_id. */
+void menu_select_subitem(Menu *menu, char *item_id);
 #endif

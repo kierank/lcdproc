@@ -23,10 +23,75 @@ The format of the <filename>/etc/LCDd.conf</filename> is INI-file like.
 </para>
 
 <para>
-It is divided into sections that start at markers that look like
-<code>[<replaceable>section</replaceable>]</code>.
-Comments are all line-based comments,
-and are lines that start with '<literal>#</literal>' or '<literal>;</literal>'.
+It is divided into sections that start at declarations that look like
+<code>[<replaceable>section</replaceable>]</code>; i.e. an opening square bracket, followed
+by the section name, and terminated by a closing square bracket, on a line by itself.
+Section names are case insensitive.
+</para>
+
+<para>
+Parameters are grouped into sections and have the form
+<code><replaceable>key</replaceable>=<replaceable>value</replaceable></code>;
+i.e. a key, also known as the configuration option, followed by an equality sign and
+finally the value for the option.
+All three elements must occur together on one line.
+The <replaceable>key</replaceable>, which is case insensitive, may be surrounded by spaces,
+but is must be one word (i.e. a sequence of non-space characters) not containing the equality sign.
+A similar rule applies to the <replaceable>value</replaceable>: it may be surrounded by spaces,
+but it must be either one word or enclosed within double quotes (<literal>"</literal>),
+which are not considered as part of <replaceable>value</replaceable>.
+When quoted, the following character sequences are evaluated as in literal C strings:
+<informaltable>
+<tgroup cols="2">
+  <thead>
+  </thead>
+    <row>
+      <entry>escape sequence</entry>
+      <entry>character</entry>
+    </row>
+  <tbody>
+    <row>
+      <entry><literal>\a</literal></entry>
+      <entry>alert (bell) character</entry>
+    </row>
+    <row>
+      <entry><literal>\b</literal></entry>
+      <entry>backspace</entry>
+    </row>
+    <row>
+      <entry><literal>\f</literal></entry>
+      <entry>formfeed</entry>
+    </row>
+    <row>
+      <entry><literal>\n</literal></entry>
+      <entry>newline</entry>
+    </row>
+    <row>
+      <entry><literal>\r</literal></entry>
+      <entry>carriage return</entry>
+    </row>
+    <row>
+      <entry><literal>\t</literal></entry>
+      <entry>horizontal tab</entry>
+    </row>
+    <row>
+      <entry><literal>\v</literal></entry>
+      <entry>vertical tab</entry>
+    </row>
+    <row>
+      <entry><literal>\\</literal></entry>
+      <entry>backslash</entry>
+    </row>
+  </tbody>
+</tgroup>
+</informaltable>
+All other occurences of <literal>\</literal> within quoted values will be ignored.
+</para>
+
+<para>
+Comments are all line-based, and may start with '<literal>#</literal>' or '<literal>;</literal>'.
+Everything including and behind the character starting the comment up to the end
+of the line is ignored.
 </para>
 
 <para>
@@ -46,39 +111,15 @@ line in the server section, like:
 [Server]
 Driver=curses
 </programlisting>
-</example>
-
 <para>
 This tells <application>LCDd</application> to use the <literal>curses</literal> driver.
-The first driver specified here that is capable of output functionality
-will be used as <emphasis>the</emphasis> output driver.
-All other drivers can only serve as input drivers.
-The default driver to use is <literal>curses</literal>.
 </para>
-
-<warning>
-<para>
-If LCDd is started automatically by an init-script using the curses driver,
-it will lock <filename>/dev/tty1</filename>! So, be careful about what you are
-doing here.
-</para>
-</warning>
+</example>
 
 <para>
 The drivers read their own options from the config file.
 For this purpose they use the config sections that are named like the driver.
 </para>
-
-<para>
-<command>LCDd -d driver</command>
-</para>
-
-<note>
-<para>
-If <option>-d</option> is specified on the command line, the
-<code>Driver=</code> options in the configuration file are ignored.
-</para>
-</note>
 
 <sect2 id="server-section">
 <title id="server-section.title"><filename>LCDd.conf</filename>: The <code>[Server]</code> Section</title>
@@ -91,7 +132,7 @@ settings for the LCDproc server <application>LCDd</application>.
 <variablelist>
 <varlistentry>
   <term>
-    <command>DriverPath=</command>
+    <command>DriverPath</command> =
     <arg choice="plain"><replaceable>DRIVERPATH</replaceable></arg>
   </term>
   <listitem><para>
@@ -100,129 +141,94 @@ settings for the LCDproc server <application>LCDd</application>.
     If not specified <replaceable>DRIVERPATH</replaceable>
     defaults to the empty string, resulting in drivers being
     searched
-    in the directory LCDd is started in.
+    in the directory <application>LCDd</application> is started in.
   </para></listitem>
 </varlistentry>
 
 <varlistentry>
   <term>
-    <command>Driver=</command>
+    <command>Driver</command> =
     <arg choice="plain"><replaceable>DRIVERNAME</replaceable></arg>
-  </term>
-  <listitem><para>
-    Tells the server which driver(s) to use. See
-    <link linkend="which-driver">above</link> for details.
-    If not specified <replaceable>DRIVERNAME</replaceable>
-    defaults to <literal>curses</literal>, a driver that is supposed
-    to work on any half-way decent UNIX console.
-  </para></listitem>
-</varlistentry>
-
-<varlistentry>
-  <term>
-    <command>Bind=</command>
-    <arg choice="plain"><replaceable>ADDRESS</replaceable></arg>
-  </term>
-  <listitem><para>
-    Tells the server to bind to the given local IP address and listen for incoming client connections.
-    The default value for <replaceable>ADDRESS</replaceable> is <literal>127.0.0.1</literal>, which
-    is actually the safest variant.
-  </para></listitem>
-</varlistentry>
-
-<varlistentry>
-  <term>
-    <command>Port=</command>
-    <arg choice="plain"><replaceable>PORTNUMBER</replaceable></arg>
-  </term>
-  <listitem><para>
-    Tells the server to listen to this specified port.
-    If not specified <replaceable>PORTNUMBER</replaceable> defaults to <literal>13666</literal>.
-  </para></listitem>
-</varlistentry>
-
-<varlistentry>
-  <term>
-    <command>ReportLevel=</command>
-    <arg choice="plain"><replaceable>LEVEL</replaceable></arg>
-  </term>
-  <listitem><para>
-    Sets the reporting level.
-    Legal values for <replaceable>LEVEL</replaceable> range from <literal>0</literal>
-    (only critical errors) to <literal>5</literal> (everything including debugging information).
-    If not specified it defaults to <literal>2</literal> (warnings and errors only).
-  </para></listitem>
-</varlistentry>
-
-<varlistentry>
-  <term>
-    <command>ReportToSyslog=</command>
-    <arg choice="plain">
-    <group choice="req">
-      <arg choice="plain"><literal><emphasis>no</emphasis></literal></arg>
-      <arg choice="plain"><literal>yes</literal></arg>
-    </group>
-    </arg>
-  </term>
-  <listitem><para>
-    Should we report to <filename>syslog</filename> instead of <filename>stderr</filename>?
-    Default value is <literal>no</literal>.
-  </para></listitem>
-</varlistentry>
-
-<varlistentry>
-  <term>
-    <command>WaitTime=</command>
-    <arg choice="plain"><replaceable>SECONDS</replaceable></arg>
-  </term>
-  <listitem><para>
-    Sets the default time in seconds to display a screen.
-    If not specified the default value for <replaceable>SECONDS</replaceable> is <literal>4</literal>.
-  </para></listitem>
-</varlistentry>
-
-<varlistentry>
-  <term>
-    <command>User=</command>
-    <arg choice="plain"><replaceable>USER</replaceable></arg>
   </term>
   <listitem>
     <para>
-    User to run as. When started as root LCDd will drop its privileges,
-    and run as this user instead. Defaults to <literal>nobody</literal>.
+      Tells the server which driver(s) to use.
+      The first driver specified here that is capable of output functionality
+      will be used as the <emphasis>master</emphasis> output driver, defining
+      display properties and capabilities.
+      All other drivers specified can only serve as input drivers
+      or slave output drivers.
+      If not specified <replaceable>DRIVERNAME</replaceable>
+      defaults to <literal>curses</literal>, a driver that is supposed
+      to work on any half-way decent UNIX console.
     </para>
-    <!--
-    <note>
-      <para>
-      If you want to use the server menu, to shutdown or reboot your system,
-       you will have to set this to root. Otherwise LCDd does not have the
-       privileges to run commands like <command>init 6</command>.
-      </para>
-    </note>
-    -->
+    <para>
+      This setting can be overridden on <application>LCDd</application>'s
+      command line using the <option>-d <replaceable>DRIVER</replaceable></option> option.
+      When the command line option is used, only the one driver given there
+      will be loaded, and all drivers specified in the configuration file are ignored.
+    </para>
   </listitem>
 </varlistentry>
 
 <varlistentry>
   <term>
-    <command>ServerScreen=</command>
-    <arg choice="plain">
-    <group choice="req">
-      <arg choice="plain"><literal><emphasis>yes</emphasis></literal></arg>
-      <arg choice="plain"><literal>no</literal></arg>
-    </group>
-    </arg>
+    <command>Bind</command> =
+    <arg choice="plain"><replaceable>ADDRESS</replaceable></arg>
   </term>
-  <listitem><para>
-    Include the server screen, that shows the number of active clients and screens,
-    into the screen rotation scheme when other screens exist.
-    Defaults to <literal>yes</literal>.
-  </para></listitem>
+  <listitem>
+    <para>
+      Tells the server to bind to the given local IP address and listen for incoming client connections.
+      The default value for <replaceable>ADDRESS</replaceable> is <literal>127.0.0.1</literal>, which
+      is actually the safest variant, as it allows connections only from the local machine and forbids
+      connections from remote systems.
+    </para>
+    <para>
+      This setting can be overridden on <application>LCDd</application>'s
+      command line using the <option>-a <replaceable>ADDRESS</replaceable></option> option.
+    </para>
+  </listitem>
 </varlistentry>
 
 <varlistentry>
   <term>
-    <command>Foreground=</command>
+    <command>Port</command> =
+    <arg choice="plain"><replaceable>PORTNUMBER</replaceable></arg>
+  </term>
+  <listitem>
+    <para>
+      Tells the server to listen to this specified port.
+      If not specified <replaceable>PORTNUMBER</replaceable> defaults to <literal>13666</literal>.
+    </para>
+    <para>
+      This setting can be overridden on <application>LCDd</application>'s
+      command line using the <option>-p <replaceable>PORTNUMBER</replaceable></option> option.
+    </para>
+  </listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <command>ReportLevel</command> =
+    <arg choice="plain"><replaceable>LEVEL</replaceable></arg>
+  </term>
+  <listitem>
+    <para>
+      Sets the reporting level.
+      Legal values for <replaceable>LEVEL</replaceable> range from <literal>0</literal>
+      (only critical errors) to <literal>5</literal> (everything including debugging information).
+      If not specified it defaults to <literal>2</literal> (warnings and errors only).
+    </para>
+    <para>
+      This setting can be overridden on <application>LCDd</application>'s
+      command line using the <option>-r <replaceable>LEVEL</replaceable></option> option.
+    </para>
+  </listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <command>ReportToSyslog</command> =
     <arg choice="plain">
     <group choice="req">
       <arg choice="plain"><literal><emphasis>no</emphasis></literal></arg>
@@ -230,16 +236,104 @@ settings for the LCDproc server <application>LCDd</application>.
     </group>
     </arg>
   </term>
-  <listitem><para>
-    The server will stay in the foreground if set to true.
-    Otherwise the server will fork to background and report
-    to syslog. Defaults to <literal>no</literal>.
-  </para></listitem>
+  <listitem>
+    <para>
+      Should we report to <filename>syslog</filename> (<literal>yes</literal>)
+      instead of <filename>stderr</filename> (<literal>no</literal>)?
+      Default value is <literal>no</literal>.
+    </para>
+    <para>
+      This setting can be overridden on <application>LCDd</application>'s
+      command line using the <option>-s <replaceable>NUMBER</replaceable></option> option.
+      Passing <option>-s 1</option> on the command line enables reporting to <filename>syslog</filename>
+      while <option>-s 0</option> disables it.
+    </para>
+    <warning>
+      <para>
+        If <application>LCDd</application> is started automatically by an init script
+        using the <literal>curses</literal> driver, it will lock <filename>/dev/tty1</filename>!
+        So, be careful about what you are doing here.
+      </para>
+    </warning>
+
+  </listitem>
 </varlistentry>
 
 <varlistentry>
   <term>
-    <command>GoodBye=</command>
+    <command>User</command> =
+    <arg choice="plain"><replaceable>USER</replaceable></arg>
+  </term>
+  <listitem>
+    <para>
+    User to run as. When started as root <application>LCDd</application> will drop its privileges,
+    and run as <replaceable>USER</replaceable> instead. Defaults to <literal>nobody</literal>.
+    </para>
+    <para>
+      This setting can be overridden on <application>LCDd</application>'s
+      command line using the <option>-u <replaceable>USER</replaceable></option> option.
+    </para>
+  </listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <command>Foreground</command> =
+    <arg choice="plain">
+    <group choice="req">
+      <arg choice="plain"><literal><emphasis>no</emphasis></literal></arg>
+      <arg choice="plain"><literal>yes</literal></arg>
+    </group>
+    </arg>
+  </term>
+  <listitem>
+    <para>
+      The server will stay in the foreground if set to true.
+      Otherwise the server will fork to background and report
+      to syslog. Defaults to <literal>no</literal>.
+    </para>
+    <para>
+      This setting can be overridden on <application>LCDd</application>'s
+      command line with the <option>-f</option> option that forces foreground mode. 
+    </para>
+  </listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <command>Hello</command> =
+    <arg choice="plain"><replaceable>HELLOMSG</replaceable></arg>
+  </term>
+  <listitem>
+    <para>
+      Define the startup message printed on the screen when LCDd starts.
+      This message will stay on the screen until the first client connects.
+      If not given, it defaults to the builtin server screen that tells
+      how many clients are connected and how many screens these clients
+      are using in total.
+      If it is given, each <code>Hello=</code> directive represents
+      a line on the display.
+    </para>
+    <para>
+      The <replaceable>HELLOMSG</replaceable>s will be printed on
+      the display one after each other starting on the beginning of each line.
+      So, the definition of
+      <programlisting>
+        Hello="   Welcome to"
+	Hello="    LCDproc!"
+      </programlisting>
+      prints a nice 2-line welcome message to the display.
+    </para>
+    <para>
+      To simply disable the default builtin server screen on startup,
+      and start with a blank screen a single <code>Hello=""</code> is sufficient.
+    </para>
+  </listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <command>GoodBye</command> =
     <arg choice="plain"><replaceable>GOODBYEMSG</replaceable></arg>
   </term>
   <listitem>
@@ -270,19 +364,129 @@ settings for the LCDproc server <application>LCDd</application>.
   </listitem>
 </varlistentry>
 
+<varlistentry>
+  <term>
+    <command>WaitTime</command> =
+    <arg choice="plain"><replaceable>SECONDS</replaceable></arg>
+  </term>
+  <listitem>
+    <para>
+      Sets the default time in seconds to display a screen.
+      If not specified the default value for <replaceable>SECONDS</replaceable> is <literal>4</literal>.
+    </para>
+    <para>
+      This setting can be overridden on <application>LCDd</application>'s
+      command line with the <option>-w <replaceable>SECONDS</replaceable></option> option.
+    </para>
+  </listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <command>ServerScreen</command> =
+    <arg choice="plain">
+    <group choice="req">
+      <arg choice="plain"><literal><emphasis>yes</emphasis></literal></arg>
+      <arg choice="plain"><literal>no</literal></arg>
+      <arg choice="plain"><literal>blank</literal></arg>
+    </group>
+    </arg>
+  </term>
+  <listitem>
+    <para>
+      Control the bahaviour of the server screen, that usually shows the number
+      of active clients and screens.
+      When set to its default value <literal>yes</literal>, the server screen
+      is included into the screen rotation scheme when other screens exist.
+      Whet set to <literal>no</literal>, the server screen only shows up
+      when no other screen exists.
+      The special value <literal>blank</literal> is similar to <literal>no</literal>,
+      but instead of displaying the current number of clients and screens,
+      only a blank screen is displayed.
+    </para>
+    <para>
+      This setting can be partially overridden on <application>LCDd</application>'s
+      command line using the <option>-i <replaceable>NUMBER</replaceable></option> option.
+      Passing <option>-i 1</option> on the command line enables server screen rotation,
+      while <option>-i 0</option> disables it.
+      <note>
+        <para>
+          Using the command line, it is not possible to set the server screen to 
+          <literal>blank</literal> mode.
+	</para>
+      </note>	
+    </para>
+  </listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <command>Backlight</command> =
+    <arg choice="plain">
+    <group choice="req">
+      <arg choice="plain"><literal>off</literal></arg>
+      <arg choice="plain"><literal><emphasis>open</emphasis></literal></arg>
+      <arg choice="plain"><literal>on</literal></arg>
+    </group>
+    </arg>
+  </term>
+  <listitem><para>
+    Set the master backlight setting.
+    If set to the default value <literal>open</literal>, then the backlight setting
+    of the display can be influenced by the clients.
+    When set to <literal>off</literal> or <literal>on</literal>, the backlight
+    is set to the appropriate value without the clients being able to change
+    the value.
+  </para></listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <command>Heartbeat</command> =
+    <arg choice="plain">
+    <group choice="req">
+      <arg choice="plain"><literal>off</literal></arg>
+      <arg choice="plain"><literal><emphasis>open</emphasis></literal></arg>
+      <arg choice="plain"><literal>on</literal></arg>
+    </group>
+    </arg>
+  </term>
+  <listitem><para>
+    Set the master heartbeat, the oscillating icon in the top right corner
+    of the display, setting.
+    If set to the default value <literal>open</literal>, then the heartbeat setting
+    of the display can be influenced by the clients.
+    When set to <literal>off</literal> or <literal>on</literal>, the heartbeat
+    is turned on or off without the clients being able to change the value.
+  </para></listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <command>TitleSpeed</command> =
+    <arg choice="plain"><replaceable>SPEED</replaceable></arg>
+  </term>
+  <listitem><para>
+    Set the speed how fast over-long title lines shall scroll.
+    Legal values are <literal>0</literal> to <literal>10</literal>,
+    where <literal>0</literal> means that no scrolling takes place
+    and <literal>10</literal> stands for fastest scrolling.
+    Default is <literal>10</literal>, where no artificial delay is inserted.
+  </para></listitem>
+</varlistentry>
 
 </variablelist>
 
 
 <para>
-The <code>&hellip;Key=</code> lines define what the server does with keypresses that
+The <command>&hellip;Key</command> lines define what the server does with keypresses that
 don't go to any client.
 </para>
 
 <variablelist>
 <varlistentry>
   <term>
-    <command>ToggleRotateKey=</command>
+    <command>ToggleRotateKey</command> =
     <arg choice="plain"><replaceable>KEY</replaceable></arg>
   </term>
   <listitem><para>
@@ -292,7 +496,7 @@ don't go to any client.
 
 <varlistentry>
   <term>
-    <command>PrevScreenKey=</command>
+    <command>PrevScreenKey</command> =
     <arg choice="plain"><replaceable>KEY</replaceable></arg>
   </term>
   <listitem><para>
@@ -302,7 +506,7 @@ don't go to any client.
 
 <varlistentry>
   <term>
-    <command>NextScreenKey=</command>
+    <command>NextScreenKey</command> =
     <arg choice="plain"><replaceable>KEY</replaceable></arg>
   </term>
   <listitem><para>
@@ -312,7 +516,7 @@ don't go to any client.
 
 <varlistentry>
   <term>
-    <command>ScrollUpKey=</command>
+    <command>ScrollUpKey</command> =
     <arg choice="plain"><replaceable>KEY</replaceable></arg>
   </term>
   <listitem><para>
@@ -322,7 +526,7 @@ don't go to any client.
 
 <varlistentry>
   <term>
-    <command>ScrollDownKey=</command>
+    <command>ScrollDownKey</command> =
     <arg choice="plain"><replaceable>KEY</replaceable></arg>
   </term>
   <listitem><para>
@@ -395,66 +599,86 @@ input "events".
 -->
 
 <para>
-The menu is an LCDproc client built into <application>LCDd</application>.
+The menu is a special LCDproc client built into <application>LCDd</application>
+that allows changing server and display settings as well as extending it
+with entries from client applications.
+</para>
+
+<para>
 You can configure what keys the menu should use.
-Note that the <literal>MenuKey</literal> will be reserved exclusively,
-while the others work in shared mode.
 </para>
 
 <variablelist>
 <varlistentry>
   <term>
-    <command>MenuKey=</command>
+    <command>MenuKey</command> =
     <arg choice="plain"><replaceable>KEY</replaceable></arg>
   </term>
-  <listitem><para>
-    The key that switches into menu mode (=open the main menu).
-    In menu mode it cancels any operation. Cancelling the main menu
-    means returning to the regular display mode.
-    It defaults to <literal>Menu</literal>.
-  </para></listitem>
+  <listitem>
+    <para>
+      The key that switches into menu mode (=open the main menu).
+      In menu mode it cancels any operation. Cancelling the main menu
+      means returning to the regular display mode.
+      It has no default, but a natural candidate is <literal>Menu</literal>.
+    </para>
+    <note>
+      The <literal>MenuKey</literal> will be reserved exclusively,
+      while the others work in shared mode and can thus be used by a
+      client application when not in the menu.
+    </note>
+  </listitem>
 </varlistentry>
 
 <varlistentry>
   <term>
-    <command>EnterKey=</command>
+    <command>EnterKey</command> =
     <arg choice="plain"><replaceable>KEY</replaceable></arg>
   </term>
   <listitem><para>
-    The key to enter a sub menu and/or, to select an entry.
-    It defaults to <literal>Enter</literal>.
-  </para></listitem>
-</varlistentry>
-
-<varlistentry>
-  <term>
-    <command>UpKey=</command>
-    <arg choice="plain"><replaceable>KEY</replaceable></arg>
-  </term>
-  <listitem><para>
-    The key to move to the previous menu item.
-    If the <replaceable>LeftKey</replaceable> is not set,
-    it is also used to move left in input fields.
-    It default to <literal>Up</literal>.
-  </para></listitem>
-</varlistentry>
-
-<varlistentry>
-  <term>
-    <command>DownKey=</command>
-    <arg choice="plain"><replaceable>KEY</replaceable></arg>
-  </term>
-  <listitem><para>
-    The key to move to the next menu item.
-    If the <replaceable>RightKey</replaceable> is not set,
+    The key to enter a sub menu, to select an entry and/or
+    to confirm the value of an input field.
+    If the <replaceable>RightKey</replaceable> is not defined,
     it is also used to move right in input fields.
-    It default to <literal>Down</literal>.
+    In this case the value of the input field is not confirmed,
+    until the right end of the input has been reached.
+    
+    It is not set by default, but a natural candidate is <literal>Enter</literal>.
   </para></listitem>
 </varlistentry>
 
 <varlistentry>
   <term>
-    <command>LeftKey=</command>
+    <command>UpKey</command> =
+    <arg choice="plain"><replaceable>KEY</replaceable></arg>
+  </term>
+  <listitem><para>
+    The key to move to the previous item in a menu and/or to select
+    the previous value in input fields (e.g. the previous character
+    available for the current position).
+    If the <replaceable>DownKey</replaceable> is not set, moving up
+    before the first entry automatically wraps around to the last entry.
+    It is not set by default, but a natural candidate is <literal>Up</literal>.
+  </para></listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <command>DownKey</command> =
+    <arg choice="plain"><replaceable>KEY</replaceable></arg>
+  </term>
+  <listitem><para>
+    The key to move to the next item in a menu andi/or to select
+    the next value in input fields (e.g. the next character available
+    for the current position).
+    If the <replaceable>UpKey</replaceable> is not set, moving down
+    below the last entry automatically wraps around to the first entry.
+    It has no default, but a natural candidate is <literal>Down</literal>.
+  </para></listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <command>LeftKey</command> =
     <arg choice="plain"><replaceable>KEY</replaceable></arg>
   </term>
   <listitem><para>
@@ -467,7 +691,7 @@ while the others work in shared mode.
 
 <varlistentry>
   <term>
-    <command>RightKey=</command>
+    <command>RightKey</command> =
     <arg choice="plain"><replaceable>KEY</replaceable></arg>
   </term>
   <listitem><para>
@@ -477,6 +701,18 @@ while the others work in shared mode.
   </para></listitem>
 </varlistentry>
 </variablelist>
+
+<para>
+The minimal keys required for the menu work correctly are the <command>MenuKey</command>, 
+the <command>EnterKey</command> and one of <command>UpKey</command> or
+<command>DownKey</command>.
+With these 3 keys the menus can be operated.
+Of course with only 3 keys the navigation gets a bit awkward.
+So if you have 4 or more keys, you better use them.
+Especially the <command>LeftKey</command> and <command>RightKey</command>
+make a big difference in user experience.
+</para>
+
 
 </sect2>
 
@@ -510,7 +746,7 @@ The <package>LCDproc</package> distribution contains init scripts for
 GNU/Linux distributions.
 In addition to those it contains init scripts for older RedHat- and Debian-based
 distributions that do not adhere to LSB 3.1. 
-You can find iall of them in the <filename>scripts/</filename>
+You can find all of them in the <filename>scripts/</filename>
 directory of the LCDproc sources.
 </para>
 

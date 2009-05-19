@@ -21,17 +21,21 @@ well as the configuration of LCDd.
 &hd44780;
 &icp_a106;
 &imon;
+&imonlcd;
 &IOWarrior;
 &irman;
+&irtrans;
 &joy;
 &lb216;
 &lcdm001;
 &lcterm;
 &lirc;
+&lis;
 &MD8800;
 &ms6931;
 &mtc_s16209x;
 &MtxOrb;
+&mx5000;
 &NoritakeVFD;
 &picolcd;
 &pylcd;
@@ -39,6 +43,7 @@ well as the configuration of LCDd.
 &sed1520;
 &serialPOS;
 &serialVFD;
+&shuttleVFD;
 &sli;
 &stv5730;
 &svga;
@@ -47,6 +52,7 @@ well as the configuration of LCDd.
 &tyan;
 &ula200;
 &xosd;
+&i2500vfd;
 
 &ppttrouble;
 

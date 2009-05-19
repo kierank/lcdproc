@@ -1,5 +1,8 @@
+/** \file server/drivers/lb216.c
+ * LCDd \c lb216 driver for the LB216 by R.T.N. Australia.
+ */
+
 /*
- *
  * Chris Debenham - Sun Systems Engineer <chris.debenham@aus.sun.com>
  *
  * Heres a bit more info on the display.
@@ -44,7 +47,8 @@ typedef enum {
         beat = 8
 } custom_type;
 
-typedef struct driver_private_data {
+/** private data for the \c lb216 driver */
+typedef struct LB216_private_data {
 	char device[256];
 	int speed;
 	int fd;

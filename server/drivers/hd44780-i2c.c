@@ -1,9 +1,11 @@
-/*
- * i2c driver module for Hitachi HD44780 based LCD displays.
- * The LCD is operated in it's 4 bit-mode to be connected to the 8 bit-port
- * of a single PCF8574(A) or PCA9554(A) that is accessed by the server via the i2c bus.
+/** \file server/drivers/hd44780-i2c.c
+ * \c i2c connection type of \c hd44780 driver for Hitachi HD44780 based LCD displays.
  *
- * Copyright (c) 2005 Matthias Goebl <matthias.goebl@goebl.net>
+ * The LCD is operated in its 4 bit-mode to be connected to the 8 bit-port
+ * of a single PCF8574(A) or PCA9554(A) that is accessed by the server via the i2c bus.
+ */
+
+/* Copyright (c) 2005 Matthias Goebl <matthias.goebl@goebl.net>
  *		  2000, 1999, 1995 Benjamin Tse <blt@Comports.com>
  *		  2001 Joris Robijn <joris@robijn.net>
  *		  1999 Andrew McMeikan <andrewm@engineer.com>
@@ -106,7 +108,13 @@ i2c_out(PrivateData *p, unsigned char val)
 
 #define DEFAULT_DEVICE		"/dev/i2c-0"
 
-// initialisation function
+
+/**
+ * Initialize the driver.
+ * \param drvthis  Pointer to driver structure.
+ * \retval 0       Success.
+ * \retval -1      Error.
+ */
 int
 hd_init_i2c(Driver *drvthis)
 {
@@ -155,7 +163,6 @@ hd_init_i2c(Driver *drvthis)
 
 	hd44780_functions->senddata = i2c_HD44780_senddata;
 	hd44780_functions->backlight = i2c_HD44780_backlight;
-	hd44780_functions->scankeypad = NULL;
 
 	// powerup the lcd now
 	/* We'll now send 0x03 a couple of times,
@@ -208,7 +215,14 @@ hd_init_i2c(Driver *drvthis)
 	return 0;
 }
 
-// i2c_HD44780_senddata
+
+/**
+ * Send data or commands to the display.
+ * \param p          Pointer to driver's private data structure.
+ * \param displayID  ID of the display (or 0 for all) to send data to.
+ * \param flags      Defines whether to end a command or data.
+ * \param ch         The value to send.
+ */
 void
 i2c_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char flags, unsigned char ch)
 {
@@ -242,6 +256,12 @@ i2c_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char flag
 	i2c_out(p, portControl | l);
 }
 
+
+/**
+ * Turn display backlight on or off.
+ * \param p      Pointer to driver's private data structure.
+ * \param state  New backlight status.
+ */
 void i2c_HD44780_backlight(PrivateData *p, unsigned char state)
 {
 	p->backlight_bit = ((!p->have_backlight||state) ? 0 : BL);

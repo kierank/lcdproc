@@ -1,7 +1,18 @@
-/* pylcd.c */
+/** \file server/drivers/pylcd.c
+ * LCDd \c pyramid driver for the programmable LC displays
+ * from Pyramid Computer GmbH.
+ *
+ * For more information see
+ * http://www.pyramid.de/en/products/programmable_lcd.php
+ *
+ * Contact Thomas Riewe <thomas.riewe@pyramid.de> for further
+ * information on the LCD.
+ *
+ * \todo Convert to use pixel-row based logic for custom characters, icons,
+ *       bar graphs etc.
+ */
 
 /*
- This is the LCDproc driver for the "pyramid" LCD device from Pyramid.
 
  Copyright (C) 2005 Silvan Marco Fin <silvan@kernelconcepts.de>
  Copyright (C) 2006 coresystems GmbH <info@coresystems.de>
@@ -23,13 +34,6 @@
  */
 
 /* 
- * This driver controls the programmable LC-Display from 
- * Pyramid Computer GmbH. For more information see
- * http://www.pyramid.de/en/products/programmable_lcd.php
- * 
- * Contact Thomas Riewe <thomas.riewe@pyramid.de> for further
- * information on the LCD.
- *
  * Changes:
  *  2006-02-20 Stefan Reinauer <stepan@coresystems.de>
  *   - add support for onboard LEDs via "output" command
@@ -281,9 +285,9 @@ set_leds(PrivateData *p)
     int i;
     char tele[3]="L00";
 
-    for (i=0; i<7; i++) {
-      tele[1]=i+'1';
-      tele[2]=p->led[i]?'1':'0';
+    for (i = 0; i < 7; i++) {
+      tele[1] = i + '1';
+      tele[2] = p->led[i] ? '1' : '0';
       send_tele(p, tele);
     }
 
@@ -294,8 +298,14 @@ set_leds(PrivateData *p)
 
 /* Basic functions */
 
+/**
+ * Initialize the driver.
+ * \param drvthis  Pointer to driver structure.
+ * \retval 0       Success.
+ * \retval <0      Error.
+ */
 MODULE_EXPORT int  
-pyramid_init (Driver *drvthis, char *args)
+pyramid_init (Driver *drvthis)
 {
     char buffer[6]="";
     int i;
@@ -394,32 +404,54 @@ pyramid_init (Driver *drvthis, char *args)
     report(RPT_DEBUG, "%s: init() done", drvthis->name);
 
     return 0;
-};
+}
 
+
+/**
+ * Close the driver (do necessary clean-up).
+ * \param drvthis  Pointer to driver structure.
+ */
 MODULE_EXPORT void 
 pyramid_close (Driver *drvthis)
 {
     PrivateData *p = (PrivateData *) drvthis->private_data;
 
     close(p->FD);
-};
+}
 
+
+/**
+ * Return the display width in characters.
+ * \param drvthis  Pointer to driver structure.
+ * \return         Number of characters the display is wide.
+ */
 MODULE_EXPORT int  
 pyramid_width (Driver *drvthis)
 {
     PrivateData *p = (PrivateData *) drvthis->private_data;
 
     return p->width;
-};
+}
 
+
+/**
+ * Return the display height in characters.
+ * \param drvthis  Pointer to driver structure.
+ * \return         Number of characters the display is high.
+ */
 MODULE_EXPORT int  
 pyramid_height (Driver *drvthis)
 {
     PrivateData *p = (PrivateData *) drvthis->private_data;
 
     return p->height;
-};
+}
 
+
+/**
+ * Clear the screen.
+ * \param drvthis  Pointer to driver structure.
+ */
 MODULE_EXPORT void 
 pyramid_clear (Driver *drvthis)
 {
@@ -427,11 +459,14 @@ pyramid_clear (Driver *drvthis)
 
     p->FB_modified=1;
     strcpy(p->framebuffer, "D                                ");
-};
+}
 
-/* flush the content of the framebuffer to the display.
+
+/**
+ * Flush data on screen to the display.
  * p->FB_modified tells if the content was modified. If not,
  * that means, nothing has to be done
+ * \param drvthis  Pointer to driver structure.
  */
 MODULE_EXPORT void 
 pyramid_flush (Driver *drvthis)
@@ -472,8 +507,17 @@ pyramid_flush (Driver *drvthis)
     }
 }
 
+
+/**
+ * Print a string on the screen at position (x,y).
+ * The upper-left corner is (1,1), the lower-right corner is (p->width, p->height).
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param y        Vertical character position (row).
+ * \param string   String that gets written.
+ */
 MODULE_EXPORT void 
-pyramid_string (Driver *drvthis, int x, int y, char *args)
+pyramid_string (Driver *drvthis, int x, int y, const char string[])
 {
     int offset;
     int len;
@@ -483,10 +527,19 @@ pyramid_string (Driver *drvthis, int x, int y, char *args)
     x = min(p->width, x);
     y = min(p->height, y);
     offset = (x)+p->width*(y-1);
-    len = min(strlen(args), p->width*p->height-offset+1);
-    memcpy(&p->framebuffer[offset], args, len);
-};
+    len = min(strlen(string), p->width*p->height-offset+1);
+    memcpy(&p->framebuffer[offset], string, len);
+}
 
+
+/**
+ * Print a character on the screen at position (x,y).
+ * The upper-left corner is (1,1), the lower-right corner is (p->width, p->height).
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param y        Vertical character position (row).
+ * \param c        Character that gets written.
+ */
 MODULE_EXPORT void 
 pyramid_chr (Driver *drvthis, int x, int y, char c)
 {
@@ -496,11 +549,18 @@ pyramid_chr (Driver *drvthis, int x, int y, char c)
     x = min(p->width, x);
     y = min(p->height, y);
     p->framebuffer[x+p->width*(y-1)]=c;
-};
+}
 
 
 /* User defined characters */
 
+/**
+ * Define a custom character and write it to the LCD.
+ * \param drvthis  Pointer to driver structure.
+ * \param n        Custom character to define [0 - (NUM_CCs-1)].
+ * \param dat      Array of 40(=8*5=cellheight*cellwidth) bytes, each representing a pixel
+ *                 starting from the top left to the bottom right.
+ */
 MODULE_EXPORT void pyramid_set_char (Driver *drvthis, int n, char *dat)
 {
 	char tele[10] = "G@ABCDEFGH";
@@ -510,12 +570,12 @@ MODULE_EXPORT void pyramid_set_char (Driver *drvthis, int n, char *dat)
 
 
 	if (n<0 && n>15) {
-		debug(RPT_DEBUG, "only characters 0-15 can be changed.\n");
+		debug(RPT_DEBUG, "only characters 0-15 can be changed");
 		return;
 	}
 
 	if (!dat) {
-		debug(RPT_DEBUG, "no character data\n");
+		debug(RPT_DEBUG, "no character data");
 		return;
 	}
 
@@ -534,31 +594,50 @@ MODULE_EXPORT void pyramid_set_char (Driver *drvthis, int n, char *dat)
 		tele[row+2]=pixels;
 	}
         real_send_tele(p, tele, 10);
-};
+}
 
+
+/**
+ * Get total number of custom characters available.
+ * \param drvthis  Pointer to driver structure.
+ * \return         Number of custom characters.
+ */
 MODULE_EXPORT int  pyramid_get_free_chars (Driver *drvthis)
 {
 	PrivateData *p = (PrivateData *) drvthis->private_data;
 	return (p->customchars);
-};
+}
 
 
+/**
+ * Return the width of a character in pixels.
+ * \param drvthis  Pointer to driver structure.
+ * \return         Number of pixel columns a character cell is wide.
+ */
 MODULE_EXPORT int  pyramid_cellwidth (Driver *drvthis)
 {
 	PrivateData *p = (PrivateData *) drvthis->private_data;
 	return (p->cellwidth);
-};
+}
 
+
+/**
+ * Return the height of a character in pixels.
+ * \param drvthis  Pointer to driver structure.
+ * \return         Number of pixel lines a character cell is high.
+ */
 MODULE_EXPORT int  pyramid_cellheight (Driver *drvthis)
 {
 	PrivateData *p = (PrivateData *) drvthis->private_data;
 	return (p->cellheight);
-};
+}
 
 
 
-// Sets up for vertical bars.  Call before pyramid->vbar()
-
+/**
+ * Set up vertical bars.
+ * \param drvthis  Pointer to driver structure.
+ */
 static void
 pyramid_init_vbar (Driver *drvthis)
 {
@@ -646,7 +725,11 @@ pyramid_init_vbar (Driver *drvthis)
 	}
 }
 
-// Inits horizontal bars...
+
+/**
+ * Set up horizontal bars.
+ * \param drvthis  Pointer to driver structure.
+ */
 static void
 pyramid_init_hbar (Driver *drvthis)
 {
@@ -712,6 +795,11 @@ pyramid_init_hbar (Driver *drvthis)
 	}
 }
 
+/**
+ * Defines some custom characters.
+ * These characters are enabled if the value 0x100 is sent to the \c output command.
+ * \param drvthis  Pointer to driver structure.
+ */
 static void
 pyramid_init_custom1 (Driver *drvthis)
 {
@@ -770,9 +858,15 @@ pyramid_init_custom1 (Driver *drvthis)
 }
 
 
-
-// Draws a vertical bar...
-
+/**
+ * Draw a vertical bar bottom-up.
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column) of the starting point.
+ * \param y        Vertical character position (row) of the starting point.
+ * \param len      Number of characters that the bar is high at 100%
+ * \param promille Current height level of the bar in promille.
+ * \param options  Options (currently unused).
+ */
 MODULE_EXPORT void
 pyramid_vbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 {
@@ -783,8 +877,16 @@ pyramid_vbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 	lib_vbar_static(drvthis, x, y, len, promille, options, p->cellheight, 0);
 }
 
-// Draws a horizontal bar to the right.
 
+/**
+ * Draw a horizontal bar to the right.
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column) of the starting point.
+ * \param y        Vertical character position (row) of the starting point.
+ * \param len      Number of characters that the bar is long at 100%
+ * \param promille Current length level of the bar in promille.
+ * \param options  Options (currently unused).
+ */
 MODULE_EXPORT void
 pyramid_hbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 {
@@ -796,6 +898,15 @@ pyramid_hbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 }
 
 
+/**
+ * Place an icon on the screen.
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param y        Vertical character position (row).
+ * \param icon     synbolic value representing the icon.
+ * \retval 0       Icon has been successfully defined/written.
+ * \retval <0      Server core shall define/write the icon.
+ */
 MODULE_EXPORT int
 pyramid_icon (Driver *drvthis, int x, int y, int icon)
 {
@@ -897,7 +1008,7 @@ pyramid_icon (Driver *drvthis, int x, int y, int icon)
 	// 
 	// Leaving this in the code as notification for other similar cases
 	if (p->custom == bign) {
-		printf("Switching to beat\n");
+		debug(RPT_DEBUG, "%s: Switching to beat", __FUNCTION__);
 		p->custom = beat;
 	}
 #endif
@@ -958,11 +1069,12 @@ pyramid_icon (Driver *drvthis, int x, int y, int icon)
 			break;
 
 		default:
-			printf("x=%d, y=%d, icon=%x\n", x,y,icon);
+			debug(RPT_INFO, "%s: x=%d, y=%d, icon=%x", __FUNCTION__, x, y, icon);
 			return -1;
 	}
 	return 0;
 }
+
 
 /*
 MODULE_EXPORT void 
@@ -971,6 +1083,13 @@ MODULE_EXPORT void
 pyramid_heartbeat (Driver *drvthis, int state){};
 */
 
+/**
+ * Set cursor position and state.
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal cursor position (column).
+ * \param y        Vertical cursor position (row).
+ * \param state    New cursor state.
+ */
 MODULE_EXPORT void 
 pyramid_cursor (Driver *drvthis, int x, int y, int state)
 {
@@ -993,7 +1112,8 @@ pyramid_cursor (Driver *drvthis, int x, int y, int state)
 	break;
     }
     p->C_state = state;
-};
+}
+
 
 /* Hardware functions */
 
@@ -1011,6 +1131,14 @@ MODULE_EXPORT void
 pyramid_backlight (Driver *drvthis, int on)
 #endif
 
+
+/**
+ * Set output port.
+ * Setting an output port bit lights the associated LED;
+ * re-setting the bit turns the LED off.
+ * \param drvthis  Pointer to driver structure.
+ * \param state    Integer with bits representing port states.
+ */
 MODULE_EXPORT void 
 pyramid_output (Driver *drvthis, int state)
 {
@@ -1025,10 +1153,17 @@ pyramid_output (Driver *drvthis, int state)
     if(state & (1 << 8)) {
 	    pyramid_init_custom1(drvthis);
     }
-};
+}
+
 
 /* Key functions */
 
+/**
+ * Get key from the device
+ * \param drvthis  Pointer to driver structure.
+ * \return         String representation of the key.
+ *                 \c NULL if nothing available / unmapped key.
+ */
 MODULE_EXPORT const char *
 pyramid_get_key (Driver *drvthis)
 {
@@ -1123,16 +1258,20 @@ pyramid_get_key (Driver *drvthis)
 #endif
 
     return NULL; // Ignore combined key events
-};
+}
 
 
-/* Returns a string. Server cannot modify this string. */
+/**
+ * Provide some information about this driver.
+ * \param drvthis  Pointer to driver structure.
+ * \return         Constant string with information.
+ */
 MODULE_EXPORT const char *
-pylcd_get_info (Driver *drvthis)
+pyramid_get_info (Driver *drvthis)
 {
-    static char *pylcd_info_string="Pyramid LCD driver";
+    static char *pyramid_info_string="Pyramid LCD driver";
 
-    return pylcd_info_string;
-};
+    return pyramid_info_string;
+}
 
 

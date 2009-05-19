@@ -1,18 +1,4 @@
-/*
- * main.c
- * This file is part of LCDd, the lcdproc server.
- *
- * This file is released under the GNU General Public License. Refer to the
- * COPYING file distributed with this package.
- *
- * Copyright (c) 1999, William Ferrell, Scott Scriven
- *		 2001, Joris Robijn
- *               2001, Rene Wagner
- *               2002, Mike Patnode
- *               2002, Guillaume Filion
- *               2003, Benjamin Tse (Win32 support)
- *               2005-2006, Peter Marschall (cleanup)
- *
+/** \file server/main.c
  * Contains main(), plus signal callback functions and a help screen.
  *
  * Program init, command-line handling, and the main loop are
@@ -22,10 +8,25 @@
  * Some of this stuff should probably be move elsewhere eventually,
  * such as command-line handling and the main loop.  main() is supposed
  * to be "dumb".
- *
  */
 
-#include "config.h"
+/* This file is part of LCDd, the lcdproc server.
+ *
+ * This file is released under the GNU General Public License.
+ * Refer to the COPYING file distributed with this package.
+ *
+ * Copyright (c) 1999, William Ferrell, Scott Scriven
+ *		 2001, Joris Robijn
+ *               2001, Rene Wagner
+ *               2002, Mike Patnode
+ *               2002, Guillaume Filion
+ *               2003, Benjamin Tse (Win32 support)
+ *               2005-2006, Peter Marschall (cleanup)
+ */
+
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -81,12 +82,14 @@
 #define DEFAULT_DRIVER_PATH		""	/* not needed */
 #define MAX_DRIVERS			8
 #define DEFAULT_FOREGROUND_MODE		0
-#define DEFAULT_ROTATE_SERVER_SCREEN	1
+#define DEFAULT_ROTATE_SERVER_SCREEN	SERVERSCREEN_ON
 #define DEFAULT_REPORTDEST		RPT_DEST_STDERR
 #define DEFAULT_REPORTLEVEL		RPT_WARNING
 
 #define DEFAULT_SCREEN_DURATION		32
-#define DEFAULT_HEARTBEAT		HEARTBEAT_ON
+#define DEFAULT_BACKLIGHT		BACKLIGHT_OPEN
+#define DEFAULT_HEARTBEAT		HEARTBEAT_OPEN
+#define DEFAULT_TITLESPEED		TITLESPEED_MAX
 
 /* All variables are set to 'unset' values*/
 #define UNSET_INT -1	 
@@ -140,7 +143,7 @@ static char **stored_argv;
 static volatile short got_reload_signal = 0;
 
 /* Local exported variables */
-long int timer = 0;
+long timer = 0;
 
 /**** Local functions ****/
 static void clear_settings(void);
@@ -153,7 +156,6 @@ static pid_t daemonize(void);
 static int wave_to_parent(pid_t parent_pid);
 static int init_drivers(void);
 static int drop_privs(char *user);
-static int init_screens(void);
 static void do_reload(void);
 static void do_mainloop(void);
 static void exit_program(int val);
@@ -163,7 +165,7 @@ static void output_help_screen(void);
 static void output_GPL_notice(void);
 
 #define CHAIN(e,f) { if (e>=0) { e=(f); }}
-#define CHAIN_END(e,msg) { if (e<0) { report(RPT_CRIT,(msg)); exit(e); }}
+#define CHAIN_END(e,msg) { if (e<0) { report(RPT_CRIT,(msg)); exit(EXIT_FAILURE); }}
 
 
 int
@@ -271,6 +273,8 @@ clear_settings(void)
 	foreground_mode = UNSET_INT;
 	rotate_server_screen = UNSET_INT;
 	backlight = UNSET_INT;
+	heartbeat = UNSET_INT;
+	titlespeed = UNSET_INT;
 
 	default_duration = UNSET_INT;
 	report_dest = UNSET_INT;
@@ -306,14 +310,14 @@ process_command_line(int argc, char **argv)
 				break;
 			case 'c':
 				strncpy(configfile, optarg, sizeof(configfile));
-				configfile[sizeof(configfile)-1] = 0; /* Terminate string */
+				configfile[sizeof(configfile)-1] = '\0'; /* Terminate string */
 				break;
 	 		case 'd':
 				/* Add to a list of drivers to be initialized later...*/
 				if (num_drivers < MAX_DRIVERS) {
 					drivernames[num_drivers] = strdup(optarg);
 					if (drivernames[num_drivers] != NULL) {
-						num_drivers ++;
+						num_drivers++;
 					}	
 					else {
 						report(RPT_ERR, "alloc error storing driver name: %s", optarg);
@@ -329,14 +333,14 @@ process_command_line(int argc, char **argv)
 				break;
 			case 'a':
 				strncpy(bind_addr, optarg, sizeof(bind_addr));
-				bind_addr[sizeof(bind_addr)-1] = 0; /* Terminate string */
+				bind_addr[sizeof(bind_addr)-1] = '\0'; /* Terminate string */
 				break;
 			case 'p':
 				bind_port = atoi(optarg);
 				break;
 			case 'u':
 				strncpy(user, optarg, sizeof(user));
-				user[sizeof(user)-1] = 0; /* Terminate string */
+				user[sizeof(user)-1] = '\0'; /* Terminate string */
 				break;
 			case 'w':
 				default_duration = (int) (atof(optarg) * 1e6 / TIME_UNIT);
@@ -395,9 +399,6 @@ process_command_line(int argc, char **argv)
 static int
 process_configfile(char *configfile)
 {
-	const char *s;
-	/*char buf[64];*/
-
 	debug(RPT_DEBUG, "%s()", __FUNCTION__);
 
 	/* Read server settings*/
@@ -408,16 +409,16 @@ process_configfile(char *configfile)
 	}
 
 	if (bind_port == UNSET_INT)
-		bind_port = config_get_int("server", "port", 0, UNSET_INT);
+		bind_port = config_get_int("Server", "Port", 0, UNSET_INT);
 
 	if (strcmp(bind_addr, UNSET_STR) == 0)
-		strncpy(bind_addr, config_get_string("server", "bind", 0, UNSET_STR), sizeof(bind_addr));
+		strncpy(bind_addr, config_get_string("Server", "Bind", 0, UNSET_STR), sizeof(bind_addr));
 
 	if (strcmp(user, UNSET_STR) == 0)
-		strncpy(user, config_get_string("server", "user", 0, UNSET_STR), sizeof(user));
+		strncpy(user, config_get_string("Server", "User", 0, UNSET_STR), sizeof(user));
 
 	if (default_duration == UNSET_INT) {
-		default_duration = (config_get_float("server", "waittime", 0, 0) * 1e6 / TIME_UNIT);
+		default_duration = (config_get_float("Server", "WaitTime", 0, 0) * 1e6 / TIME_UNIT);
 		if (default_duration == 0)
 			default_duration = UNSET_INT;
 		else if (default_duration * TIME_UNIT < 2e6) {
@@ -427,58 +428,61 @@ process_configfile(char *configfile)
 	}
 
 	if (foreground_mode == UNSET_INT) {
-		int fg = config_get_bool("server", "foreground", 0, UNSET_INT);
+		int fg = config_get_bool("Server", "Foreground", 0, UNSET_INT);
 
 		if (fg != UNSET_INT)
 			foreground_mode = fg;
 	}
 
 	if (rotate_server_screen == UNSET_INT) {
-		rotate_server_screen = config_get_bool("server", "serverscreen", 0, UNSET_INT);
+		rotate_server_screen = config_get_tristate("Server", "ServerScreen", 0, "blank", UNSET_INT);
 	}
 
 	if (backlight == UNSET_INT) {
-		s = config_get_string("server", "backlight", 0, UNSET_STR);
-		if (strcmp(s, "on") == 0) {
-			backlight = BACKLIGHT_ON;
-		}
-		else if (strcmp(s, "off") == 0) {
-			backlight = BACKLIGHT_OFF;
-		}
-		else if (strcmp(s, "open") == 0) {
-			backlight = BACKLIGHT_OPEN;
-		}
-		else if (strcmp(s, UNSET_STR) != 0) {
-			report(RPT_WARNING, "Backlight state should be on, off or open");
-		}
+		backlight = config_get_tristate("Server", "Backlight", 0, "open", UNSET_INT);
 	}
 
+	if (heartbeat == UNSET_INT) {
+		heartbeat = config_get_tristate("Server", "Heartbeat", 0, "open", UNSET_INT);
+	}
+
+	if (titlespeed == UNSET_INT) {
+		int speed = config_get_int("Server", "TitleSpeed", 0, DEFAULT_TITLESPEED);
+
+		/* set titlespeed */
+		titlespeed = (speed <= TITLESPEED_NO)
+			     ? TITLESPEED_NO
+			     : min(speed, TITLESPEED_MAX);
+	}		     
+
 	if (report_dest == UNSET_INT) {
-		int rs = config_get_bool("server", "reportToSyslog", 0, UNSET_INT);
+		int rs = config_get_bool("Server", "ReportToSyslog", 0, UNSET_INT);
 
 		if (rs != UNSET_INT)
 			report_dest = (rs) ? RPT_DEST_SYSLOG : RPT_DEST_STDERR;
 	}
 	if (report_level == UNSET_INT) {
-		report_level = config_get_int("server", "reportLevel", 0, UNSET_INT);
+		report_level = config_get_int("Server", "ReportLevel", 0, UNSET_INT);
 	}
 
 
-	/* Read drivers*/
+	/* Read drivers */
 
 	 /* If drivers have been specified on the command line, then do not
 	 * use the driver list from the config file.
 	 */
 	if (num_drivers == 0) {
-		/* read the drivernames*/
-
-		while(1) {
-			s = config_get_string("server", "driver", num_drivers, NULL);
-			if (!s)
+		/* loop over all the Driver= directives to read the driver names */
+		while (1) {
+			const char *s = config_get_string("Server", "Driver", num_drivers, NULL);
+			if (s == NULL)
 				break;
-			if (s[0] != 0) {
-				drivernames[num_drivers] = malloc(strlen(s)+1);
-				strcpy(drivernames[num_drivers], s);
+			if (s[0] != '\0') {
+				drivernames[num_drivers] = strdup(s);
+				if (drivernames[num_drivers] == NULL) {
+					report(RPT_ERR, "alloc error storing driver name: %s", s);
+					exit(EXIT_FAILURE);
+				}	
 				num_drivers++;
 			}
 		}
@@ -493,7 +497,7 @@ set_default_settings(void)
 {
 	debug(RPT_DEBUG, "%s()", __FUNCTION__);
 
-	/* Set defaults into unfilled variables....*/
+	/* Set defaults into unfilled variables... */
 
 	if (bind_port == UNSET_INT)
 		bind_port = DEFAULT_BIND_PORT;
@@ -510,7 +514,11 @@ set_default_settings(void)
 	if (default_duration == UNSET_INT)
 		default_duration = DEFAULT_SCREEN_DURATION;
 	if (backlight == UNSET_INT)
-		backlight = BACKLIGHT_OPEN;
+		backlight = DEFAULT_BACKLIGHT;
+	if (heartbeat == UNSET_INT)
+		heartbeat = DEFAULT_HEARTBEAT;
+	if (titlespeed == UNSET_INT)
+		titlespeed = DEFAULT_TITLESPEED;
 
 	if (report_dest == UNSET_INT)
 		report_dest = DEFAULT_REPORTDEST;
@@ -518,10 +526,13 @@ set_default_settings(void)
 		report_level = DEFAULT_REPORTLEVEL;
 
 
-	/* Use default driver*/
+	/* Use default driver */
 	if (num_drivers == 0) {
-		drivernames[0] = malloc(strlen(DEFAULT_DRIVER)+1);
-		strcpy(drivernames[0], DEFAULT_DRIVER);
+		drivernames[0] = strdup(DEFAULT_DRIVER);
+		if (drivernames[0] == NULL) {
+			report(RPT_ERR, "alloc error storing driver name: %s", DEFAULT_DRIVER);
+			exit(EXIT_FAILURE);
+		}	
 		num_drivers = 1;
 	}
 }
@@ -580,7 +591,7 @@ child_ok_func(int signal)
 	debug(RPT_INFO, "%s(signal=%d)", __FUNCTION__, signal);
 
 	/* Exit now !    because of bug? in wait() */
-	_exit(0); /* Parent exits normally. */
+	_exit(EXIT_SUCCESS); /* Parent exits normally. */
 }
 
 
@@ -636,7 +647,7 @@ daemonize(void)
 		/* Child is still running and has signalled it's OK.
 		 * This means the parent can now rest in peace. */
 		debug(RPT_INFO, "Got OK signal from child.");
-		exit(0); /* Parent exits normally. */
+		exit(EXIT_SUCCESS); /* Parent exits normally. */
 	}
 	/* At this point we are always the child. */
 	/* Reset signal handler */
@@ -732,30 +743,6 @@ drop_privs(char *user)
 }
 
 
-static int
-init_screens(void)
-{
-	debug(RPT_DEBUG, "%s()", __FUNCTION__);
-
-	if (screenlist_init() < 0) {
-		report(RPT_ERR, "Error initializing screen list");
-		return -1;
-	}
-
-	/* Add the server screen */
-	if (server_screen_init() < 0) {
-		report(RPT_ERR, "Error initializing server screens");
-		return -1;
-	}
-	if (!rotate_server_screen) {
-		/* Display the server screen only when there are no other
-		 * screens */
-		/* server_screen->priority = PRI_BACKGROUND; */
-	}
-	return 0;
-}
-
-
 static void
 do_reload(void)
 {
@@ -823,7 +810,7 @@ do_mainloop(void)
 #ifndef WIN32
 		gettimeofday(&t, NULL);
 		t_diff = t.tv_sec - last_t.tv_sec;
-		if ((t_diff + 1) > (LONG_MAX / 1e6)) {
+		if ( ((t_diff + 1) > (LONG_MAX / 1e6)) || (t_diff < 0) ) {
 			/* We're going to overflow the calculation - probably been to sleep, fudge the values */
 			t_diff = 0;
 			process_lag = 1;
@@ -941,7 +928,7 @@ exit_program(int val)
         sock_shutdown();                /* shutdown the sockets server */
 
 	report(RPT_INFO, "Exiting.");
-	_exit(0);
+	_exit(EXIT_SUCCESS);
 }
 
 

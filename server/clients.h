@@ -1,12 +1,13 @@
-/*
- * client.h
- * This file is part of LCDd, the lcdproc server.
+/** \file server/clients.h
+ * Manage the list of clients that are connected.
+ */
+
+/* This file is part of LCDd, the lcdproc server.
  *
- * This file is released under the GNU General Public License. Refer to the
- * COPYING file distributed with this package.
+ * This file is released under the GNU General Public License.
+ * Refer to the COPYING file distributed with this package.
  *
  * Copyright (c) 1999, William Ferrell, Scott Scriven
- *
  */
 
 #ifndef CLIENTS_H
@@ -21,9 +22,9 @@
 int clients_init(void);
 int clients_shutdown(void);
 
-/* Add/remove clients (return -1 for error) */
-int clients_add_client(Client *c);
-int clients_remove_client(Client *c);
+/* Add/remove clients (return NULL for error) */
+Client *clients_add_client(Client *c);
+Client *clients_remove_client(Client *c, Direction whereto);
 
 /* List functions */
 Client *clients_getfirst(void);

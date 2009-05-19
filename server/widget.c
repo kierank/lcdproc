@@ -1,16 +1,15 @@
-/*
- * widget.c
- * This file is part of LCDd, the lcdproc server.
+/** \file server/widget.c
+ * Does all actions on widgets
+ */
+
+/* This file is part of LCDd, the lcdproc server.
  *
- * This file is released under the GNU General Public License. Refer to the
- * COPYING file distributed with this package.
+ * This file is released under the GNU General Public License.
+ * Refer to the COPYING file distributed with this package.
  *
  * Copyright (c) 1999, William Ferrell, Scott Scriven
  *		 2002, Joris Robijn
- *
- *
- * Does all actions on widgets
- *
+ *		 2008, Peter Marschall
  */
 
 #include <stdlib.h>
@@ -26,16 +25,16 @@
 #include "drivers/lcd.h"
 
 char *typenames[] = {
-	"none",
-	"string",
-	"hbar",
-	"vbar",
-	"icon",
-	"title",
-	"scroller",
-	"frame",
-	"num",
-	NULL,
+	"none",		/* WID_NONE */
+	"string",	/* WID_STRING */
+	"hbar",		/* WID_HBAR */
+	"vbar",		/* WID_VBAR */
+	"icon",		/* WID_ICON */
+	"title",	/* WID_TITLE */
+	"scroller",	/* WID_SCROLLER */
+	"frame",	/* WID_FRAME */
+	"num",		/* WID_NUM */
+	NULL,		/* WID_NONE */
 };
 
 struct icontable {
@@ -68,6 +67,12 @@ struct icontable {
 };
 
 
+/** Create a widget.
+  * \param id       Widget identifier; it's name.
+  * \param type     Widget type.
+  * \param screen   Screen on which the widget is to be placed.
+  * \return         Pointer to the freshly created widget.
+  */
 Widget *
 widget_create(char *id, WidgetType type, Screen *screen)
 {
@@ -77,14 +82,15 @@ widget_create(char *id, WidgetType type, Screen *screen)
 
 	/* Create it */
 	w = malloc(sizeof(Widget));
-	if (!w) {
+	if (w == NULL) {
 		report(RPT_DEBUG, "%s: Error allocating", __FUNCTION__);
 		return NULL;
 	}
 
 	w->id = strdup(id);
-	if (!w->id) {
+	if (w->id == NULL) {
 		report(RPT_DEBUG, "%s: Error allocating", __FUNCTION__);
+		free(w);
 		return NULL;
 	}
 
@@ -105,18 +111,37 @@ widget_create(char *id, WidgetType type, Screen *screen)
 
 	if (w->type == WID_FRAME) {
 		/* create a screen for the frame widget */
-		char *frame_name;
-		frame_name = malloc(strlen("frame_") + strlen(id) + 1);
+		char *frame_name = malloc(strlen("frame_") + strlen(id) + 1);
+
+		if (frame_name == NULL) {
+			report(RPT_DEBUG, "%s: Error allocating", __FUNCTION__);
+			free(w->id);
+			free(w);
+			return NULL;
+		}
 		strcpy(frame_name, "frame_");
 		strcat(frame_name, id);
 
 		w->frame_screen = screen_create(frame_name, screen->client);
+		if (w->frame_screen == NULL) {
+			report(RPT_DEBUG, "%s: Error allocating", __FUNCTION__);
+			free(w->id);
+			free(w);
+			/* return NULL after cleaning up */
+			w = NULL;
+		}
 
 		free(frame_name); /* not needed anymore */
 	}
 	return w;
 }
 
+
+/** Destroy a widget.
+ * \param w    Widget to destroy.
+ * \retval <0  Error; no widget given.
+ * \retval  0  Success.
+ */
 int
 widget_destroy(Widget *w)
 {
@@ -125,28 +150,39 @@ widget_destroy(Widget *w)
 	if (!w)
 		return -1;
 
-	if (w->id)
+	if (w->id != NULL) {
 		free(w->id);
-	if (w->text)
+		w->id = NULL;
+	}
+	if (w->text != NULL) {
 		free(w->text);
+		w->text = NULL;
+	}
 
 	/* Free subscreen of frame widget too */
 	if (w->type == WID_FRAME) {
 		screen_destroy(w->frame_screen);
+		w->frame_screen = NULL;
 	}
 
 	free(w);
+	w = NULL;
 
 	return 0;
 }
 
+
+/** Convert a widget type name to a widget type.
+ * \param typename  Name of the idget type.
+ * \return          Widget type.
+ */
 WidgetType
 widget_typename_to_type(char *typename)
 {
 	WidgetType wid_type = WID_NONE;
 	int i;
 
-	for (i = 0; typenames[i]; i++) {
+	for (i = 0; typenames[i] != NULL; i++) {
 		if (strcmp(typenames[i], typename) == 0) {
 			wid_type = i;
 			break; /* it's valid: skip out...*/
@@ -155,12 +191,23 @@ widget_typename_to_type(char *typename)
 	return wid_type;
 }
 
+
+/** Convert a widget type to the associated type name.
+ * \param t  Widget type.
+ * \return   Widget type's name.
+ */
 char *
 widget_type_to_typename(WidgetType t)
 {
 	return typenames[t];
 }
 
+
+/** Find subordinate widgets of a widget by name.
+ * \param w   Widget.
+ * \param id  Name of the subiordinate widget.
+ * \return    Pointer to the sub-widget; \c NULL if not found or on error.
+ */
 Widget *
 widget_search_subs(Widget *w, char *id)
 {
@@ -171,11 +218,16 @@ widget_search_subs(Widget *w, char *id)
 	}
 }
 
+
+/** Find a widget icon by type.
+ * \param icon    Icon type.
+ * \return        Pointer to constant string containing the icon name.
+ */ 
 char *widget_icon_to_iconname(int icon)
 {
 	int i;
 
-	for (i = 0; icontable[i].iconname; i++) {
+	for (i = 0; icontable[i].iconname != NULL; i++) {
 		if (icontable[i].icon == icon) {
 			return icontable[i].iconname;
 		}
@@ -184,11 +236,16 @@ char *widget_icon_to_iconname(int icon)
 	return NULL;
 }
 
+
+/** Find a widget icon by name.
+ * \param iconname  Icon name.
+ * \return          Icon type
+ */
 int widget_iconname_to_icon(char *iconname)
 {
 	int i;
 
-	for (i = 0; icontable[i].iconname; i++) {
+	for (i = 0; icontable[i].iconname != NULL; i++) {
 		if (strcasecmp(icontable[i].iconname, iconname) == 0) {
 			return icontable[i].icon;
 		}

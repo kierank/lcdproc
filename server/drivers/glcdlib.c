@@ -1,3 +1,7 @@
+/** \file server/drivers/glcdlib.c
+ * LCDd \c glcdlib "meta-driver" for all displays supported by graphlcd-base.
+ */
+
 /*
  * This so-called "meta-driver" extends LCDproc's supported drivers by
  * all the drivers supported by graphlcd-base, which you can get from
@@ -37,10 +41,10 @@
 #include "glcdlib.h"
 
 
-// our private data
-typedef struct {
-	GlcdDriver * glcdDriver;
-	char info[255];
+/** private data for the \c glcdlib driver */
+typedef struct glcdlib_private_data {
+	GlcdDriver *glcdDriver;		/**< GlcdDriver handle */
+	char info[255];			/**< info string contents */
 } glcdlibPD;
 
 

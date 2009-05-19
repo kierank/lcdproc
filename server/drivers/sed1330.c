@@ -1,3 +1,7 @@
+/** \file server/drivers/sed1330.c
+ * LCDd \c sed1330 driver for SED1330/1335 graphical displays.
+ */
+
 /*
  * Driver for SED1330/1335 graphical displays
  *
@@ -263,23 +267,22 @@
 #define SCR2_L 0x00
 #define SCR2_H 0x06
 
-typedef struct p {
 
-	// display type
-	int type;
+/** private data for the \c sed1330 driver */
+typedef struct sed1330_private_data {
+	int type;			/**< display type */
 
 	// wiring scheme variables to be set by sed1330_init()
-	int A0;	
+	int A0;
 	int nRESET;
 	int nWR;
 
-	// which lpt port to use
-	int port;
+	int port;			/**< LPT port to use */
 
-	unsigned char * framebuf_text;
-	unsigned char * lcd_contents_text;
-	unsigned char * framebuf_graph;
-	unsigned char * lcd_contents_graph;
+	unsigned char *framebuf_text;
+	unsigned char *lcd_contents_text;
+	unsigned char *framebuf_graph;
+	unsigned char *lcd_contents_graph;
 
 	int width, height;
 	int cellwidth, cellheight;

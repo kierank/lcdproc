@@ -1,3 +1,8 @@
+/** \file server/drivers/stv5730.c
+ * LCDd \c stv5730 driver for the STV5730A on-screen display chip
+ * connected to a parallel port.
+ */
+
 //////////////////////////////////////////////////////////////////////////
 // This is a driver for the STV5730A on-screen display chip in con-     //
 // junction with a parallel port interface. Check                       //
@@ -80,7 +85,8 @@
 #define STV5730_COL_SBACK	2
 
 
-typedef struct driver_private_data {
+/** private data for the \c stv5730 driver */
+typedef struct stv5730_private_data {
     unsigned int port;
     unsigned int charattrib;
     unsigned int flags;

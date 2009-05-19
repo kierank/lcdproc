@@ -1,9 +1,10 @@
-/*
- * 4-bit driver module for Hitachi HD44780 based LCD displays.
- * The LCD is operated in it's 4 bit-mode to be connected to a single
- * 8 bit-port.
+/** \file server/drivers/hd44780-4bit.c
+ * \c 4bit connection type of \c hd44780 driver for Hitachi HD44780 based LCD displays.
  *
- * Copyright (c)  2000, 1999, 1995 Benjamin Tse <blt@Comports.com>
+ * The LCD is operated in its 4 bit-mode to be connected to a single PC parallel port.
+ */
+
+/* Copyright (c)  2000, 1999, 1995 Benjamin Tse <blt@Comports.com>
  *		  2001 Joris Robijn <joris@robijn.net>
  *		  1999 Andrew McMeikan <andrewm@engineer.com>
  *		  1998 Richard Rognlie <rrognlie@gamerz.net>
@@ -92,14 +93,20 @@ static const unsigned char EnMask[] = { EN1, EN2, EN3, STRB, LF, INIT, SEL };
 #define ALLEXT  (STRB|LF|INIT|SEL)
 // The above bits are on the control port of LPT
 
-// initialisation function
+
+/**
+ * Initialize the driver.
+ * \param drvthis  Pointer to driver structure.
+ * \retval 0       Success.
+ * \retval -1      Error.
+ */
 int
 hd_init_4bit(Driver *drvthis)
 {
 	PrivateData *p = (PrivateData*) drvthis->private_data;
 	HD44780_functions *hd44780_functions = p->hd44780_functions;
 
-	int enableLines = EN1 | EN2 | EN3;
+	int enableLines = EN1 | EN2 | ((p->numDisplays == 3) ? EnMask[2] : 0);
 
 	// Reserve the port registers
 	port_access_multiple(p->port,3);
@@ -168,7 +175,14 @@ hd_init_4bit(Driver *drvthis)
 	return 0;
 }
 
-// lcdstat_HD44780_senddata
+
+/**
+ * Send data or commands to the display.
+ * \param p          Pointer to driver's private data structure.
+ * \param displayID  ID of the display (or 0 for all) to send data to.
+ * \param flags      Defines whether to end a command or data.
+ * \param ch         The value to send.
+ */
 void
 lcdstat_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char flags, unsigned char ch)
 {
@@ -185,7 +199,8 @@ lcdstat_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char 
 
 	if (displayID <= 3) {
 		if (displayID == 0) {
-			enableLines = EnMask[0] | EnMask[1] | EnMask[2];
+			enableLines = EnMask[0] | EnMask[1]
+			| ((p->numDisplays == 3) ? EnMask[2] : 0);
 		} else {
 			enableLines = EnMask[displayID - 1];
 		}
@@ -224,6 +239,12 @@ lcdstat_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char 
 	}
 }
 
+
+/**
+ * Turn display backlight on or off.
+ * \param p      Pointer to driver's private data structure.
+ * \param state  New backlight status.
+ */
 void lcdstat_HD44780_backlight(PrivateData *p, unsigned char state)
 {
 	p->backlight_bit = ((!p->have_backlight||state)?0:BL);
@@ -231,6 +252,13 @@ void lcdstat_HD44780_backlight(PrivateData *p, unsigned char state)
 	port_out(p->port, p->backlight_bit);
 }
 
+
+/**
+ * Read keypress.
+ * \param p      Pointer to driver's private data structure.
+ * \param YData  ???
+ * \return       Bitmap of the pressed keys.
+ */
 unsigned char lcdstat_HD44780_readkeypad(PrivateData *p, unsigned int YData)
 {
 	unsigned char readval;

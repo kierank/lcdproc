@@ -44,6 +44,7 @@
 #define DEFAULT_BRIGHTNESS	140
 #define DEFAULT_SIZE		"20x2"
 #define DEFAULT_DISPLAYTYPE 	0
+#define DEFAULT_PARA_WAIT	2
 
 
 MODULE_EXPORT int  serialVFD_init (Driver *drvthis);
@@ -59,19 +60,20 @@ MODULE_EXPORT void serialVFD_chr (Driver *drvthis, int x, int y, char c);
 
 MODULE_EXPORT void serialVFD_vbar (Driver *drvthis, int x, int y, int len, int promille, int options);
 MODULE_EXPORT void serialVFD_hbar (Driver *drvthis, int x, int y, int len, int promille, int options);
+MODULE_EXPORT void serialVFD_num (Driver *drvthis, int x, int num);
 MODULE_EXPORT int  serialVFD_icon(Driver *drvthis, int x, int y, int icon);
 
 MODULE_EXPORT void serialVFD_set_char (Driver *drvthis, int n, unsigned char *dat);
+MODULE_EXPORT int serialVFD_get_free_chars (Driver *drvthis);
 
 MODULE_EXPORT int  serialVFD_get_brightness (Driver *drvthis, int state);
 MODULE_EXPORT void serialVFD_set_brightness (Driver *drvthis, int state, int promille);
 MODULE_EXPORT void serialVFD_backlight (Driver *drvthis, int on);
-MODULE_EXPORT void serialVFD_output (Driver *drvthis, int state);
-MODULE_EXPORT void serialVFD_num (Driver *drvthis, int x, int num);
-MODULE_EXPORT int serialVFD_get_free_chars (Driver *drvthis);
+
 MODULE_EXPORT const char * serialVFD_get_info( Driver *drvthis );
 
-typedef struct driver_private_data {
+/** private data for the \c serialVFD driver */
+typedef struct serialVFD_private_data {
 	int use_parallel;		// use parallel?
 	unsigned short port;		// Port in parallel mode
 	char device[200];		// Device in serial mode
@@ -93,14 +95,16 @@ typedef struct driver_private_data {
 	int predefined_vbar;
 	int ISO_8859_1;
 	unsigned int refresh_timer;
-	unsigned char charmap[128];
+	unsigned int para_wait;
+	unsigned char charmap[129];
 	int display_type;		// display type
 	int last_custom;		// last custom character written
 	unsigned char custom_char[31][7]; 	// stored custom characters
 	unsigned char custom_char_store[31][7]; 	// custom characters backingstore
-	unsigned char hw_cmd[10][4]; 		// hardwarespecific commands
+	unsigned char hw_cmd[11][10]; 		// hardwarespecific commands
 	int usr_chr_dot_assignment[57];	// how to setup usercharacters
 	unsigned int usr_chr_mapping[31];// where to place the usercharacters (0..30) in the asciicode
+	unsigned int usr_chr_load_mapping[31];// needed for displays with different read and write mapping 
 	int hbar_cc_offset;		// character offset of the bars
 	int vbar_cc_offset;		// character offset of the bars
 	char info[255];

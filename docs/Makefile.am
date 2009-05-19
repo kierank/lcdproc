@@ -4,13 +4,7 @@ man_MANS = lcdproc.1 lcdexec.1 LCDd.8 lcdproc-config.5
 SUBDIRS = lcdproc-user lcdproc-dev
 doxygen_input = header.html footer.html
 
-EXTRA_DIST = README.dg \
-	README.dg2 \
-	README.glcdlib \
-	README.imon \
-	menustuff.txt \
-	netstuff.txt \
-	lcdproc.1.in \
+EXTRA_DIST = lcdproc.1.in \
 	lcdexec.1 \
 	LCDd.8.in \
 	lcdproc-config.5.in \
@@ -32,6 +26,16 @@ CLEANFILES = LCDd.8 lcdproc.1 lcdproc-config.5
 
 
 ## convenience targets
+
+.PHONY: install-server-man install-client-man
+
+install-server-man: install-man8 install-man5
+
+install-client-man: install-man1 install-man5
+
+
+.PHONY: install-html-guides install-html-developerguide install-html-userguide
+
 install-html-guides: install-html-developerguide install-html-userguide
 
 install-html-developerguide:

@@ -1,3 +1,9 @@
+/** \file server/drivers/glk.c
+ * LCDd \c glk driver for graphical displays by MatroxOrbital.
+ *
+ * \todo  Adapt hBar, vBar, and icon to 0.5 API.
+ */
+
 /*
  * MatrixOrbital GLK Graphic Display Driver
  *
@@ -47,7 +53,8 @@
 //////////////////// Matrix Orbital Graphical Driver /////////////////////
 //////////////////////////////////////////////////////////////////////////
 
-typedef struct driver_private_data {
+/** private data for the \c glk driver */
+typedef struct glk_private_data {
   char device[256];
   GLKDisplay *fd;
   speed_t speed;
@@ -75,15 +82,18 @@ typedef struct driver_private_data {
 
 // Vars for the server core
 MODULE_EXPORT char *api_version = API_VERSION;
-MODULE_EXPORT int stay_in_foreground = 1;
+MODULE_EXPORT int stay_in_foreground = 0;
 MODULE_EXPORT int supports_multiple = 0;
 MODULE_EXPORT char *symbol_prefix = "glk_";
 
 
 
-////////////////////////////////////////////////////////////
-// init() should set up any device-specific stuff, and
-// point all the function pointers.
+/**
+ * Initialize the driver.
+ * \param drvthis  Pointer to driver structure.
+ * \retval 0   Success.
+ * \retval <0  Error.
+ */
 MODULE_EXPORT int
 glk_init(Driver *drvthis)
 {
@@ -238,13 +248,14 @@ glk_init(Driver *drvthis)
 
   report(RPT_DEBUG, "%s: init() done", drvthis->name);
 
-  return 1;
+  return 0;
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Close the driver
-//
+/**
+ * Close the driver (do necessary clean-up).
+ * \param drvthis  Pointer to driver structure.
+ */
 MODULE_EXPORT void
 glk_close(Driver *drvthis)
 {
@@ -268,9 +279,11 @@ glk_close(Driver *drvthis)
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Returns the display width
-//
+/**
+ * Return the display width in characters.
+ * \param drvthis  Pointer to driver structure.
+ * \return  Number of characters the display is wide.
+ */
 MODULE_EXPORT int
 glk_width(Driver *drvthis)
 {
@@ -280,9 +293,11 @@ glk_width(Driver *drvthis)
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Returns the display height
-//
+/**
+ * Return the display height in characters.
+ * \param drvthis  Pointer to driver structure.
+ * \return  Number of characters the display is high.
+ */
 MODULE_EXPORT int
 glk_height(Driver *drvthis)
 {
@@ -292,9 +307,11 @@ glk_height(Driver *drvthis)
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Returns the display's cell width
-//
+/**
+ * Return the width of a character in pixels.
+ * \param drvthis  Pointer to driver structure.
+ * \return  Number of pixel columns a character cell is wide.
+ */
 MODULE_EXPORT int
 glk_cellwidth(Driver *drvthis)
 {
@@ -304,9 +321,11 @@ glk_cellwidth(Driver *drvthis)
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Returns the display's cell height
-//
+/**
+ * Return the height of a character in pixels.
+ * \param drvthis  Pointer to driver structure.
+ * \return  Number of pixel lines a character cell is high.
+ */
 MODULE_EXPORT int
 glk_cellheight(Driver *drvthis)
 {
@@ -316,11 +335,12 @@ glk_cellheight(Driver *drvthis)
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Clears the LCD screen
-//
 #define CLEARCOUNT  (1000000)
 
+/**
+ * Clears the LCD screen using a hardware command
+ * \param drvthis  Pointer to driver structure.
+ */
 void glk_clear_forced(Driver *drvthis)
 {
 	PrivateData *p = drvthis->private_data;
@@ -330,7 +350,10 @@ void glk_clear_forced(Driver *drvthis)
 	memset(p->backingstore, ' ', p->width * p->height);
 }
 
-
+/**
+ * Clear the screen.
+ * \param drvthis  Pointer to driver structure.
+ */
 MODULE_EXPORT void
 glk_clear(Driver *drvthis)
 {
@@ -344,9 +367,10 @@ glk_clear(Driver *drvthis)
 }
 
 
-//////////////////////////////////////////////////////////////////
-// Flushes all output to the lcd...
-//
+/**
+ * Flush data on screen to the LCD.
+ * \param drvthis  Pointer to driver structure.
+ */
 MODULE_EXPORT void
 glk_flush(Driver *drvthis)
 {
@@ -388,10 +412,14 @@ glk_flush(Driver *drvthis)
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Prints a string on the lcd display, at position (x,y).  The
-// upper-left is (1,1), and the lower right should be (20,4).
-//
+/**
+ * Prints a string on the lcd display at position (x,y).
+ * The upper-left corner is (1,1), the lower-right corner is (p->width, p->height).
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param y        Vertical character position (row).
+ * \param string   String that gets written.
+ */
 MODULE_EXPORT void
 glk_string(Driver *drvthis, int x, int y, const char string[])
 {
@@ -409,10 +437,14 @@ glk_string(Driver *drvthis, int x, int y, const char string[])
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Prints a character on the lcd display, at position (x,y).  The
-// upper-left is (1,1), and the lower right should be (20,4).
-//
+/**
+ * Print a character on the lcd at position (x,y).
+ * The upper-left corner is (1,1), the lower-right corner is (p->width, p->height).
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param y        Vertical character position (row).
+ * \param c        Character that gets written.
+ */
 MODULE_EXPORT void
 glk_chr(Driver *drvthis, int x, int y, char c)
 {
@@ -450,12 +482,13 @@ glk_chr(Driver *drvthis, int x, int y, char c)
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Returns current p->contrast
-// This is only the locally stored contrast, the contrast value
-// cannot be retrieved from the LCD.
-// Value 0 to 1000.
-//
+/**
+ * Get current LCD contrast.
+ * This is only the locally stored contrast, the contrast value
+ * cannot be retrieved from the LCD.
+ * \param drvthis  Pointer to driver structure.
+ * \return  Stored contrast in promille [0-1000].
+ */
 MODULE_EXPORT int
 glk_get_contrast(Driver *drvthis)
 {
@@ -465,10 +498,11 @@ glk_get_contrast(Driver *drvthis)
 }
 
 
-//////////////////////////////////////////////////////////////////////
-// Sets the p->contrast of the display.  Value is 0-255, where 140 is
-// what I consider "just right".
-//
+/**
+ * Sets the contrast of the display.
+ * \param drvthis   Pointer to driver structure.
+ * \param promille  New contrast value in promille.
+ */
 MODULE_EXPORT void
 glk_set_contrast(Driver *drvthis, int promille)
 {
@@ -487,9 +521,11 @@ glk_set_contrast(Driver *drvthis, int promille)
 }
 
 
-//////////////////////////////////////////////////////////////////////
-// Turns the lcd backlight on or off...
-//
+/**
+ * Turn the LCD backlight on or off.
+ * \param drvthis  Pointer to driver structure.
+ * \param on       New backlight status.
+ */
 MODULE_EXPORT void
 glk_backlight(Driver *drvthis, int on)
 {
@@ -506,8 +542,11 @@ glk_backlight(Driver *drvthis, int on)
 }
 
 
-//////////////////////////////////////////////////////////////////////
-// Sets general purpose outputs on or off
+/**
+ * Sets general purpose outputs on or off
+ * \param drvthis  Pointer to driver structure.
+ * \param on       Integer with bits representing GPIO states.
+ */
 MODULE_EXPORT void
 glk_output(Driver *drvthis, int on)
 {
@@ -533,7 +572,7 @@ glk_output(Driver *drvthis, int on)
  * \param num      Character to write (0 - 10 with 10 representing ':')
  */
 MODULE_EXPORT void
-IOWarrior_num(Driver *drvthis, int x, int num)
+glk_num(Driver *drvthis, int x, int num)
 {
 	//PrivateData *p = drvthis->private_data;
 	int do_init = 1;
@@ -595,9 +634,10 @@ glk_get_free_chars(Driver *drvthis)
 }
 
 
-//////////////////////////////////////////////////////////////////////
-// Changes the font data of character n.
-//
+/**
+ * Changes the font data of character n.
+ * This function is a stub and currently does nothing.
+ */
 MODULE_EXPORT void
 glk_set_char(Driver *drvthis, int n, char *dat)
 {
@@ -607,9 +647,10 @@ glk_set_char(Driver *drvthis, int n, char *dat)
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Draws a vertical bar, from the bottom of the screen up.
-//
+/**
+ * Draws a vertical bar, from the bottom of the screen up.
+ * This function still uses 0.4 API.
+ */
 MODULE_EXPORT void
 glk_old_vbar(Driver *drvthis, int x, int len)
 {
@@ -642,9 +683,10 @@ glk_old_vbar(Driver *drvthis, int x, int len)
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Draws a horizontal bar to the right.
-//
+/**
+ * Draws a horizontal bar to the right.
+ * This function still uses 0.4 API.
+ */
 MODULE_EXPORT void
 glk_old_hbar(Driver *drvthis, int x, int y, int len)
 {
@@ -674,15 +716,13 @@ glk_old_hbar(Driver *drvthis, int x, int y, int len)
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Sets character 0 to an icon...
-//
+/**
+ * Sets character 0 to an icon.
+ * This function still uses 0.4 API.
+ */
 MODULE_EXPORT void
 glk_old_icon(Driver *drvthis, int which, int dest)
 {
-  /* TODO IMPLEMENTATION OF NEW API */
-  /* any volonteers ? */
-
   PrivateData *p = drvthis->private_data;
   unsigned char old, new;
   unsigned char *pf = p->framebuf;
@@ -721,11 +761,12 @@ glk_old_icon(Driver *drvthis, int which, int dest)
 }
 
 
-//////////////////////////////////////////////////////////////////////
-// Tries to read a character from an input device...
-//
-// Return NULL for "nothing available".
-//
+/**
+ * Get key from the key panel connected to the display.
+ * \param drvthis  Pointer to driver structure.
+ * \return         String representation of the key;
+ *                 \c NULL if nothing available / unmapped key.
+ */
 MODULE_EXPORT const char *
 glk_get_key(Driver *drvthis)
 {

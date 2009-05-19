@@ -1,95 +1,125 @@
-#!/bin/sh
-NIGHTLYDIR=/home/gfk/lcdproc/nightly
+#!/bin/bash
+#set -x
+
+SF_ACCOUNT=${SF_ACCOUNT:-$USER}
+LCDPROC_DIR=${LCDPROC_DIR:-$HOME/lcdproc}
+NIGHTLY_DIR=${NIGHTLY_DIR:-$LCDPROC_DIR/nightly}
+
 CVS=/usr/bin/cvs
 MAKE=/usr/bin/make
-DATE=`/bin/date`
 PERL=/usr/bin/perl
 GUNZIP=/bin/gunzip
-BZIP2=/usr/bin/bzip2
-CVS2CL=/home/gfk/lcdproc/cvs2cl.pl
-SSH=/usr/bin/ssh
+BZIP2=/bin/bzip2
+CVS2CL=/usr/bin/cvs2cl
 RSYNC=/usr/bin/rsync
+
+TODAY=`/bin/date`
 #####
-# Branch, can be stable-0-4-x, stable-0-5-x or current
-BRANCH=$1
+# Branch, can be stable-0-4-x, stable-0-5-x or current (default)
+BRANCH=${1:-current}
 
-cd ${NIGHTLYDIR}/${BRANCH}/
+test -d ${NIGHTLY_DIR}/${BRANCH}/  &&  cd ${NIGHTLY_DIR}/${BRANCH}/
 
-# Clean up (just in case)
-rm -f lcdproc-*.tar.gz
+# make sure, we're in an LCDproc source directory
+if [ -e README ] && [ -e ChangeLog ] && [ -e LCDd.conf ]; then
 
-# Fetch of the changes
-${CVS} update -d &> nightly-cvsChanges.txt
+  # Clean up (just in case)
+  rm -f lcdproc-*.tar.gz lcdproc-*.tar.bz2
 
-# Add of the warning and changes to the README file
-mv README README.temp
-echo "################################################" > README
-echo "# WARNING! WARNING! WARNING! WARNING! WARNING! #" >> README
-echo "#                                              #" >> README
-echo "# This is an automated nightly distribution    #" >> README
-echo "# made with the ${BRANCH} CVS branch." >> README
-echo "# Date:   ${DATE}         #" >> README
-echo "# NO WARANTIES AT ALL.  Expect this to crash.  #" >> README
-echo "# Please report problems to the mailing list.  #" >> README
-echo "#                                              #" >> README
-echo "#      http://lcdproc.omnipotent.net/          #" >> README
-echo "################################################" >> README
-echo >> README
-cat README.temp >> README
-echo "Here's what CVS update said (Check ChangeLog for more infos):" >> README
-cat nightly-cvsChanges.txt >> README
+  # Fetch the changes (ignore the file we store the changes in)
+  ${CVS} update -d 2>&1 | grep -v '^? nightly-cvsChanges.txt' > nightly-cvsChanges.txt
 
-# Produce a ChangeLog for yesterday
-mv ChangeLog ChangeLog.temp
-${CVS2CL} "-d'1 day ago<1 second ago'" --file nightly-ChangeLog &>/dev/null
-echo "Changes since yesterday:" > ChangeLog
-touch nightly-ChangeLog
-cat nightly-ChangeLog >> ChangeLog
+  # Add warning and changes to the README file
+  mv README README.nightly-temp
+  echo "################################################"    > README
+  echo "# WARNING! WARNING! WARNING! WARNING! WARNING! #"    >> README
+  echo "#                                              #"    >> README
+  echo "# This is an automated nightly distribution    #"    >> README
+  printf '# %-44s #\n' "made with the ${BRANCH} CVS branch." >> README
+  printf '# %-44s #\n' "Date:   ${TODAY}"                    >> README
+  echo "# NO WARANTIES AT ALL.  Expect this to crash.  #"    >> README
+  echo "# Please report problems to the mailing list.  #"    >> README
+  echo "#                                              #"    >> README
+  echo "#      http://lcdproc.omnipotent.net/          #"    >> README
+  echo "################################################"    >> README
+  echo >> README
+  cat README.nightly-temp >> README
+  echo >> README
+  echo "Here's what CVS update said (Check ChangeLog for more infos):" >> README
+  echo >> README
+  cat nightly-cvsChanges.txt >> README
 
-# Change the version number to CVS-${BRANCH}-${DATE}
-cp configure.in configure.in.temp
-BRANCH=${BRANCH} \
-${PERL} -MPOSIX -i -p -e '$version = "CVS-".$ENV{BRANCH}."-".strftime("%Y%m%d", localtime);
-                          s/(AM_INIT_AUTOMAKE\s*)\(\s*(\[?lcdproc\]?)\s*,\s*[\w\d.-]+\s*\)/$1($2, $version)/; 
-                          s/(AC_INIT\s*)\(\s*(\[?lcdproc\]?)\s*,\s*[\w\d.-]+\s*\)/$1($2, $version)/;
-                          s/(AC_INIT\s*)\(\s*(\[?lcdproc\]?)\s*,\s*[\w\d.-]+(\s*[^)]+)\s*\)/$1($2, $version$3)/;' \
-        configure.in
+  # Produce a ChangeLog for yesterday
+  mv ChangeLog ChangeLog.nightly-temp
+  echo "Changes since yesterday:" > ChangeLog
+  echo >> ChangeLog
+  ${CVS2CL} -l '-d yesterday<=' --stdout 2>/dev/null >> ChangeLog
 
-# Debian-specific stuff
-for dir in debian scripts/debian ; do
-  # Increase version number in debian/changelog accordingly
-  if [ -d "$dir" ] && [ -e "$dir/changelog" ]; then 
-    ${PERL} -MPOSIX -i -p -e '$date = strftime("%Y%m%d", localtime);
-                              s/\((\d\.\d\.\d{1,2})([+~])cvs\d{8}(.*?)\)/(${1}${2}cvs${date}${3})/i if ($. == 1);' \
-            $dir/changelog
-  fi
+  # Change the version number to CVS-${BRANCH}-${DATE}
+  cp -a configure.in configure.in.nightly-temp
+  BRANCH=${BRANCH} \
+  ${PERL} -MPOSIX -i -p \
+          -e '$version = "CVS-".$ENV{BRANCH}."-".strftime("%Y%m%d", localtime);
+              s/(AM_INIT_AUTOMAKE\s*)\(\s*(\[?lcdproc\]?)\s*,\s*[\w\d.-]+\s*\)/$1($2, $version)/; 
+              s/(AC_INIT\s*)\(\s*(\[?lcdproc\]?)\s*,\s*[\w\d.-]+\s*\)/$1($2, $version)/;
+              s/(AC_INIT\s*)\(\s*(\[?lcdproc\]?)\s*,\s*[\w\d.-]+(\s*[^)]+)\s*\)/$1($2, $version$3)/;' \
+          configure.in
 
-  # Make debian/rules executable
-  test -e $dir/rules  &&  chmod +x $dir/rules
-done 
+  # Debian-specific stuff
+  for dir in debian scripts/debian ; do
+    # Increase version number in debian/changelog accordingly
+    if [ -d "$dir" ] && [ -e "$dir/changelog" ]; then 
+      cp -a $dir/changelog debian_changelog.nightly-temp
+      ${PERL} -MPOSIX -i -p \
+              -e '$date = strftime("%Y%m%d", localtime);
+                  s/\((\d\.\d\.\d{1,2})([+~])cvs\d{8}(.*?)\)/(${1}${2}cvs${date}${3})/i if ($. == 1);' \
+              $dir/changelog
+    fi
 
-# Re-generate the autotools files
-sh autogen.sh >/dev/null
-./configure --silent >/dev/null
+    # Make debian/rules executable
+    test -e $dir/rules  &&  chmod +x $dir/rules
+  done 
 
-# Creation of the distribution
-${MAKE} dist >/dev/null &>/dev/null
-mv lcdproc-*.tar.gz lcdproc-CVS-${BRANCH}.tar.gz
+  # Re-generate the autotools files
+  sh autogen.sh >/dev/null
+  ./configure --silent >/dev/null
 
-# Make bzip2 archive
-# ${GUNZIP} --stdout lcdproc-CVS-${BRANCH}.tar.gz > lcdproc-CVS-${BRANCH}.tar
-# ${BZIP2} lcdproc-CVS-${BRANCH}.tar
+  # Creation of the distribution
+  ${MAKE} dist >/dev/null &>/dev/null
+  mv lcdproc-*.tar.gz lcdproc-CVS-${BRANCH}.tar.gz
+  ${GUNZIP} --stdout lcdproc-CVS-${BRANCH}.tar.gz > lcdproc-CVS-${BRANCH}.tar
+  ${BZIP2} --force --quiet lcdproc-CVS-${BRANCH}.tar
 
-# Upload
-${RSYNC} -q \
-lcdproc-CVS-${BRANCH}.tar.gz gfk@lcdproc.sourceforge.net:www-lcdproc/nightly/
-${SSH} -q lcdproc.sourceforge.net "sh lcdproc-finish-nightly.sh ${BRANCH}"
+  # Date of the last nightly
+  echo "${TODAY}" > last-nightly.txt
 
-# Cleanup
-mv configure.in.temp configure.in
-mv README.temp README
-mv ChangeLog.temp ChangeLog
-rm -f nightly-ChangeLog
-rm -f nightly-cvsChanges.txt
-mv lcdproc-CVS-${BRANCH}.tar.gz ../
-sh autogen.sh >/dev/null
+  # Upload to sf.net
+  ${RSYNC} -q lcdproc-CVS-${BRANCH}.tar.gz lcdproc-CVS-${BRANCH}.tar.bz2 \
+              last-nightly.txt \
+              ${SF_ACCOUNT},lcdproc@web.sourceforge.net:htdocs/nightly/
+
+  mv lcdproc-CVS-${BRANCH}.tar.gz ${LCDPROC_DIR}/
+  rm lcdproc-CVS-${BRANCH}.tar.bz2
+
+  # Cleanup
+  mv configure.in.nightly-temp configure.in
+  mv README.nightly-temp README
+  mv ChangeLog.nightly-temp ChangeLog
+  rm -f nightly-cvsChanges.txt last-nightly.txt
+  for dir in debian scripts/debian ; do
+    test -d $dir  &&  cp debian_changelog.nightly-temp $dir/changelog
+  done 
+  rm debian_changelog.nightly-temp
+
+  # remove files generated by ./configure --silent
+  ${MAKE} distclean >/dev/null &>/dev/null
+
+  # re-create files accidentially deleted
+  ${CVS} update -d &> /dev/null
+
+  # build configure (& Makefile.in's ?) based on original configure.in from CVS
+  sh autogen.sh >/dev/null
+ 
+fi
+
+# EOF

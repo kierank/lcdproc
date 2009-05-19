@@ -18,7 +18,7 @@
 #define LCDP_AC_OFF		0x00
 #define LCDP_AC_ON		0x01
 #define LCDP_AC_BACKUP		0x02
-#define LCDP_AC_UNKNOWN		0xFF
+#define LCDP_AC_UNKNOWN		0x03
 
 extern int Quit;
 extern int sock;
@@ -30,7 +30,7 @@ extern int lcd_hgt;
 extern int lcd_cellwid;
 extern int lcd_cellhgt;
 
-typedef struct mode
+typedef struct _screen_mode
 {
 	char *longname;		// Which screen is it?
 	char which;		// Which screen is it?
@@ -40,7 +40,7 @@ typedef struct mode
 	int timer;		// Time since last update
 	int flags;		// bit 1 visible, bit 2 selected for display, bit 3 first
 	int (*func)(int,int,int *);	// function pointer
-} mode;
+} ScreenMode;
 
 //mode flags
 #define VISIBLE 	0x00000001	//currently visible

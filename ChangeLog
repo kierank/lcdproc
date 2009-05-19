@@ -6,6 +6,72 @@ Key:
      * Something changed / fixed
 
 v.0.5.2+dev (stable branch)
+ + lcdexec: notification when called program finishes
+ + xosd driver: offset from top-left corner
+ + LCDd: Hello= config option for startup message
+ * glk driver: bignum support fixed
+ * update local snprintf to the last one, which is GPL
+ - server core: cleanup - remove unnecessary cruft
+ * server core: refactor rendering code
+ + LCDd: config options TitleSpeed= and Heartbeat=
+ * overhauled CwLnx driver (Dave Platt)
+ * overhauled picolcd driver (Nicu Pavel)
+ + add ServerScreen=blank option value
+ * MtxOrb driver: fix VFD/VKD support (Ethan Dicks)
+ + new driver lis for VLSystem L.I.S VFD (Daryl Fonseca-Holt)
+ * serialPOS driver: input support, cleanup (Eric Pooch)
+ + new driver shuttleVFD for USB-based Shuttle VFDs (Thien Vu)
+ * enable building lcdproc client on FreeBSD AMD64 platform (M. Dolze)
+ * Autoconf fixes for Net/FreeBSD (M. Dolze)
+ * fixes for the lcpdroc client iface screen on *BSD (M.Dolze)
+ + key support for hd44780/lcd2usb (M. Dolze)
+ + option Priority for NoritakeVFD (idea: Richard Muratti)
+ * overhauled NoritakeVFD driver (idea: Richard Muratti)
+ * allow wrapping slider menu items with <= 4 keys (M. Dolze)
+ * a bit more Doxygen-ation and documentation
+ * hd44780 driver: make ConnectionType 4bit more fool-proof (M. Dolze)
+ * picolcd driver: overhaul USB init for more portability (M. Dolze)
+ + curses driver: new option DrawBorder (Bruno Schwander)
+ * avoid sending duplicate "success" messages in response to menu_add_item
+ + lcdexec: parameter support using widgets
+ * server core: display values in menu for all input MenuEntry types
+ * hd44780 driver: reorganize ConnectionType recognition
+ + hd44780 driver: new ConnectionType mplay
+ + hd44780 driver: get/set contrast & brightness support for lcd2usb (M. Dolze)
+ + hd44780 driver: reporting in ConnectionType functions (Thomas Jarosch)
+ * clean up build system (T. Jarosch, with tests/fixes by M. Dolze)
+ + hd44780 driver: new ConnectionType ftdi (Thomas Jarosch)
+ * shuttleVFD driver: fix VendorID, support newer models (Miska Sulander)
+ + i2500vfd driver for a graphical Noritake VFD (Thomas Jarosch)
+ * hd44780 driver: more complete initialization (idea by Pierre Ossman)
+ * hd44780 driver: "euro" character mapping table (Markus Dolze)
+ * CwLnx driver: support for CW12832
+ + new driver mx5000 for Logitech MX5000 keyboards (Christian Jodar)
+ * update debian init scripts to allow multiple instances of clients
+ + serialVFD driver: support for 4 more display types (Stefan Herdler)
+ * IOWarrior driver: fixed 4-line display use
+ + IOWarrior driver: add ExtendedMode option
+ * lcdproc: unbreak compilation on OS X 1.5 and higher (Topher Fangio)
+ * server: fix interpretation of numeric priorities (Andrew M. Bishop)
+ + hd44780 driver: new ConnectionType ethlcd (Mariusz Bialonczyk)
+ + picolcd driver: support to send IR commands to LIRC (Jack Cleaver)
+ + picolcd driver: support for 20x4 picoLCDs (Nicu Pavel)
+ + hd44780 driver: new ConnectionType uss720 (Eric Pooch)
+ * new make targets to compile & install server & clients separately
+ * autoconf fixes: check for pkg-config macros
+ + new driver irtrans (Phant0m / Aron Parsons)
+ + serialVFD driver: support Siemens/Wincor Nixdorf BA63/66 (Stefan Herdler)
+ + new client lcdident.pl (Ethan Dicks)
+ * server: prevent stalling if time goes backwards (M. Vallevand)
+ * hd44780 driver: update the backlight setting only on change
+ + hd44780 driver: add lineaddress option to support ST7036 (Malte Poeggel)
+ + lcdproc: Retrieve per CPU usage statistics on FreeBSD (M. Dolze)
+ * Change drivers to start in background by default: bayrad, CFontz, ea65, glk
+ * imon driver: Change hbars to make last char in-/decrease vertically
+ + hd44780 driver: port usblcd connection type from 0.4.5 to 0.5 (M. Dolze)
+ * server: Fix interpretation of named screen priorities
+ + new driver imonlcd for SoundGraph iMON LCD (Dean Harding, Jonathan Kyler)
+ * MtxOrb driver: Fix backlight for old firmware
 
 v.0.5.2
  * fix switching on/off the Load screen in lcdproc client using the menu

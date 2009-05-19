@@ -40,6 +40,8 @@
 #define iowProd40		0x1500   /* IOW40 */
 #define iowProd24		0x1501   /* IOW24 */
 #define iowProd56		0x1503   /* IOW56 */
+#define iowProd24PVa		0x1511   /* IOW24 PowerVampire */
+#define iowProd24PVb		0x1512   /* IOW24 PowerVampire */
 #define iowTimeout		1000
 
 #define USB_REQ_SET_REPORT	0x09
@@ -50,6 +52,9 @@
 
 #define IOWLCD_BUSY		0x80
 #define IOWLCD_ADDR_MASK	0x7F
+
+/* IOW56 uses a different USB request size */
+#define IOWLCD_SIZE		((p->productID == 0x1503) ? 64 : 8)
 
 /* IOWarriors drive HD44780 cmpatible displays that have these cells: */
 #define CELLWIDTH	LCD_DEFAULT_CELLWIDTH
@@ -75,7 +80,8 @@ typedef struct cgram_cache {
 } CGram;
 
 
-typedef struct driver_private_data {
+/** private data for the \c IOWarrior driver */
+typedef struct IOWarrior_private_data {
   char manufacturer[LCD_MAX_WIDTH+1];
   char product[LCD_MAX_WIDTH+1];
   char serial[LCD_MAX_WIDTH+1];
@@ -104,6 +110,9 @@ typedef struct driver_private_data {
   /* underline effect (false). To avoid the underline effect in the latter case, the last */
   /* line is always zeroed for whatever redefined character */
   char lastline; 
+
+  /* extended mode for some half-compatible modules */
+  int ext_mode;
 
   int brightness;
   int backlight;

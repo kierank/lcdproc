@@ -1,11 +1,17 @@
-// This header contains low level code to export from hd44780.c to "lower" HW
-// implementation dependent files.
+/** \file server/drivers/hd44780-low.h
+ * Interface to low level code to export from hd44780.c to "lower" HW
+ * implementation dependent files.
+ */
 
 #ifndef HD_LOW_H
 #define HD_LOW_H
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
+#endif
+
+#if defined(HAVE_LIBUSB)
+# include <usb.h>
 #endif
 
 # if TIME_WITH_SYS_TIME
@@ -19,8 +25,45 @@
 #  endif
 # endif
 
+#ifdef HAVE_LIBFTDI
+# include <ftdi.h>
+#endif
 
-//struct hwDependentFns;
+// symbolic names for connection types
+#define HD44780_CT_UNKNOWN		0
+#define HD44780_CT_4BIT			1
+#define HD44780_CT_8BIT			2
+#define HD44780_CT_SERIALLPT		3
+#define HD44780_CT_WINAMP		4
+#define HD44780_CT_PICANLCD		5
+#define HD44780_CT_LCDSERIALIZER	6
+#define HD44780_CT_LOS_PANEL		7
+#define HD44780_CT_VDR_LCD		8
+#define HD44780_CT_VDR_WAKEUP		9
+#define HD44780_CT_PERTELIAN		10
+#define HD44780_CT_LIS2			11
+#define HD44780_CT_MPLAY		12
+#define HD44780_CT_BWCTUSB		13
+#define HD44780_CT_LCD2USB		14
+#define HD44780_CT_FTDI			15
+#define HD44780_CT_I2C			16
+#define HD44780_CT_ETHLCD		17
+#define HD44780_CT_USS720		18
+#define HD44780_CT_USBLCD		19
+
+// symbolic names for interface types
+#define IF_TYPE_UNKNOWN		0
+#define IF_TYPE_PARPORT		1
+#define IF_TYPE_SERIAL		2
+#define IF_TYPE_USB		3
+#define IF_TYPE_I2C		4
+#define IF_TYPE_TCP		5
+
+// symbolic default values
+#define DEFAULT_CONTRAST	800
+#define DEFAULT_BRIGHTNESS	800
+#define DEFAULT_OFFBRIGHTNESS	300
+
 
 // Maximum sizes of the keypad
 // DO NOT CHANGE THESE 2 VALUES, unless you change the functions too
@@ -30,6 +73,7 @@
 /* Constants for userdefchar_mode */
 #define NUM_CCs 8 /* number of custom characters */
 
+
 typedef enum {
 	standard,	/* only char 0 is used for heartbeat */
 	vbar,		/* vertical bars */
@@ -38,24 +82,48 @@ typedef enum {
 	bigchar		/* big characters */
 } CGmode;
 
+
 typedef struct cgram_cache {
 	unsigned char cache[LCD_DEFAULT_CELLHEIGHT];
 	int clean;
 } CGram;
 
+
 typedef struct ConnectionMapping {
 	char *name;
+	int connectiontype;
+	int if_type;
 	int (*init_fn)(Driver *drvthis);
-	const char *helpMsg;
 } ConnectionMapping;
 
-typedef struct driver_private_data {
 
-	unsigned int port;
+/** private data for the \c hd44780 driver */
+typedef struct hd44780_private_data {
+	// parallel connection typeS
+	unsigned int port;		/* parallel port */
 
-	/* for serial connection type */
-	int fd;
-	int serial_type;
+	// serial connection types
+	int fd;				/* file handle to serial device */
+	int serial_type;	
+
+#if defined(HAVE_LIBUSB)	
+	// USB connection types
+	usb_dev_handle *usbHandle;	/* USB device handle */
+	int usbIndex;			/* USB interface index */
+#endif
+
+#ifdef HAVE_LIBFTDI
+	// FTDI connection type
+	struct ftdi_context ftdic, ftdic2;
+
+	int ftdi_mode;
+	int ftdi_line_RS;
+	int ftdi_line_RW;
+	int ftdi_line_EN;
+	int ftdi_line_backlight;
+#endif
+
+	int sock;			/* socket for TCP devices */
 
 	int charmap;
 
@@ -63,17 +131,17 @@ typedef struct driver_private_data {
 	int cellwidth, cellheight;
 
 	// The framebuffer
-	char *framebuf;
+	unsigned char *framebuf;
 
 	// For incremental updates store last lcd contents
-	char *lcd_contents;
+	unsigned char *backingstore;
 
 	// The defineable characters
 	CGram cc[NUM_CCs];
 	CGmode ccmode;
 
 	// Connection type data
-	int connectiontype_index;
+	int connectiontype;
 	struct hwDependentFns *hd44780_functions;
 
 	// spanList[line number] = display line number is in
@@ -94,6 +162,7 @@ typedef struct driver_private_data {
 	char have_backlight;	// off by default
 	char have_output;	// have extra output port (off by default)
 	char ext_mode;		// use of extended mode required for some weird controllers
+	int line_address; 	// address of the next line in ext_mode (linear addressing)
 	int delayMult;	 // Delay multiplier for slow displays
 	char delayBus;	 // Delay if the computer can send data too fast over
 				 // its bus to LPT port
@@ -124,12 +193,22 @@ typedef struct driver_private_data {
 	int keepalivedisplay;   // When >0 refresh upper left char every <keepalivedisplay> seconds to keep display alive
 
 	int output_state;	// what was most recently output to the output port
+	
+	int contrast;		// Contrast setting (range 0 - 1000)
+	int brightness;		// Brightness when backlight is "on" (range 0 - 1000)
+	int offbrightness;	// Brightness when backlight is "off" (range 0 - 1000)
+	int backlightstate;	// Saves the last backlight state
 } PrivateData;
+
 
 // Structures holding pointers to HD44780 specific functions
 typedef struct hwDependentFns {
 	// microsec pauses
 	void (*uPause)(PrivateData *p, int usecs);
+
+	// report and debug helper: set by global hd44780 init
+	void (*drv_report)(const int level, const char *format, .../*args*/);
+	void (*drv_debug)(const int level, const char *format, .../*args*/);
 
 	// Senddata to the LCD
 	// dispID     - display to send data to (0 = all displays)
@@ -140,6 +219,10 @@ typedef struct hwDependentFns {
 	// Switch the backlight on or off
 	// state      - to be or not to be on
 	void (*backlight)(PrivateData *p, unsigned char state);
+
+	// Set the contrast
+	// value      - new value to be set
+	void (*set_contrast)(PrivateData *p, unsigned char value);
 
 	// Read the keypad
 	// Ydata      - the up to 11 bits that should be put on the Y side of the matrix
@@ -166,57 +249,57 @@ void common_init(PrivateData *p, unsigned char if_bit);
 
 
 // commands for senddata
-#define RS_DATA     0x00
-#define RS_INSTR    0x01
+#define RS_DATA		0x00
+#define RS_INSTR	0x01
 
-#define CLEAR       0x01
+#define CLEAR		0x01
 
-#define HOMECURSOR  0x02
+#define HOMECURSOR	0x02
 
-#define ENTRYMODE   0x04
-#define E_MOVERIGHT 0x02
-#define E_MOVELEFT  0x00
-#define EDGESCROLL  0x01
-#define NOSCROLL    0x00
+#define ENTRYMODE	0x04
+#define E_MOVERIGHT	0x02
+#define E_MOVELEFT	0x00
+#define EDGESCROLL	0x01
+#define NOSCROLL	0x00
 
-#define ONOFFCTRL   0x08	/* Only reachable with EXTREG clear */
-#define DISPON      0x04
-#define DISPOFF     0x00
-#define CURSORON    0x02
-#define CURSOROFF   0x00
-#define CURSORBLINK 0x01
-#define CURSORNOBLINK 0x00
+#define ONOFFCTRL	0x08	/* Only reachable with EXTREG clear */
+#define DISPON		0x04
+#define DISPOFF		0x00
+#define CURSORON	0x02
+#define CURSOROFF	0x00
+#define CURSORBLINK	0x01
+#define CURSORNOBLINK	0x00
 
-#define EXTMODESET  0x08	/* Only reachable with EXTREG set */
-#define FONT6WIDE   0x04
-#define INVCURSOR   0x02
-#define FOURLINE    0x01
+#define EXTMODESET	0x08	/* Only reachable with EXTREG set */
+#define FONT6WIDE	0x04
+#define INVCURSOR	0x02
+#define FOURLINE	0x01
 
-#define CURSORSHIFT 0x10	/* Only reachable with EXTREG clear */
-#define SCROLLDISP  0x08
-#define MOVECURSOR  0x00
-#define MOVERIGHT   0x04
-#define MOVELEFT    0x00
+#define CURSORSHIFT	0x10	/* Only reachable with EXTREG clear */
+#define SCROLLDISP	0x08
+#define MOVECURSOR	0x00
+#define MOVERIGHT	0x04
+#define MOVELEFT	0x00
 
-#define HSCROLLEN   0x10	/* Only reachable with EXTREG set */
+#define HSCROLLEN	0x10	/* Only reachable with EXTREG set */
 
-#define FUNCSET     0x20
-#define IF_8BIT     0x10
-#define IF_4BIT     0x00
-#define TWOLINE     0x08
-#define ONELINE     0x00
-#define LARGECHAR   0x04	/* 5x11 characters */
-#define SMALLCHAR   0x00	/* 5x8 characters */
-#define EXTREG      0x04	/* Select ext. registers (Yes, the same bits)*/
-#define SEGBLINK    0x02	/* Only reachable with EXTREG set */
-#define POWERDOWN   0x01	/* Only reachable with EXTREG set */
+#define FUNCSET		0x20
+#define IF_8BIT		0x10
+#define IF_4BIT		0x00
+#define TWOLINE		0x08
+#define ONELINE		0x00
+#define LARGECHAR	0x04	/* 5x11 characters */
+#define SMALLCHAR	0x00	/* 5x8 characters */
+#define EXTREG		0x04	/* Select ext. registers (Yes, the same bits)*/
+#define SEGBLINK	0x02	/* Only reachable with EXTREG set */
+#define POWERDOWN	0x01	/* Only reachable with EXTREG set */
 
-#define SETCHAR     0x40	/* Only reachable with EXTREG clear */
+#define SETCHAR		0x40	/* Only reachable with EXTREG clear */
 
-#define SETSEG      0x40	/* Only reachable with EXTREG set */
+#define SETSEG		0x40	/* Only reachable with EXTREG set */
 
-#define POSITION    0x80	/* Only reachable with EXTREG clear */
+#define POSITION	0x80	/* Only reachable with EXTREG clear */
 
-#define HSCROLLAMOUNT 0x80	/* Only reachable with EXTREG set */
+#define HSCROLLAMOUNT	0x80	/* Only reachable with EXTREG set */
 
 #endif

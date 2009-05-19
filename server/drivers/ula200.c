@@ -1,3 +1,7 @@
+/** \file server/drivers/ula200.c
+ * LCDd \c ula200 driver for the ULA-200 from ELV (http://www.elv.de).
+ */
+
 // Description:
 //
 // This is a driver for the ULA-200 from ELV (http://www.elv.de).  It's a small
@@ -151,7 +155,7 @@ static char *default_key_map[MAX_KEY_MAP] = { "Up", "Down", "Left", "Right", "En
 /* KeyRing management */
 #define KEYRINGSIZE	16
 
-typedef struct {
+typedef struct ula200_keyring {
 	unsigned char contents[KEYRINGSIZE];
 	int head;
 	int tail;
@@ -215,32 +219,23 @@ unsigned char GetKeyFromKeyRing(KeyRing *kr)
 #define SETCHAR     0x40	/* Only reachable with EXTREG clear */
 
 
-///////////////////////////////////////////////////////////////////////////////
-// private data types
-//
-typedef struct {
-
-    // the handle for the USB FTDI library
-    struct ftdi_context ftdic;
+/** private data for the \c ula200 driver */
+typedef struct ula200_private_data {
+    struct ftdi_context ftdic;	/**< handle for the USB FTDI library */
 
     // the width and the height (in number of characters) of the library
-	int width, height;
+    int width, height;
 
-	// The framebuffer and the framebuffer for the last contents (incr. update)
-	unsigned char *framebuf, *lcd_contents;
+    // The framebuffer and the framebuffer for the last contents (incr. update)
+    unsigned char *framebuf, *lcd_contents;
 
-    // first time => all is dirty
-    unsigned char all_dirty;
+    unsigned char all_dirty;	/**< first time => all is dirty */
 
-    // backlight (-1 = unset, 0 = off, 1 = on)
-    int backlight;
+    int backlight;		/**< backlight: -1=unset, 0=off, 1=on */
 
-    // the keyring
-    KeyRing keyring;
+    KeyRing keyring;		/**< input key ring */
 
-	// the keymap
-	char *key_map[MAX_KEY_MAP];
-
+    char *key_map[MAX_KEY_MAP];	/**< mapping of input keys */
 } PrivateData;
 
 
@@ -503,7 +498,7 @@ ula200_ftdi_enable_raw_mode(Driver *drvthis)
 // Loads custom characters in the display
 //
 static int
-ula200_load_curstom_chars(Driver *drvthis)
+ula200_load_custom_chars(Driver *drvthis)
 {
     int i, col, row;
     int err = 0;
@@ -602,9 +597,12 @@ ula200_load_curstom_chars(Driver *drvthis)
 }
 
 
-///////////////////////////////////////////////////////////////////////////////
-// Init the driver and display
-//
+/**
+ * Initialize the driver.
+ * \param drvthis  Pointer to driver structure.
+ * \retval 0       Success.
+ * \retval <0      Error.
+ */
 MODULE_EXPORT int
 ula200_init(Driver *drvthis)
 {
@@ -705,7 +703,7 @@ ula200_init(Driver *drvthis)
 	}
 
 	// load the chars
-	err = ula200_load_curstom_chars(drvthis);
+	err = ula200_load_custom_chars(drvthis);
 	if (err < 0) {
 		report(RPT_ERR, "%s: unable to write the custom characters", drvthis->name);
 		goto err_ftdi;
@@ -727,9 +725,11 @@ err_begin:
 	return -1;
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// Clean-up
-//
+
+/**
+ * Close the driver (do necessary clean-up).
+ * \param drvthis  Pointer to driver structure.
+ */
 MODULE_EXPORT void
 ula200_close(Driver *drvthis)
 {
@@ -751,9 +751,12 @@ ula200_close(Driver *drvthis)
 	drvthis->store_private_ptr(drvthis, NULL);
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// Returns the display width
-//
+
+/**
+ * Return the display width in characters.
+ * \param drvthis  Pointer to driver structure.
+ * \return         Number of characters the display is wide.
+ */
 MODULE_EXPORT int
 ula200_width (Driver *drvthis)
 {
@@ -761,9 +764,12 @@ ula200_width (Driver *drvthis)
 	return p->width;
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// Returns the display height
-//
+
+/**
+ * Return the display height in characters.
+ * \param drvthis  Pointer to driver structure.
+ * \return         Number of characters the display is high.
+ */
 MODULE_EXPORT int
 ula200_height (Driver *drvthis)
 {
@@ -771,9 +777,11 @@ ula200_height (Driver *drvthis)
 	return p->height;
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// Clear the framebuffer
-//
+
+/**
+ * Clear the screen.
+ * \param drvthis  Pointer to driver structure.
+ */
 MODULE_EXPORT void
 ula200_clear (Driver *drvthis)
 {
@@ -781,22 +789,35 @@ ula200_clear (Driver *drvthis)
 	memset(p->framebuf, ' ', p->width * p->height);
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// Place a character in the framebuffer
-//
+
+/**
+ * Print a character on the screen at position (x,y).
+ * The upper-left corner is (1,1), the lower-right corner is (p->width, p->height).
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param y        Vertical character position (row).
+ * \param c        Character that gets written.
+ */
 MODULE_EXPORT void
-ula200_chr (Driver *drvthis, int x, int y, char ch)
+ula200_chr (Driver *drvthis, int x, int y, char c)
 {
 	PrivateData *p = (PrivateData *) drvthis->private_data;
 	y--;
 	x--;
 
-	p->framebuf[ (y * p->width) + x] = ch;
+	if ((x >= 0) && (y >= 0) && (x < p->width) && (y < p->height))
+		p->framebuf[ (y * p->width) + x] = c;
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// Place a string in the framebuffer
-//
+
+/**
+ * Print a string on the screen at position (x,y).
+ * The upper-left corner is (1,1), the lower-right corner is (p->width, p->height).
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param y        Vertical character position (row).
+ * \param string   String that gets written.
+ */
 MODULE_EXPORT void
 ula200_string (Driver *drvthis, int x, int y, const char string[])
 {
@@ -810,13 +831,16 @@ ula200_string (Driver *drvthis, int x, int y, const char string[])
 		// Check for buffer overflows...
 		if ((y * p->width) + x + i > (p->width * p->height))
 			break;
-		p->framebuf[(y*p->width) + x + i] = string[i];
+		p->framebuf[(y * p->width) + x + i] = string[i];
 	}
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// Sets the backlight on or off
-//
+
+/**
+ * Turn the LCD backlight on or off.
+ * \param drvthis  Pointer to driver structure.
+ * \param on       New backlight status.
+ */
 MODULE_EXPORT void
 ula200_backlight (Driver *drvthis, int on)
 {
@@ -839,9 +863,11 @@ ula200_backlight (Driver *drvthis, int on)
 	}
 }
 
-///////////////////////////////////////////////////////////////////////////////
-// Flush the framebuffer to the display
-//
+
+/**
+ * Flush data on screen to the LCD.
+ * \param drvthis  Pointer to driver structure.
+ */
 MODULE_EXPORT void
 ula200_flush(Driver *drvthis)
 {
@@ -885,9 +911,15 @@ ula200_flush(Driver *drvthis)
 }
 
 
-///////////////////////////////////////////////////////////////////////////////
-// Set default icon into a userdef char
-//
+/**
+ * Place an icon on the screen.
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param y        Vertical character position (row).
+ * \param icon     synbolic value representing the icon.
+ * \retval 0       Icon has been successfully defined/written.
+ * \retval <0      Server core shall define/write the icon.
+ */
 MODULE_EXPORT int
 ula200_icon (Driver *drvthis, int x, int y, int icon)
 {
@@ -930,9 +962,12 @@ ula200_icon (Driver *drvthis, int x, int y, int icon)
 }
 
 
-///////////////////////////////////////////////////////////////////////////////
-// Set default icon into a userdef char
-//
+/**
+ * Get key from the device.
+ * \param drvthis  Pointer to driver structure.
+ * \return         String representation of the key;
+ *                 \c NULL for nothing available / unmapped key.
+ */
 MODULE_EXPORT const char *
 ula200_get_key (Driver *drvthis)
 {
@@ -960,5 +995,4 @@ ula200_get_key (Driver *drvthis)
 	}
 	return NULL;
 }
-
 

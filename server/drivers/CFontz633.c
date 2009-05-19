@@ -1,3 +1,7 @@
+/** \file server/drivers/CFontz633.c
+ * LCDd \c CFontz633 driver for CFA633 devices by CrystalFontz, Inc.
+ */
+
 /*  This is the LCDproc driver for CrystalFontz 633 devices
     (get yours from http://crystalfontz.com)
 
@@ -84,7 +88,8 @@ typedef enum {
 } CGmode;
 
 
-typedef struct driver_private_data {
+/** private data for the \c CFonts633 driver */
+typedef struct CFontz633_private_data {
 	char device[200];
 
 	int fd;
@@ -446,9 +451,10 @@ CFontz633_flush (Driver *drvthis)
 
 
 /**
- * Get next key from the KeyRing.
+ * Get key from the device.
  * \param drvthis  Pointer to driver structure.
- * \return  String representation of the key.
+ * \return         String representation of the key;
+ *                 \c NULL if nothing available / unmapped key.
  */
 MODULE_EXPORT const char *
 CFontz633_get_key (Driver *drvthis)
@@ -579,12 +585,11 @@ CFontz633_set_brightness(Driver *drvthis, int state, int promille)
 	/* store the software value since there is not get */
 	if (state == BACKLIGHT_ON) {
 		p->brightness = promille;
-		//CFontz633_backlight(drvthis, BACKLIGHT_ON);
 	}
 	else {
 		p->offbrightness = promille;
-		//CFontz633_backlight(drvthis, BACKLIGHT_OFF);
 	}
+	//CFontz633_backlight(drvthis, state);
 }
 
 
@@ -840,7 +845,8 @@ CFontz633_set_char (Driver *drvthis, int n, unsigned char *dat)
  * \param x        Horizontal character position (column).
  * \param y        Vertical character position (row).
  * \param icon     synbolic value representing the icon.
- * \return  Information whether the icon is handled here or needs to be handled by the server core.
+ * \retval 0       Icon has been successfully defined/written.
+ * \retval <0      Server core shall define/write the icon.
  */
 MODULE_EXPORT int
 CFontz633_icon (Driver *drvthis, int x, int y, int icon)

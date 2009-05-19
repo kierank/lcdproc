@@ -1,5 +1,8 @@
-/* 	This is the LCDproc driver for various serial VFD Devices
+/** \file server/drivers/serialVFD.c
+ * LCDd \c serialVFD driver for various serial (& parallel) VFD devices.
+ */
 
+/*
 	Copyright (C) 2006 Stefan Herdler
 
 	This driver is based on wirz-sli.c, hd44780.c, drv_base.c and NoritakeVFD
@@ -23,11 +26,9 @@
 	Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301
 
 
-
 	The driver should operate most of NEC, Futaba and Noritake 7x5 dot VFDs with
 	serial(rs232) and/or parallel interface. See /docs/lcdproc-user/serialvfd-howto.html
 	for further information
-
 
 List of driver entry point:
 
@@ -91,6 +92,7 @@ get_info	Implemented.
 #define init_cmds	7 //commands needed to initialize the display.
 #define set_user_char	8 //set user character.
 #define hor_tab		9 //moves cursor 1 chr right
+#define next_line	10 //moves cursor to the first character of the next line (= LF + CR)
 #define LPTPORT 0x378
 
 /* Vars for the server core */
@@ -103,9 +105,16 @@ MODULE_EXPORT char *symbol_prefix = "serialVFD_";
 static void serialVFD_init_vbar (Driver *drvthis);
 static void serialVFD_init_hbar (Driver *drvthis);
 static void serialVFD_put_char (Driver *drvthis, int n);
+static void serialVFD_hw_write (Driver *drvthis, int i);
 
-// Opens com port and sets baud correctly...
-//
+
+/**
+ * Initialize the driver.
+ * Open com port and set baud correctly...
+ * \param drvthis  Pointer to driver structure.
+ * \retval 0       Success.
+ * \retval <0      Error.
+ */
 MODULE_EXPORT int
 serialVFD_init (Driver *drvthis)
 {
@@ -128,6 +137,9 @@ serialVFD_init (Driver *drvthis)
 	p->ISO_8859_1 = 1;
 	p->refresh_timer = 480;
 	p->hw_brightness = 0;
+	p->para_wait = DEFAULT_PARA_WAIT;
+	p->hw_cmd[next_line][0] = 0;
+
 
 	debug(RPT_INFO, "%s(%p)", __FUNCTION__, drvthis);
 	
@@ -148,7 +160,7 @@ serialVFD_init (Driver *drvthis)
 		/* Which speed */
 		tmp = drvthis->config_get_int(drvthis->name, "Speed", 0, DEFAULT_SPEED);
 		if ((tmp != 1200) && (tmp != 2400) && (tmp != 9600) && (tmp != 19200) && (tmp != 115200)) {
-			report(RPT_WARNING, "%s: Speed must be 1200, 2400, 9600, 19200 or 115200. Using default %d.\n",
+			report(RPT_WARNING, "%s: Speed must be 1200, 2400, 9600, 19200 or 115200. Using default %d",
 				drvthis->name, DEFAULT_SPEED);
 			tmp = DEFAULT_SPEED;
 		}
@@ -158,7 +170,7 @@ serialVFD_init (Driver *drvthis)
 		else if (tmp == 19200) p->speed = B19200;
 		else if (tmp == 115200) p->speed = B115200;
 	}
-//	report(RPT_ERR, "%s: Port: %X\n", __FUNCTION__, p->port, strerror(errno));
+//	report(RPT_ERR, "%s: Port: %X", __FUNCTION__, p->port, strerror(errno));
 
 	/* Which size */
 	strncpy(size, drvthis->config_get_string(drvthis->name, "Size", 0, DEFAULT_SIZE), sizeof(size));
@@ -166,7 +178,7 @@ serialVFD_init (Driver *drvthis)
 	if ((sscanf(size, "%dx%d", &w, &h) != 2)
 	    || (w <= 0) || (w > LCD_MAX_WIDTH)
 	    || (h <= 0) || (h > LCD_MAX_HEIGHT)) {
-		report(RPT_WARNING, "%s: cannot parse size: %s; using default %s.",
+		report(RPT_WARNING, "%s: cannot parse size: %s; using default %s",
 			drvthis->name, size, DEFAULT_SIZE);
 		sscanf(DEFAULT_SIZE, "%dx%d", &w, &h);
 	}
@@ -197,29 +209,23 @@ serialVFD_init (Driver *drvthis)
 	p->ISO_8859_1 = drvthis->config_get_bool(drvthis->name, "ISO_8859_1", 0, 1);
 
 	/* Which displaytype */
-	tmp = drvthis->config_get_int(drvthis->name, "Type", 0, DEFAULT_DISPLAYTYPE);
-	if ((tmp < 0) || (tmp > 3)) {
-		report(RPT_WARNING, "%s: Type must be between 0 and 3; using default %d",
-			drvthis->name, DEFAULT_DISPLAYTYPE);
-		tmp = DEFAULT_DISPLAYTYPE;
-	}
-	p->display_type = tmp;
-
+	p->display_type = drvthis->config_get_int(drvthis->name, "Type", 0, DEFAULT_DISPLAYTYPE);
+	
 	/* Number of custom characters */
 	tmp = drvthis->config_get_int(drvthis->name, "Custom-Characters", 0, -83);
 	if ((tmp < 0) || (tmp > 99)) {
-		report(RPT_WARNING, "%s: The number of Custom-Characters must be between 0 and 99. Using default.",
+		report(RPT_WARNING, "%s: The number of Custom-Characters must be between 0 and 99. Using default",
 			drvthis->name, 0);
 		tmp = -83;
 	}
 	p->customchars = tmp;
 
 
-//	report(RPT_ERR, "%s: Port: %X\n", __FUNCTION__, p->port, strerror(errno));
+//	report(RPT_ERR, "%s: Port: %X", __FUNCTION__, p->port, strerror(errno));
 
 // Do connection type specific io-port init
 	if (Port_Function[p->use_parallel].init_fkt(drvthis) == -1) {
-		report(RPT_ERR, "%s: unable to initialize io-port.", drvthis->name);
+		report(RPT_ERR, "%s: unable to initialize io-port", drvthis->name);
 		return -1;
 	}
 
@@ -227,7 +233,7 @@ serialVFD_init (Driver *drvthis)
 	/* make sure the frame buffer is there... */
 	p->framebuf = (unsigned char *) malloc(p->width * p->height);
 	if (p->framebuf == NULL) {
-		report(RPT_ERR, "%s: unable to create framebuffer.", drvthis->name);
+		report(RPT_ERR, "%s: unable to create framebuffer", drvthis->name);
 		return -1;
 	}
 	memset(p->framebuf, ' ', p->width * p->height);
@@ -235,15 +241,34 @@ serialVFD_init (Driver *drvthis)
 	/* make sure the framebuffer backing store is there... */
 	p->backingstore = (unsigned char *) malloc(p->width * p->height);
 	if (p->backingstore == NULL) {
-		report(RPT_ERR, "%s: unable to create framebuffer backing store.", drvthis->name);
+		report(RPT_ERR, "%s: unable to create framebuffer backing store", drvthis->name);
 		return -1;
 	}
 	memset(p->backingstore, 0, p->width * p->height);
 
 //setup displayspecific data
-	serialVFD_load_display_data(drvthis);
+	memset(p->usr_chr_mapping, 0, 31);
+	memset(p->usr_chr_load_mapping, 0, 31);
+	if (serialVFD_load_display_data(drvthis) != 0) {
+		report(RPT_WARNING, "%s: Type %d not defined; using default %d",
+			drvthis->name, p->display_type, DEFAULT_DISPLAYTYPE);
+		p->display_type = DEFAULT_DISPLAYTYPE;
+		if (serialVFD_load_display_data(drvthis) != 0) {
+			report(RPT_ERR, "%s: unable to load display_data", drvthis->name);
+			return -1;
+		}
+	}
 
-//	report(RPT_ERR, "%s: Port: %X\n", drvthis->name, p->port, strerror(errno));
+	/* parallel port wait */
+	tmp = p->para_wait;
+	p->para_wait = drvthis->config_get_int(drvthis->name, "PortWait", 0, p->para_wait);
+
+	if ((p->usr_chr_load_mapping[0] == 0) && (p->usr_chr_load_mapping[1] == 0)){ //this should not happen if usr_chr_load_mapping had been set
+		memcpy(p->usr_chr_load_mapping, p->usr_chr_mapping, 31);
+	}
+
+
+//	report(RPT_ERR, "%s: Port: %X", drvthis->name, p->port, strerror(errno));
 
 //initialise display
 	Port_Function[p->use_parallel].write_fkt(drvthis, &p->hw_cmd[reset][1],p->hw_cmd[reset][0]);
@@ -254,69 +279,266 @@ serialVFD_init (Driver *drvthis)
 
 }
 
-/*
- * Retrieves brightness (in promille)
- */
 
+/**
+ * Close the driver (do necessary clean-up).
+ * \param drvthis  Pointer to driver structure.
+ */
+MODULE_EXPORT void
+serialVFD_close (Driver *drvthis)
+{
+	PrivateData *p = drvthis->private_data;
+	if (p != NULL) {
+		Port_Function[p->use_parallel].close_fkt(drvthis);
+		if (p->framebuf)
+			free(p->framebuf);
+		if (p->backingstore)
+			free(p->backingstore);
+		free(p);
+	}
+
+	drvthis->store_private_ptr(drvthis, NULL);
+}
+
+
+/**
+ * Return the display width in characters.
+ * \param drvthis  Pointer to driver structure.
+ * \return         Number of characters the display is wide.
+ */
 MODULE_EXPORT int
-serialVFD_get_brightness(Driver *drvthis, int state)
+serialVFD_width (Driver *drvthis)
 {
 	PrivateData *p = drvthis->private_data;
 
-	return (state == BACKLIGHT_ON) ? p->on_brightness : p->off_brightness;
+	return p->width;
 }
 
 
-/*
- * Sets on/off brightness (in promille)
+/**
+ * Return the display height in characters.
+ * \param drvthis  Pointer to driver structure.
+ * \return         Number of characters the display is high.
  */
-MODULE_EXPORT void
-serialVFD_set_brightness(Driver *drvthis, int state, int promille)
+MODULE_EXPORT int
+serialVFD_height (Driver *drvthis)
 {
 	PrivateData *p = drvthis->private_data;
 
-	/* Check it */
-	if (promille < 0 || promille > 1000)
-		return;
-
-	/* store the software value since there is not get */
-	if (state == BACKLIGHT_ON) {
-		p->on_brightness = promille;
-	}
-	else {
-		p->off_brightness = promille;
-	}
+	return p->height;
 }
 
 
-/*
- * Sets the backlight on or off.
- * The hardware support any value between 0 and 100.
+/**
+ * Return the width of a character in pixels.
+ * \param drvthis  Pointer to driver structure.
+ * \return         Number of pixel columns a character cell is wide.
  */
-MODULE_EXPORT void
-serialVFD_backlight (Driver *drvthis, int on)
+MODULE_EXPORT int
+serialVFD_cellwidth (Driver *drvthis)
 {
 	PrivateData *p = drvthis->private_data;
-	int hardware_value = (on == BACKLIGHT_ON)
-			     ? p->on_brightness
-			     : p->off_brightness;
 
-	// map range [0, 1000] -> [0, 4] that the hardware understands
-	//(4 steps 0-250, 251-500, 501-750, 751-1000)
-	hardware_value /= 251;
-	if (hardware_value != p->hw_brightness) {
-		p->hw_brightness = hardware_value;
-		Port_Function[p->use_parallel].write_fkt(drvthis, &p->hw_cmd[p->hw_brightness][1],\
-		p->hw_cmd[p->hw_brightness][0]);
+	return p->cellwidth;
+}
+
+
+/**
+ * Return the height of a character in pixels.
+ * \param drvthis  Pointer to driver structure.
+ * \return         Number of pixel lines a character cell is high.
+ */
+MODULE_EXPORT int
+serialVFD_cellheight (Driver *drvthis)
+{
+	PrivateData *p = drvthis->private_data;
+
+	return p->cellheight;
+}
+
+
+/**
+ * Clear the screen.
+ * \param drvthis  Pointer to driver structure.
+ */
+MODULE_EXPORT void
+serialVFD_clear (Driver *drvthis)
+{
+	PrivateData *p = drvthis->private_data;
+
+	memset(p->framebuf, ' ', p->width * p->height);
+
+}
+
+
+/**
+ * Flush data on screen to the VFD.
+ * \param drvthis  Pointer to driver structure.
+ */
+MODULE_EXPORT void
+serialVFD_flush (Driver *drvthis)
+{
+	PrivateData *p = drvthis->private_data;
+	int i, j, last_chr = -10;
+	char custom_char_changed[32]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+
+
+	for (i = 0; i < p->customchars; i++) {
+		for (j = 0; j < p->usr_chr_dot_assignment[0]; j++) {
+			if (p->custom_char[i][j] != p->custom_char_store[i][j]) {
+				custom_char_changed[i] = 1;
+//				report(RPT_ERR, "%s: Char: %X   %i", __FUNCTION__, i, j, strerror(errno));
+				}
+			p->custom_char_store[i][j] = p->custom_char[i][j];
 		}
+	}
 
+	if (p->refresh_timer > 500) { // Do a full refresh every 500 refreshs.
+	// With this it is possible to switch the display on and off while LCDd is running
+		Port_Function[p->use_parallel].write_fkt(drvthis, &p->hw_cmd[init_cmds][1],p->hw_cmd[init_cmds][0]);
+
+		Port_Function[p->use_parallel].write_fkt(drvthis, &p->hw_cmd[p->hw_brightness][1],\
+		p->hw_cmd[p->hw_brightness][0]); // restore brightness
+
+		memset(p->backingstore, 0, p->width * p->height); // clear Backing-store
+
+		for (i = 0; i < p->customchars; i++) // refresh all customcharacters
+			custom_char_changed[i] = 1;
+		p->refresh_timer = 0;
+	}
+
+	p->refresh_timer++;
+
+	if (p->display_type == 1) { // KD Rev 2.1 only
+		if (custom_char_changed[p->last_custom])
+			p->last_custom = -10;
+	}
+	else { // other Displays
+		for (i = 0; i < p->customchars; i++) // set customcharacters
+			if (custom_char_changed[i])
+				serialVFD_put_char(drvthis, i);
+	}
+
+
+	if (p->hw_cmd[next_line][0] == 0) { // normal mode Display
+		if (p->hw_cmd[mv_cursor][0] == 0) { // Workaround for Displays that doesn't support mv_cursor command
+			Port_Function[p->use_parallel].write_fkt(drvthis, &p->hw_cmd[pos1_cursor][1], p->hw_cmd[pos1_cursor][0]);
+			last_chr = -1;
+		}
+	
+		for (i = 0; i < (p->height * p->width); i++) {
+	
+			/* Backing-store implementation.  If it's already
+			* on the screen, don't put it there again
+			*/
+	
+			if ((p->framebuf[i] != p->backingstore[i]) || (p->hw_cmd[hor_tab][0] == 0) ||
+			((p->framebuf[i] <= 30) && (custom_char_changed[(int)p->framebuf[i]] != 0))) {
+				if (last_chr < i-1) { // if not last char written cursor has to be moved.
+					if (((p->hw_cmd[hor_tab][0] * (i-1-last_chr)) > (p->hw_cmd[mv_cursor][0]+1)) && (p->hw_cmd[mv_cursor][0] != 0)) {
+						Port_Function[p->use_parallel].write_fkt(drvthis, &p->hw_cmd[mv_cursor][1],
+							p->hw_cmd[mv_cursor][0]);
+						Port_Function[p->use_parallel].write_fkt(drvthis, (unsigned char *) &i, 1);
+	//report(RPT_WARNING, "%s: move  %d", drvthis->name, i);
+					}
+					else {
+						for (j = last_chr; j < (i-1); j++)
+							Port_Function[p->use_parallel].write_fkt(drvthis, &p->hw_cmd[hor_tab][1], p->hw_cmd[hor_tab][0]);
+	//report(RPT_WARNING, "%s: TAB  %d", drvthis->name, j-last_chr);
+					}
+				}
+				serialVFD_hw_write(drvthis, i);
+				last_chr = i;
+			}
+		}
+	}
+
+	else { // line mode Display (partitially borrowed from serialPOS.c)
+		for (j = 0; j < p->height; j++) {
+			// set  pointers to start of the line in frame buffer & backing store
+			unsigned char *sp = p->framebuf + (j * p->width);
+			unsigned char *sq = p->backingstore + (j * p->width);
+			if (j == 0) {
+				Port_Function[p->use_parallel].write_fkt(drvthis, &p->hw_cmd[pos1_cursor][1], p->hw_cmd[pos1_cursor][0]);
+			}
+			else {
+				Port_Function[p->use_parallel].write_fkt(drvthis, &p->hw_cmd[next_line][1], p->hw_cmd[next_line][0]);
+			}
+			// skip over identical lines
+			if ( memcmp(sp, sq, p->width) == 0) {
+				/* The lines are the same. */
+				continue;
+			}
+			for (i = 0; i < p->width; i++) {
+				serialVFD_hw_write(drvthis, (i + (j * p->width)));
+			}
+			last_chr = 10;
+		}
+	}
+
+	if (last_chr >= 0) { // update backingstore if something changed
+		memcpy(p->backingstore, p->framebuf, p->height * p->width);
+	//report(RPT_WARNING, "%s: memcpy", drvthis->name);
+	}
 }
 
 
+/**
+ * Print a string on the screen at position (x,y).
+ * The upper-left corner is (1,1), the lower-right corner is (p->width, p->height).
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param y        Vertical character position (row).
+ * \param string   String that gets written.
+ */
+MODULE_EXPORT void
+serialVFD_string (Driver *drvthis, int x, int y, const char string[])
+{
+	PrivateData *p = drvthis->private_data;
+	int i;
 
-/////////////////////////////////////////////////////////////////
-// Draws a vertical bar...
-//
+	x--;
+	y--;
+	for (i = 0; string[i] != '\0'; i++) {
+		// Check for buffer overflows...
+		if ((y * p->width) + x + i > (p->width * p->height))
+			break;
+		p->framebuf[(y * p->width) + x + i] = string[i];
+	}
+}
+
+
+/**
+ * Print a character on the screen at position (x,y).
+ * The upper-left corner is (1,1), the lower-right corner is (p->width, p->height).
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param y        Vertical character position (row).
+ * \param c        Character that gets written.
+ */
+MODULE_EXPORT void
+serialVFD_chr (Driver *drvthis, int x, int y, char c)
+{
+	PrivateData *p = drvthis->private_data;
+
+	if ((x > p->width) || (y > p->height))
+		return;
+	y--;
+	x--;
+
+	p->framebuf[(y * p->width) + x ] = c;
+}
+
+
+/**
+ * Draw a vertical bar bottom-up.
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column) of the starting point.
+ * \param y        Vertical character position (row) of the starting point.
+ * \param len      Number of characters that the bar is high at 100%
+ * \param promille Current height level of the bar in promille.
+ * \param options  Options (currently unused).
+ */
 MODULE_EXPORT void
 serialVFD_vbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 {
@@ -331,10 +553,16 @@ serialVFD_vbar (Driver *drvthis, int x, int y, int len, int promille, int option
 	}
 }
 
-/////////////////////////////////////////////////////////////////
-// Draws a horizontal bar to the right.
-//
 
+/**
+ * Draw a horizontal bar to the right.
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column) of the starting point.
+ * \param y        Vertical character position (row) of the starting point.
+ * \param len      Number of characters that the bar is long at 100%
+ * \param promille Current length level of the bar in promille.
+ * \param options  Options (currently unused).
+ */
 MODULE_EXPORT void
 serialVFD_hbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 {
@@ -350,152 +578,12 @@ serialVFD_hbar (Driver *drvthis, int x, int y, int len, int promille, int option
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Sets a custom character from 0-7...
-//
-// For input, value 1 mean "on" and 0 is "off".
-//
-// The input is just an array of characters...
-//
-MODULE_EXPORT void
-serialVFD_set_char (Driver *drvthis, int n, unsigned char *dat)
-{	//set char in p->custom_char
-	PrivateData *p = drvthis->private_data;
-	unsigned int byte, bit;
-
-	if (n < 0 || n > p->customchars-1)
-		return;
-	if (!dat)
-		return;
-
-	for (byte = 0; byte < p->usr_chr_dot_assignment[0]; byte++) {
-		int letter = 0;
-
-		for (bit = 0; bit < 8; bit++) {
-			int pos = (int) p->usr_chr_dot_assignment[bit+8*byte+1];
-
-			if (pos > 0) {
-				int posbyte = (pos-1) / 5;
-				int posbit = 4 - ((pos-1) % 5);
-
-				letter |= ((dat[posbyte] >> posbit) & 1) << bit;;
-			}
-		}
-		p->custom_char[n][byte] = letter;
-	}
-
-}
-
-static void
-serialVFD_put_char (Driver *drvthis, int n)
-{	// put char in display
-	PrivateData *p = drvthis->private_data;
-
-	Port_Function[p->use_parallel].write_fkt(drvthis, &p->hw_cmd[set_user_char][1],\
-		p->hw_cmd[set_user_char][0]);// substitute and select Character to overwrite
-	Port_Function[p->use_parallel].write_fkt(drvthis, (char*)&p->usr_chr_mapping[n], 1);
-	Port_Function[p->use_parallel].write_fkt(drvthis, &p->custom_char[n][0], p->usr_chr_dot_assignment[0]);// overwrite selected Character
-}
-
-
-
-/////////////////////////////////////////////////////////////
-// Blasts a single frame onscreen, to the lcd...
-//
-// Input is a character array, sized serialVFD->width*serialVFD->height
-//
-MODULE_EXPORT void
-serialVFD_flush (Driver *drvthis)
-{
-	PrivateData *p = drvthis->private_data;
-	int i, j, last_chr = -10;
-	char custom_char_changed[32]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-
-
-	for (i = 0; i < p->customchars; i++) {
-		for (j = 0; j < p->usr_chr_dot_assignment[0]; j++) {
-			if (p->custom_char[i][j] != p->custom_char_store[i][j]) {
-				custom_char_changed[i] = 1;
-//				report(RPT_ERR, "%s: Char: %X   %i\n", __FUNCTION__, i, j, strerror(errno));
-				}
-			p->custom_char_store[i][j] = p->custom_char[i][j];
-		}
-	}
-
-	if (p->refresh_timer > 500) { // Do a full refresh every 500 refreshs.
-	// With this it is possible to switch display on and off while lcdproc is running
-		Port_Function[p->use_parallel].write_fkt(drvthis, &p->hw_cmd[init_cmds][1],p->hw_cmd[init_cmds][0]);
-
-		Port_Function[p->use_parallel].write_fkt(drvthis, &p->hw_cmd[p->hw_brightness][1],\
-		p->hw_cmd[p->hw_brightness][0]); // restore brightness
-
-		memset(p->backingstore, 0, p->width * p->height); // clear Backing-store
-
-		for (i = 0; i < p->customchars; i++) // refresh all customcharacters
-			custom_char_changed[i] = 1;
-		p->refresh_timer = 0;
-	}
-
-	p->refresh_timer++;
-
-	if (p->display_type != 1) { //not KD Rev 2.1
-		for (i = 0; i < p->customchars; i++) // set customcharacters
-			if (custom_char_changed[i])
-				serialVFD_put_char(drvthis, i);
-		}
-
-	if (custom_char_changed[p->last_custom])
-		p->last_custom = -10;
-
-	for (i = 0; i < (p->height * p->width); i++) {
-
-		/* Backing-store implementation.  If it's already
-		 * on the screen, don't put it there again
-		 */
-
-		if ((p->framebuf[i] != p->backingstore[i]) ||
-		    ((p->framebuf[i] <= 30) && (custom_char_changed[(int)p->framebuf[i]]))) {
-			if (last_chr < i-1) { // if not last char written cursor has to be moved.
-				if (last_chr < i-2-p->hw_cmd[mv_cursor][0]) {
-					Port_Function[p->use_parallel].write_fkt(drvthis, &p->hw_cmd[mv_cursor][1],\
-						p->hw_cmd[mv_cursor][0]);
-					Port_Function[p->use_parallel].write_fkt(drvthis, (char*)&i, 1);
-					}
-				else {
-					for (j = last_chr; j < (i-1); j++)
-						Port_Function[p->use_parallel].write_fkt(drvthis, &p->hw_cmd[hor_tab][1], p->hw_cmd[hor_tab][0]);
-				}
-			}
-
-			if (p->framebuf[i] <= 30) { // custom character
-				if (p->display_type == 1) { // KD Rev 2.1 only
-					if (p->last_custom != p->framebuf[i]) {
-						Port_Function[p->use_parallel].write_fkt(drvthis, "\x1A\xDB", 2);		// substitute and select character to overwrite (237)
-						Port_Function[p->use_parallel].write_fkt(drvthis, &p->custom_char[(int)p->framebuf[i]][0], 7);// overwrite selected character
-						}
-					Port_Function[p->use_parallel].write_fkt(drvthis, "\xDB", 1);			// write character
-					p->last_custom = p->framebuf[i];
-				}
-				else {	// all other displays
-					Port_Function[p->use_parallel].write_fkt(drvthis, (char*)&p->usr_chr_mapping[(int)p->framebuf[i]], 1);
-				}
-			}
-			else if (p->framebuf[i] > 127 && (p->ISO_8859_1 != 0)) { // ISO_8859_1 translation for 129 ... 255
-				Port_Function[p->use_parallel].write_fkt(drvthis, &p->charmap[p->framebuf[i] - 128], 1);
-			}
-			else {
-				Port_Function[p->use_parallel].write_fkt(drvthis, &p->framebuf[i], 1);
-			}
-
-			last_chr = i;
-		}
-	}
-
-	if (last_chr != -10) // update backingstore if something changed
-		memcpy(p->backingstore, p->framebuf, p->height * p->width);
-}
-
-
+/**
+ * Write a big number to the screen.
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param num      Character to write (0 - 10 with 10 representing ':')
+ */
 MODULE_EXPORT void
 serialVFD_num(Driver * drvthis, int x, int num)
 {
@@ -511,10 +599,14 @@ serialVFD_num(Driver * drvthis, int x, int num)
 }
 
 
-
-
-/*
- * Places an icon on screen
+/**
+ * Place an icon on the screen.
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param y        Vertical character position (row).
+ * \param icon     synbolic value representing the icon.
+ * \retval 0       Icon has been successfully defined/written.
+ * \retval <0      Server core shall define/write the icon.
  */
 MODULE_EXPORT int
 serialVFD_icon (Driver *drvthis, int x, int y, int icon)
@@ -569,10 +661,148 @@ serialVFD_icon (Driver *drvthis, int x, int y, int icon)
 }
 
 
+/**
+ * Get total number of custom characters available.
+ * \param drvthis  Pointer to driver structure.
+ * \return         Number of custom characters.
+ */
+MODULE_EXPORT int
+serialVFD_get_free_chars (Driver *drvthis)
+{
+	PrivateData *p = drvthis->private_data;
 
-/////////////////////////////////////////////////////////////////
-// Sets up for vertical bars.  Call before serialVFD->vbar()
-//
+	return p->customchars;
+}
+
+
+/**
+ * Define a custom character and write it to the VFD.
+ * \param drvthis  Pointer to driver structure.
+ * \param n        Custom character to define [0 - (p->customchars)].
+ * \param dat      Array of 7(=cellheight) bytes, each representing a pixel row
+ *                 starting from the top to bottom.
+ *                 The bits in each byte represent the pixels where the LSB
+ *                 (least significant bit) is the rightmost pixel in each pixel row.
+ */
+MODULE_EXPORT void
+serialVFD_set_char (Driver *drvthis, int n, unsigned char *dat)
+{	//set char in p->custom_char
+	PrivateData *p = drvthis->private_data;
+	unsigned int byte, bit;
+
+	if (n < 0 || n > p->customchars-1)
+		return;
+	if (!dat)
+		return;
+
+	for (byte = 0; byte < p->usr_chr_dot_assignment[0]; byte++) {
+		int letter = 0;
+
+		for (bit = 0; bit < 8; bit++) {
+			int pos = (int) p->usr_chr_dot_assignment[bit+8*byte+1];
+
+			if (pos > 0) {
+				int posbyte = (pos-1) / 5;
+				int posbit = 4 - ((pos-1) % 5);
+
+				letter |= ((dat[posbyte] >> posbit) & 1) << bit;
+			}
+		}
+		p->custom_char[n][byte] = letter;
+	}
+
+}
+
+
+/**
+ * Retrieve brightness.
+ * \param drvthis  Pointer to driver structure.
+ * \param state    Brightness state (on/off) for which we want the value.
+ * \return         Stored brightness in promille.
+ */
+MODULE_EXPORT int
+serialVFD_get_brightness(Driver *drvthis, int state)
+{
+	PrivateData *p = drvthis->private_data;
+
+	return (state == BACKLIGHT_ON) ? p->on_brightness : p->off_brightness;
+}
+
+
+/**
+ * Set on/off brightness.
+ * \param drvthis  Pointer to driver structure.
+ * \param state    Brightness state (on/off) for which we want to store the value.
+ * \param promille New brightness in promille.
+ */
+MODULE_EXPORT void
+serialVFD_set_brightness(Driver *drvthis, int state, int promille)
+{
+	PrivateData *p = drvthis->private_data;
+
+	/* Check it */
+	if (promille < 0 || promille > 1000)
+		return;
+
+	/* store the software value since there is not get */
+	if (state == BACKLIGHT_ON) {
+		p->on_brightness = promille;
+	}
+	else {
+		p->off_brightness = promille;
+	}
+}
+
+
+/**
+ * Turn display backlight on or off.
+ * This does not really toggle the backlight, but  tries to handle it more intelligently:
+ * it sets the brightness to the value defined for the related backlight state.
+ * \param drvthis  Pointer to driver structure.
+ * \param on       New backlight status.
+ */
+MODULE_EXPORT void
+serialVFD_backlight (Driver *drvthis, int on)
+{
+	PrivateData *p = drvthis->private_data;
+	int hardware_value = (on == BACKLIGHT_ON)
+			     ? p->on_brightness
+			     : p->off_brightness;
+
+	// map range [0, 1000] -> [0, 4] that the hardware understands
+	//(4 steps 0-250, 251-500, 501-750, 751-1000)
+	hardware_value /= 251;
+	if (hardware_value != p->hw_brightness) {
+		p->hw_brightness = hardware_value;
+		Port_Function[p->use_parallel].write_fkt(drvthis, &p->hw_cmd[p->hw_brightness][1],\
+		p->hw_cmd[p->hw_brightness][0]);
+	}
+}
+
+
+/**
+ * Provide general information about the LCD/VFD display/driver.
+ * \param drvthis  Pointer to driver structure.
+ * \return         Constant string with information.
+ */
+MODULE_EXPORT const char *
+serialVFD_get_info (Driver *drvthis)
+{
+	PrivateData *p = drvthis->private_data;
+
+	strcpy(p->info, "Driver for many serialVFDs from NEC(all FIPC based), Noritake, Futaba and the \"KD Rev2.1\"VFD");
+	return p->info;
+}
+
+
+/**
+ * Set up vertical bars.
+ * \param drvthis  Pointer to driver structure.
+ *
+ * \note
+ * Called only by vbar(). Can possibly be included there.
+ * This should also make CCMODE independent of the implementation of the bars.
+ */
 static void
 serialVFD_init_vbar (Driver *drvthis)
 {
@@ -594,9 +824,15 @@ serialVFD_init_vbar (Driver *drvthis)
 	}
 }
 
-/////////////////////////////////////////////////////////////////
-// Inits horizontal bars...
-//
+
+/**
+ * Set up horizontal bars.
+ * \param drvthis  Pointer to driver structure.
+ *
+ * \note
+ * Called only by hbar(). Can possibly be included there.
+ * This should also make CCMODE independent of the implementation of the bars.
+ */
 static void
 serialVFD_init_hbar (Driver *drvthis)
 {
@@ -617,143 +853,43 @@ serialVFD_init_hbar (Driver *drvthis)
 }
 
 
-
-
-
-/////////////////////////////////////////////////////////////////
-// Clears the LCD screen
-//
-MODULE_EXPORT void
-serialVFD_clear (Driver *drvthis)
-{
+static void
+serialVFD_put_char (Driver *drvthis, int n)
+{	// put userchar in display
 	PrivateData *p = drvthis->private_data;
 
-	memset(p->framebuf, ' ', p->width * p->height);
-
+	Port_Function[p->use_parallel].write_fkt(drvthis, &p->hw_cmd[set_user_char][1],\
+		p->hw_cmd[set_user_char][0]);// substitute and select Character to overwrite
+	Port_Function[p->use_parallel].write_fkt(drvthis, (unsigned char *) &p->usr_chr_load_mapping[n], 1);
+	Port_Function[p->use_parallel].write_fkt(drvthis, &p->custom_char[n][0], p->usr_chr_dot_assignment[0]);// overwrite selected Character
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Prints a string on the lcd display, at position (x,y).  The
-// upper-left is (1,1), and the lower right should be (20,4).
-//
-MODULE_EXPORT void
-serialVFD_string (Driver *drvthis, int x, int y, const char string[])
-{
+static void
+serialVFD_hw_write (Driver *drvthis, int i)
+{	// finally write character/usercharacter on the display
 	PrivateData *p = drvthis->private_data;
-	int i;
 
-	x--;
-	y--;
-	for (i = 0; string[i] != '\0'; i++) {
-		// Check for buffer overflows...
-		if ((y * p->width) + x + i > (p->width * p->height))
-			break;
-		p->framebuf[(y * p->width) + x + i] = string[i];
+	if (p->framebuf[i] <= 30) { // custom character
+		if (p->display_type == 1) { // KD Rev 2.1 only
+			if (p->last_custom != p->framebuf[i]) {
+				// substitute and select character to overwrite (237)
+				Port_Function[p->use_parallel].write_fkt(drvthis, (unsigned char *)"\x1A\xDB", 2);
+				// overwrite selected character
+				Port_Function[p->use_parallel].write_fkt(drvthis, &p->custom_char[(int)p->framebuf[i]][0], 7);
+			}
+			Port_Function[p->use_parallel].write_fkt(drvthis, (unsigned char *)"\xDB", 1);			// write character
+			p->last_custom = p->framebuf[i];
+		}
+		else {	// all other displays
+			Port_Function[p->use_parallel].write_fkt(drvthis, (unsigned char *) &p->usr_chr_mapping[(int)p->framebuf[i]], 1);
+		}
+	}
+	else if ((p->framebuf[i] == 127) || ((p->framebuf[i] > 127) && (p->ISO_8859_1 != 0))) { // ISO_8859_1 translation for 129 ... 255
+		Port_Function[p->use_parallel].write_fkt(drvthis, &p->charmap[p->framebuf[i] - 127], 1);
+	}
+	else {
+		Port_Function[p->use_parallel].write_fkt(drvthis, &p->framebuf[i], 1);
 	}
 }
 
-/////////////////////////////////////////////////////////////////
-// Clean-up
-//
-MODULE_EXPORT void
-serialVFD_close (Driver *drvthis)
-{
-	PrivateData *p = drvthis->private_data;
-	if (p != NULL) {
-		Port_Function[p->use_parallel].close_fkt(drvthis);
-		if (p->framebuf)
-			free(p->framebuf);
-		if (p->backingstore)
-			free(p->backingstore);
-		free(p);
-	}
-
-	drvthis->store_private_ptr(drvthis, NULL);
-}
-
-/*
- * Returns the display width in characters
- */
-MODULE_EXPORT int
-serialVFD_width (Driver *drvthis)
-{
-	PrivateData *p = drvthis->private_data;
-
-	return p->width;
-}
-
-
-/*
- * Returns the display height in characters
- */
-MODULE_EXPORT int
-serialVFD_height (Driver *drvthis)
-{
-	PrivateData *p = drvthis->private_data;
-
-	return p->height;
-}
-
-/////////////////////////////////////////////////////////////////
-// Returns the maximum number of custom char slots (not how many
-// are free at a moment, maybe this isn't even needed...
-//
-MODULE_EXPORT int
-serialVFD_get_free_chars (Driver *drvthis)
-{
-	PrivateData *p = drvthis->private_data;
-
-	return p->customchars;
-}
-/*
- * Returns the width of a character in pixels
- */
-MODULE_EXPORT int
-serialVFD_cellwidth (Driver *drvthis)
-{
-	PrivateData *p = drvthis->private_data;
-
-	return p->cellwidth;
-}
-
-
-/*
- * Returns the height of a character in pixels
- */
-MODULE_EXPORT int
-serialVFD_cellheight (Driver *drvthis)
-{
-	PrivateData *p = drvthis->private_data;
-
-	return p->cellheight;
-}
-
-
-/////////////////////////////////////////////////////////////////
-// Prints a character on the lcd display, at position (x,y).  The
-// upper-left is (1,1), and the lower right should be (20,4).
-//
-MODULE_EXPORT void
-serialVFD_chr (Driver *drvthis, int x, int y, char c)
-{
-	PrivateData *p = drvthis->private_data;
-	if ((x > p->width) || (y > p->height))
-		return;
-	y--;
-	x--;
-
-	p->framebuf[(y * p->width) + x ] = c;
-}
-
-
-/////////////////////////////////////////////////////////////////
-// provides some info about this driver
-//
-MODULE_EXPORT const char *
-serialVFD_get_info (Driver *drvthis)
-{
-	PrivateData *p = drvthis->private_data;
-	strcpy(p->info, "Driver for many serialVFDs from NEC(all FIPC based), Noritake, Futaba and the \"KD Rev2.1\"VFD.");
-	return p->info;
-}

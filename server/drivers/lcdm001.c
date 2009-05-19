@@ -1,6 +1,8 @@
-/*lcdm001.c*/
-/*  This is the LCDproc driver for the "LCDM001" device from kernelconcepts.de
+/** \file server/drivers/lcdm001.c
+ * LCDd \c lcdm001 driver for the LCDM001 device from kernelconcepts.de.
+ */
 
+/*
     Copyright (C) 2001  Rene Wagner <reenoo@gmx.de>
 
     This program is free software; you can redistribute it and/or modify
@@ -64,7 +66,8 @@
 //#include "configfile.h"
 
 
-typedef struct driver_private_data {
+/** private data for the \c lcdm001 driver */
+typedef struct lcdm001_private_data {
 	char device[200];
 	int fd;
 	int speed;

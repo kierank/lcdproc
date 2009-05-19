@@ -1,17 +1,15 @@
-/*
- * screenlist.c
- * This file is part of LCDd, the lcdproc server.
+/** \file server/screenlist.c
+ * All actions that can be performed on the list of screens.
+ * This file also manages the rotation of screens.
+ */
+
+/* This file is part of LCDd, the lcdproc server.
  *
- * This file is released under the GNU General Public License. Refer to the
- * COPYING file distributed with this package.
+ * This file is released under the GNU General Public License.
+ * Refer to the COPYING file distributed with this package.
  *
  * Copyright (c) 1999, William Ferrell, Scott Scriven
  *		 2003, Joris Robijn
- *
- *
- * All actions that can be performed on the list of screens.
- * This file also manages the rotation of screens.
- *
  */
 
 #include <stdlib.h>
@@ -85,13 +83,13 @@ screenlist_remove(Screen *s)
 		screenlist_goto_next();
 		if (s == current_screen) {
 			/* Hmm, no other screen had same priority */
-			void *res = LL_Remove(screenlist, s);
+			void *res = LL_Remove(screenlist, s, NEXT);
 			/* And now once more */
 			screenlist_goto_next();
 			return (res == NULL) ? -1 : 0;
 		}
 	}
-	return (LL_Remove(screenlist, s) == NULL) ? -1 : 0;
+	return (LL_Remove(screenlist, s, NEXT) == NULL) ? -1 : 0;
 }
 
 
@@ -221,7 +219,8 @@ screenlist_goto_next(void)
 		return -1;
 
 	/* Find current screen in screenlist */
-	for (s = LL_GetFirst(screenlist); s && s != current_screen; s = LL_GetNext(screenlist));
+	for (s = LL_GetFirst(screenlist); s && s != current_screen; s = LL_GetNext(screenlist))
+		;
 
 	/* One step forward */
 	s = LL_GetNext(screenlist);

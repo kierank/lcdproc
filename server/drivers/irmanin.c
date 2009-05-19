@@ -1,8 +1,12 @@
+/** \file server/drivers/irmanin.c
+ * LCDd \c irman input driver for the IrMan IR remote control.
+ */
+
 /* irmanin.c - test/demo of LIBIR's to interface with lcdproc (LCDd) */
 /* Copyright (C) 1999 David Glaude loosely based on workmanir.c */
 /* workmanir.c - test/demo of LIBIR's high level command functions */
 /* Copyright (C) 1998 Tom Wheeley, see file COPYING for details    */
-#include <config.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -22,10 +26,28 @@
 
 #define NAME_LENGTH 128
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #include "lcd.h"
 #include "irmanin.h"
 #include "report.h"
 #include "irman.h"
+
+
+/** mapping between IrMan code names and LCDd key names */
+typedef struct _codemap {
+	const char *irman;	/**< IrMan code name */
+	const char *lcdproc;	/**< LCDproc key name */
+} CodeMap;
+
+/** private data for the \c irman driver */
+typedef struct irmanin_private_data {
+	char device[256];	/**< IrMan device name */
+	char config[256];	/**< IrMan config file */
+	char *portname;		/**< IrMan port name */
+} PrivateData;
 
 
 CodeMap codemap[] = {
@@ -39,26 +61,20 @@ CodeMap codemap[] = {
 	{ NULL, NULL }
 };
 
-//////////////////////////////////////////////////////////////////////////
-////////////////////// Base "class" to derive from ///////////////////////
-//////////////////////////////////////////////////////////////////////////
 
-
+/* vars for the server core */
 MODULE_EXPORT char *api_version = API_VERSION;
 MODULE_EXPORT int stay_in_foreground = 0;
 MODULE_EXPORT int supports_multiple = 0;
 MODULE_EXPORT char *symbol_prefix = "irmanin_";
 
-//void sigterm(int sig)
-//{
-//  ir_free_commands();
-//  ir_finish();
-//  raise(sig);
-//}
 
-////////////////////////////////////////////////////////////
-// init() should set up any device-specific stuff, and
-// point all the function pointers.
+/**
+ * Initialize the driver.
+ * \param drvthis  Pointer to driver structure.
+ * \retval 0       Success.
+ * \retval <0      Error.
+ */
 MODULE_EXPORT int
 irmanin_init (Driver *drvthis)
 {
@@ -133,6 +149,11 @@ irmanin_init (Driver *drvthis)
 	return 1;						  // return success
 }
 
+
+/**
+ * Close the driver (do necessary clean-up).
+ * \param drvthis  Pointer to driver structure.
+ */
 MODULE_EXPORT void
 irmanin_close (Driver *drvthis)
 {
@@ -146,11 +167,12 @@ irmanin_close (Driver *drvthis)
 	ir_finish();
 }
 
-//////////////////////////////////////////////////////////////////////
-// Tries to read a LCDproc character string from an input device...
-//
-// Return NULL for "nothing available".
-//
+/**
+ * Get key from the device.
+ * \param drvthis  Pointer to driver structure.
+ * \return         String representation of the key;
+ *                 \c NULL if nothing available / unmapped key.
+ */
 MODULE_EXPORT const char *
 irmanin_get_key (Driver *drvthis)
 {

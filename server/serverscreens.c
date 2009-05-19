@@ -1,16 +1,15 @@
-/*
- * serverscreens.c
- * This file is part of LCDd, the lcdproc server.
+/** \file server/serverscreens.c
+ * Implement the serverscreens.
+ */
+
+/* This file is part of LCDd, the lcdproc server.
  *
- * This file is released under the GNU General Public License. Refer to the
- * COPYING file distributed with this package.
+ * This file is released under the GNU General Public License.
+ * Refer to the COPYING file distributed with this package.
  *
  * Copyright (c) 1999, William Ferrell, Scott Scriven
  *               2002, Joris Robijn
- *
- *
- * Implements the serverscreens
- *
+ *               2007, Peter Marschall
  */
 
 #include <stdlib.h>
@@ -18,37 +17,41 @@
 #include <string.h>
 
 #ifdef HAVE_CONFIG_H
-#include "config.h"
+# include "config.h"
 #endif
 
 #include "shared/report.h"
 #include "shared/configfile.h"
 
-#include "drivers/lcd.h"
 #include "drivers.h"
 #include "clients.h"
+#include "render.h"
 #include "screen.h"
 #include "screenlist.h"
 #include "widget.h"
 #include "main.h"
 #include "serverscreens.h"
 
-#define UNSET_INT -1
 
-#define MAX_SERVERSCREEN_WIDTH 40
-
-
-Screen *server_screen;
+/* global variables */
+Screen *server_screen = NULL;
 int rotate_server_screen = UNSET_INT;
 
+/* file-local variables */
+static int has_hello_msg = 0;
+
+/* file-local function declarations */
+static int reset_server_screen(int rotate, int heartbeat, int title);
 
 int
 server_screen_init(void)
 {
 	Widget *w;
-	int line;
+	int i;
 
-	debug(RPT_DEBUG, "server_screen_init");
+	has_hello_msg = config_has_key("Server", "Hello");
+
+	debug(RPT_DEBUG, "%s()", __FUNCTION__);
 
 	/* Create the screen */
 	server_screen = screen_create("_server_screen", NULL);
@@ -59,38 +62,46 @@ server_screen_init(void)
 	server_screen->name = "Server screen";
 	server_screen->duration = RENDER_FREQ; /* 1 second, instead of 4...*/
 
-	if ((rotate_server_screen == UNSET_INT) || (rotate_server_screen == 1)) {
-		server_screen->priority = PRI_INFO;
-	} else {
-		server_screen->priority = PRI_BACKGROUND;
-	}
-
 	/* Create all the widgets...*/
-	for (line = 1; line <= 4; line++) {
+	for (i = 0; i < display_props->height; i++) {
 		char id[8];
-		sprintf(id, "line%d", line);
+		sprintf(id, "line%d", i+1);
 
 		w = widget_create(id, WID_STRING, server_screen);
-		if (!w) {
+		if (w == NULL) {
 			report(RPT_ERR, "server_screen_init: Can't create a widget");
 			return -1;
 		}
 		screen_add_widget(server_screen, w);
 		w->x = 1;
-		w->y = line;
-		w->text = malloc(MAX_SERVERSCREEN_WIDTH+1);
-		if (line == 1) {
-			w->type = WID_TITLE;
-			strncpy(w->text, "LCDproc Server", MAX_SERVERSCREEN_WIDTH);
-		} else {
-			w->text[0] = '\0';
-		}
+		w->y = i+1;
+		w->text = calloc(LCD_MAX_WIDTH+1, 1);
 	}
 
-	/* And enqueue the screen*/
+	/* set parameters for server_screen and it's widgets */
+	reset_server_screen(rotate_server_screen, !has_hello_msg, !has_hello_msg);
+
+	/* set the widgets depending on the Hello option in LCDd.conf */
+	if (has_hello_msg) {		/* show whole Hello message */
+		int i;
+
+		for (i = 0; i < display_props->height; i++) {
+	 		const char *line = config_get_string("Server", "Hello", i, "");
+			char id[8];
+
+			sprintf(id, "line%d", i+1);
+			w = screen_find_widget(server_screen, id);
+			if ((w != NULL) && (w->text != NULL)) {
+				strncpy(w->text, line, LCD_MAX_WIDTH);
+				w->text[LCD_MAX_WIDTH] = '\0';
+			}	
+		}	
+	}
+
+	/* And enqueue the screen */
 	screenlist_add(server_screen);
 
-	debug(RPT_DEBUG, "server_screen_init done");
+	debug(RPT_DEBUG, "%s() done", __FUNCTION__);
 
 	return 0;
 }
@@ -98,7 +109,7 @@ server_screen_init(void)
 int
 server_screen_shutdown(void)
 {
-	if (!server_screen)
+	if (server_screen == NULL)
 		return -1;
 
 	screenlist_remove(server_screen);
@@ -106,41 +117,72 @@ server_screen_shutdown(void)
 	return 0;
 }
 
+
 int
 update_server_screen(void)
 {
+	static int hello_done = 0;
 	Client *c;
 	Widget *w;
-	int num_clients;
-	int num_screens;
+	int num_clients = 0;
+	int num_screens = 0;
 
-	/* Now get info on the number of connected clients...*/
+	/* get info on the number of connected clients...*/
 	num_clients = clients_client_count();
 
+	/* turn off the Hello message after the first client onnected */
+	if (has_hello_msg && !hello_done) {
+		/* TODO:
+		 * checking for num_clients is not really correct; we really
+		 * want num_screens (see also comment in main.c).
+		 * Unfortunately we do only get called if the server screen
+		 * needs to be updated; therefore we get num_screen updated too
+		 * late so that after a client disconnects to quickly (in its
+		 * 1st round of screens showing) num_screens still is 0.
+		 */
+		if (num_clients != 0) {
+			if (!hello_done)
+				reset_server_screen(rotate_server_screen, 1, 1);
+			hello_done = 1;
+		}
+		if (!hello_done)
+			return 0;
+	}
+
 	/* ... and screens */
-	num_screens = 0;
 	for (c = clients_getfirst(); c != NULL; c = clients_getnext()) {
 		num_screens += client_screen_count(c);
 	}
 
-	/* Format strings for the appropriate size display... */
-	if (display_props->height >= 3) {
-		w = screen_find_widget(server_screen, "line2");
-		snprintf(w->text, MAX_SERVERSCREEN_WIDTH,
-					"Clients: %i", num_clients);
-		w = screen_find_widget(server_screen, "line3");
-		snprintf(w->text, MAX_SERVERSCREEN_WIDTH,
-					"Screens: %i", num_screens);
-	} else {
-		w = screen_find_widget(server_screen, "line2");
-		snprintf(w->text, MAX_SERVERSCREEN_WIDTH,
-				((display_props->width >= 16)
-				 ? "Cli: %i  Scr: %i"
-				 : "C: %i  S: %i"),
-				num_clients, num_screens);
+	/* update statistics if we do not only want to show a blank screen */
+	if (rotate_server_screen != SERVERSCREEN_BLANK) {
+		/* format strings for the appropriate display size ... */
+		if (display_props->height >= 3) {	/* >2-line display */
+			w = screen_find_widget(server_screen, "line2");
+			if ((w != NULL) && (w->text != NULL)) {
+				snprintf(w->text, LCD_MAX_WIDTH,
+						"Clients: %i", num_clients);
+			}			
+
+			w = screen_find_widget(server_screen, "line3");
+			if ((w != NULL) && (w->text != NULL)) {
+				snprintf(w->text, LCD_MAX_WIDTH,
+						"Screens: %i", num_screens);
+			}			
+		} else {				/* 2-line display */
+			w = screen_find_widget(server_screen, "line2");
+			if ((w != NULL) && (w->text != NULL)) {
+				snprintf(w->text, LCD_MAX_WIDTH,
+						((display_props->width >= 16)
+						 ? "Cli: %i  Scr: %i"
+						 : "C: %i  S: %i"),
+						num_clients, num_screens);
+			}		
+		}
 	}
 	return 0;
 }
+
 
 int
 goodbye_screen(void)
@@ -182,3 +224,43 @@ goodbye_screen(void)
 
 	return 0;
 }
+
+
+
+static int
+reset_server_screen(int rotate, int heartbeat, int title)
+{
+	int i;
+
+	if (server_screen == NULL)
+		return -1;
+
+	server_screen->heartbeat = (heartbeat && (rotate != SERVERSCREEN_BLANK))
+					? HEARTBEAT_OPEN : HEARTBEAT_OFF;
+	server_screen->priority = (rotate == SERVERSCREEN_ON)
+					? PRI_INFO : PRI_BACKGROUND;
+
+	for (i = 0; i < display_props->height; i++) {
+		char id[8];
+		Widget *w;
+
+		sprintf(id, "line%d", i+1);
+		w = screen_find_widget(server_screen, id);
+		if (w != NULL) {
+			w->x = 1;
+			w->y = i+1;
+			w->type = ((i == 0) && (title) && (rotate != SERVERSCREEN_BLANK))
+					? WID_TITLE : WID_STRING;
+
+			if (w->text != NULL) {
+				w->text[0] = '\0';
+				if ((i == 0) && (title) && (rotate != SERVERSCREEN_BLANK)) {
+					strncpy(w->text, "LCDproc Server", LCD_MAX_WIDTH);
+					w->text[LCD_MAX_WIDTH] = '\0';
+				}	
+			}	
+		}	
+	}		
+	return 0;
+}
+

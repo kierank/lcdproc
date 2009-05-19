@@ -1,6 +1,9 @@
-/*
- * Driver for serial connected hd44780 LCDs
- * Copyright (C) 2006-2007  Matteo Pillon <matteo.pillon@gmail.com>
+/** \file server/drivers/hd44780-serial.c
+ * Connection types \c picanlcd, \c lcdserializer, \c los-panel, \c vdr-lcd,
+ * \c vdr-wakeup, \c pertelian, ... of \c hd44780 driver for Hitachi HD44780 based LCD displays.
+ */
+
+/* Copyright (C) 2006-2007  Matteo Pillon <matteo.pillon@gmail.com>
  *
  * Some parts are based on the original pic-an-lcd driver code
  *  Copyright (C) 1997, Matthias Prinke <m.prinke@trashcan.mcnet.de>
@@ -66,8 +69,10 @@ unsigned int bitrate_conversion[][2] = {
 	{ 19200, B19200 },
 	{ 38400, B38400 },
 	{ 57600, B57600 },
-	{ 115200, B115200 },
-	{ 230400, B230400 }
+	{ 115200, B115200 }
+#if defined(B230400)
+	, { 230400, B230400 }
+#endif	
 #if defined(B460800)	
 	, { 460800, B460800 }
 #endif
@@ -123,7 +128,13 @@ void serial_HD44780_backlight(PrivateData *p, unsigned char state);
 unsigned char serial_HD44780_scankeypad(PrivateData *p);
 void serial_HD44780_close(PrivateData *p);
 
-// initialize the driver
+
+/**
+ * Initialize the driver.
+ * \param drvthis  Pointer to driver structure.
+ * \retval 0       Success.
+ * \retval -1      Error.
+ */
 int
 hd_init_serial(Driver *drvthis)
 {
@@ -135,36 +146,28 @@ hd_init_serial(Driver *drvthis)
 	/* READ CONFIG FILE */
 
 	/* Get interface type */
-	int counter;
-	char conf_serialif[SERIALIF_NAME_LENGTH];
+	int i;
 
-	strncpy(conf_serialif, drvthis->config_get_string(drvthis->name, "connectiontype", 0, ""), SERIALIF_NAME_LENGTH);
-	conf_serialif[SERIALIF_NAME_LENGTH-1] = '\0';
 	p->serial_type = 0;
-	for (counter = 0; counter < (sizeof(serial_interfaces)/sizeof(SerialInterface)); counter++) {
-		if (strcasecmp(conf_serialif, serial_interfaces[counter].name) == 0) {
-			p->serial_type = counter;
+	for (i = 0; serial_interfaces[i].connectiontype != HD44780_CT_UNKNOWN; i++) {
+		if (p->connectiontype == serial_interfaces[i].connectiontype) {
+			p->serial_type = i;
 			break;
 		}
 	}
-	if (p->serial_type != counter) {
-		report(RPT_ERR, "HD44780: serial: serial interface %s unknown", conf_serialif);
-		report(RPT_ERR, "HD44780: serial: available interfaces:");
-		for (counter = 0; counter < (sizeof(serial_interfaces)/sizeof(SerialInterface)); counter++)
-			report(RPT_ERR, " %s", serial_interfaces[counter].name);
+	if (p->serial_type != i) {
+		report(RPT_ERR, "HD44780: serial: unknown connection type");
 		return -1;
 	}
 
-	report(RPT_INFO,"HD44780: serial: device type: %s", SERIAL_IF.name);
-
 	/* Check if user knows the capabilities of his hardware ;-) */
 	if (p->have_keypad && !(SERIAL_IF.keypad)) {
-		report(RPT_ERR, "HD44780: serial: keypad is not supported by %s", SERIAL_IF.name);
+		report(RPT_ERR, "HD44780: serial: keypad is not supported by connection type");
 		report(RPT_ERR, "HD44780: serial: check your configuration file and disable it");
 		return -1;
 	}
 	if (p->have_backlight && !(SERIAL_IF.backlight)) {
-		report(RPT_ERR, "HD44780: serial: backlight control is not supported by %s", SERIAL_IF.name);
+		report(RPT_ERR, "HD44780: serial: backlight control is not supported by connection type");
 		report(RPT_ERR, "HD44780: serial: check your configuration file and disable it");
 		return -1;
 	}
@@ -174,8 +177,8 @@ hd_init_serial(Driver *drvthis)
 	size_t bitrate;
 
 	conf_bitrate = drvthis->config_get_int(drvthis->name, "Speed", 0, SERIAL_IF.default_bitrate);
-        if (conf_bitrate==0)
-                conf_bitrate = SERIAL_IF.default_bitrate;
+	if (conf_bitrate == 0)
+		conf_bitrate = SERIAL_IF.default_bitrate;
 	if (convert_bitrate(conf_bitrate, &bitrate)) {
 		report(RPT_ERR, "HD44780: serial: invalid configured bitrate speed");
 		return -1;
@@ -218,14 +221,13 @@ hd_init_serial(Driver *drvthis)
 	/* Set TCSANOW mode of serial device */
 	tcsetattr(p->fd, TCSANOW, &portset);
 
-        lastdisplayID = -1;
+	lastdisplayID = -1;
 
 	/* Assign functions */
 	p->hd44780_functions->senddata = serial_HD44780_senddata;
 	p->hd44780_functions->backlight = serial_HD44780_backlight;
-	if (p->have_keypad)
-		p->hd44780_functions->scankeypad = serial_HD44780_scankeypad;
-        p->hd44780_functions->close = serial_HD44780_close;
+	p->hd44780_functions->scankeypad = serial_HD44780_scankeypad;
+	p->hd44780_functions->close = serial_HD44780_close;
 
 	/* Do initialization */
 	if (SERIAL_IF.if_bits == 8) {
@@ -239,7 +241,14 @@ hd_init_serial(Driver *drvthis)
 	return 0;
 }
 
-// serial_HD44780_senddata
+
+/**
+ * Send data or commands to the display.
+ * \param p          Pointer to driver's private data structure.
+ * \param displayID  ID of the display (or 0 for all) to send data to.
+ * \param flags      Defines whether to end a command or data.
+ * \param ch         The value to send.
+ */
 void
 serial_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char flags, unsigned char ch)
 {
@@ -250,9 +259,9 @@ serial_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char f
 	if (flags == RS_DATA) {
 		/* Do we need a DATA indicator byte? */
 		if ((SERIAL_IF.data_escape != '\0') &&
-		    (ch >= SERIAL_IF.data_escape_min) &&
-		    (ch < SERIAL_IF.data_escape_max) ||
-                    (SERIAL_IF.multiple_displays && displayID != lastdisplayID)) {
+		    (((ch >= SERIAL_IF.data_escape_min) &&
+		      (ch < SERIAL_IF.data_escape_max)) ||
+		     (SERIAL_IF.multiple_displays && displayID != lastdisplayID))) {
 			write(p->fd, &SERIAL_IF.data_escape + displayID, 1);
 		}
 		write(p->fd, &ch, 1);
@@ -261,28 +270,40 @@ serial_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char f
 		write(p->fd, &SERIAL_IF.instruction_escape, 1);
 		write(p->fd, &ch, 1);
 	}
-        lastdisplayID = displayID;
+	lastdisplayID = displayID;
 }
 
+
+/**
+ * Turn display backlight on or off.
+ * \param p      Pointer to driver's private data structure.
+ * \param state  New backlight status.
+ */
 void
 serial_HD44780_backlight(PrivateData *p, unsigned char state)
 {
-        unsigned char send[1];
+	unsigned char send[1];
 	if (p->have_backlight) {
 		if (SERIAL_IF.backlight_escape) {
 			send[0] = SERIAL_IF.backlight_escape;
 			write(p->fd, &send, 1);
-                }
-                if (SERIAL_IF.backlight_on && SERIAL_IF.backlight_off) {
+		}
+		if (SERIAL_IF.backlight_on && SERIAL_IF.backlight_off) {
 			send[0] = state ? SERIAL_IF.backlight_on : SERIAL_IF.backlight_off;
 		}
 		else {
 			send[0] = state ? 0 : 0xFF;
 		}
-                write(p->fd, &send, 1);
+		write(p->fd, &send, 1);
 	}
 }
 
+
+/**
+ * Read keypress.
+ * \param p  Pointer to driver's private data structure.
+ * \return   Bitmap of the pressed keys.
+ */
 unsigned char
 serial_HD44780_scankeypad(PrivateData *p)
 {
@@ -299,13 +320,18 @@ serial_HD44780_scankeypad(PrivateData *p)
 			hangcheck--;
 		}
 	}
-	return 0;
+	return '\0';
 }
 
+
+/**
+ * Close the driver (do necessary clean-up).
+ * \param p  Pointer to driver's private data structure.
+ */
 void
 serial_HD44780_close(PrivateData *p)
 {
-        if (SERIAL_IF.end_code)
-                write(p->fd, &SERIAL_IF.end_code, 1);
-        close(p->fd);
+	if (SERIAL_IF.end_code)
+		write(p->fd, &SERIAL_IF.end_code, 1);
+	close(p->fd);
 }

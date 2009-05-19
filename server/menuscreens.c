@@ -1,24 +1,23 @@
-/*
- * menuscreens.c
- * This file is part of LCDd, the lcdproc server.
- *
- * This file is released under the GNU General Public License. Refer to the
- * COPYING file distributed with this package.
- *
- * Copyright (c) 1999, William Ferrell, Scott Scriven
- *               2002, Joris Robijn
- *               2004, F5 Networks, Inc. - IP-address input
- *               2005, Peter Marschall - error checks, ...
- *
- *
+/** \file server/menuscreens.c
  * Creates the server menu screen(s) and creates the menus that should be
  * displayed on this screen.
  * It also handles its keypresses and converts them to menu tokens for
  * easier processing.
  *
- * NOTE: menuscreens.c does not know whether a menuitem is displayed INSIDE
+ * \note
+ * menuscreens.c does not know whether a menuitem is displayed INSIDE
  * a menu or on a separate SCREEN, for flexibility.
+ */
+
+/* This file is part of LCDd, the lcdproc server.
  *
+ * This file is released under the GNU General Public License.
+ * Refer to the COPYING file distributed with this package.
+ *
+ * Copyright (c) 1999, William Ferrell, Scott Scriven
+ *               2002, Joris Robijn
+ *               2004, F5 Networks, Inc. - IP-address input
+ *               2005, Peter Marschall - error checks, ...
  */
 
 #include <string.h>
@@ -41,12 +40,14 @@
 /* Next include files are needed for settings that we can modify */
 #include "render.h"
 
+
 char *menu_key;
 char *enter_key;
 char *up_key;
 char *down_key;
 char *left_key;
 char *right_key;
+static unsigned int keymask;	/* mask of defined menu keys */
 
 Screen *menuscreen = NULL;
 MenuItem *active_menuitem = NULL;
@@ -67,6 +68,7 @@ void menuscreen_create_menu(void);
 Menu *menuscreen_get_main(void);
 MenuEventFunc(heartbeat_handler);
 MenuEventFunc(backlight_handler);
+MenuEventFunc(titlespeed_handler);
 MenuEventFunc(contrast_handler);
 MenuEventFunc(brightness_handler);
 
@@ -76,30 +78,58 @@ int menuscreens_init(void)
 
 	debug(RPT_DEBUG, "%s()", __FUNCTION__);
 
-	/* Get keys from config file */
-	menu_key = strdup(config_get_string("menu", "MenuKey", 0, "Menu"));
-	enter_key = strdup(config_get_string("menu", "EnterKey", 0, "Enter"));
-	up_key = strdup(config_get_string("menu", "UpKey", 0, "Up"));
-	down_key = strdup(config_get_string("menu", "DownKey", 0, "Down"));
+	/* Get keys from config file: MenuKey, EnterKey, UpKey, DownKey, LeftKey, RightKey.
+	 * For a working menu at least 3 are necessary: MenuKey, EnterKey, UpKey/DownKey.
+	 */
+	keymask = 0;
+	menu_key = enter_key = NULL;
+	tmp = config_get_string("menu", "MenuKey", 0, NULL);
+	if (tmp != NULL) {
+		menu_key = strdup(tmp);
+		keymask |= MENUTOKEN_MENU;
+	}
+	tmp = config_get_string("menu", "EnterKey", 0, NULL);
+	if (tmp != NULL) {
+		enter_key = strdup(tmp);
+		keymask |= MENUTOKEN_ENTER;
+	}
 
-	/* if the user has specified in the conf file a left and right key */
+	up_key = down_key = NULL;
+	tmp = config_get_string("menu", "UpKey", 0, NULL);
+	if (tmp != NULL) {
+		up_key = strdup(tmp);
+		keymask |= MENUTOKEN_UP;
+	}
+	tmp = config_get_string("menu", "DownKey", 0, NULL);
+	if (tmp != NULL) {
+		down_key = strdup(tmp);
+		keymask |= MENUTOKEN_DOWN;
+	}
+
 	left_key = right_key = NULL;
 	tmp = config_get_string("menu", "LeftKey", 0, NULL);
-	if (tmp)
+	if (tmp != NULL) {
 		left_key = strdup(tmp);
+		keymask |= MENUTOKEN_LEFT;
+	}
 	tmp = config_get_string("menu", "RightKey", 0, NULL);
-	if (tmp)
+	if (tmp != NULL) {
 		right_key = strdup(tmp);
+		keymask |= MENUTOKEN_RIGHT;
+	}
 
-
-	/* Now reserve keys */
-	input_reserve_key(menu_key, true, NULL);
-	input_reserve_key(enter_key, false, NULL);
-	input_reserve_key(up_key, false, NULL);
-	input_reserve_key(down_key, false, NULL);
-	if (left_key)
+	/* Now reserve the keys that were defined */
+	if (menu_key != NULL)
+		input_reserve_key(menu_key, true, NULL);
+	if (enter_key != NULL)
+		input_reserve_key(enter_key, false, NULL);
+	if (up_key != NULL)
+		input_reserve_key(up_key, false, NULL);
+	if (down_key != NULL)
+		input_reserve_key(down_key, false, NULL);
+	if (left_key != NULL)
 		input_reserve_key(left_key, false, NULL);
-	if (right_key)
+	if (right_key != NULL)
 		input_reserve_key(right_key, false, NULL);
 
 	/* Create screen */
@@ -142,14 +172,19 @@ int menuscreens_shutdown(void)
 	/* Forget menu's key reservations */
 	input_release_client_keys(NULL);
 
-	free(menu_key);
-	free(enter_key);
-	free(up_key);
-	free(down_key);
-	if (left_key)
+	if (menu_key != NULL)	
+		free(menu_key);
+	if (enter_key != NULL)	
+		free(enter_key);
+	if (up_key != NULL)	
+		free(up_key);
+	if (down_key != NULL)	
+		free(down_key);
+	if (left_key != NULL)
         	free(left_key);
-	if (right_key)
+	if (right_key != NULL)
         	free(right_key);
+	keymask = 0;	
 
 	return 0;
 }
@@ -186,7 +221,7 @@ void menuscreen_inform_item_modified(MenuItem *item)
 
 bool is_menu_key(const char *key)
 {
-	if (menu_key && key && strcmp(key, menu_key) == 0)
+	if ((menu_key != NULL) && (key != NULL) && (strcmp(key, menu_key) == 0))
 		return true;
 	else
 		return false;
@@ -275,16 +310,16 @@ static void handle_enter(void)
 
 static void handle_predecessor(void)
 {
+	MenuItem* predecessor;
 	MenuItem* item = (active_menuitem->type == MENUITEM_MENU)
 		? menu_get_item_for_predecessor_check(active_menuitem)
 		: active_menuitem;
 	assert(item != NULL);
 	debug(RPT_DEBUG, "%s: Switching to registered predecessor '%s' of '%s'.",
 	       __FUNCTION__, item->predecessor_id, item->id);
-	MenuItem *predecessor = menuitem_search(
-		item->predecessor_id, (Client*)active_menuitem->client);
-	if (predecessor == NULL)
-	{
+	predecessor = menuitem_search(item->predecessor_id,
+				      (Client *) active_menuitem->client);
+	if (predecessor == NULL) {
 		// note: if _quit_, _close_, _none_ get here this
 		// would be an implementation error - they should
 		// have been handled via different MENURESULT codes.
@@ -303,9 +338,8 @@ static void handle_predecessor(void)
 		menuitem_update_screen(active_menuitem, menuscreen);
 		break;
 	default:
-		if (predecessor->parent != NULL
-		    && predecessor->parent->type == MENUITEM_MENU)
-		{
+		if ((predecessor->parent != NULL) &&
+		    (predecessor->parent->type == MENUITEM_MENU)) {
 			// update parent menu too
 			menu_select_subitem(predecessor->parent, predecessor->id);
 		}
@@ -316,16 +350,16 @@ static void handle_predecessor(void)
 
 static void handle_successor(void)
 {
+	MenuItem *successor;
 	MenuItem* item = (active_menuitem->type == MENUITEM_MENU)
 		? menu_get_item_for_successor_check(active_menuitem)
 		: active_menuitem;
 	assert(item != NULL);
 	debug(RPT_DEBUG, "%s: Switching to registered successor '%s' of '%s'.",
 	       __FUNCTION__, item->successor_id, item->id);
-	MenuItem *successor = menuitem_search(
-		item->successor_id, (Client*)active_menuitem->client);
-	if (successor == NULL)
-	{
+	successor = menuitem_search(item->successor_id,
+				    (Client *) active_menuitem->client);
+	if (successor == NULL) {
 		// note: if _quit_, _close_, _none_ get here this
 		// would be an implementation error - they should
 		// have been handled via different MENURESULT codes.
@@ -344,9 +378,8 @@ static void handle_successor(void)
 		menuitem_update_screen(active_menuitem, menuscreen);
 		break;
 	default:
-		if (successor->parent != NULL
-		    && successor->parent->type == MENUITEM_MENU)
-		{
+		if ((successor->parent != NULL) &&
+		    (successor->parent->type == MENUITEM_MENU)) {
 			// update parent menu too
 			menu_select_subitem(successor->parent, successor->id);
 		}
@@ -357,27 +390,27 @@ static void handle_successor(void)
 
 void menuscreen_key_handler(const char *key)
 {
-	char token = 0;
+	MenuToken token = MENUTOKEN_NONE;
 	MenuResult res;
 
 	debug(RPT_DEBUG, "%s(\"%s\")", __FUNCTION__, key);
 
-	if (strcmp(key, menu_key) == 0) {
+	if ((menu_key != NULL) && (strcmp(key, menu_key) == 0)) {
 		token = MENUTOKEN_MENU;
 	}
-	else if (strcmp(key, enter_key) == 0) {
+	else if ((enter_key != NULL) && (strcmp(key, enter_key) == 0)) {
 		token = MENUTOKEN_ENTER;
 	}
-	else if (strcmp(key, up_key) == 0) {
+	else if ((up_key != NULL) && (strcmp(key, up_key) == 0)) {
 		token = MENUTOKEN_UP;
 	}
-	else if (strcmp(key, down_key) == 0) {
+	else if ((down_key != NULL) && (strcmp(key, down_key) == 0)) {
 		token = MENUTOKEN_DOWN;
 	}
-	else if (left_key && strcmp(key, left_key) == 0) {
+	else if ((left_key != NULL) && (strcmp(key, left_key) == 0)) {
 		token = MENUTOKEN_LEFT;
 	}
-	else if (right_key && strcmp(key, right_key) == 0) {
+	else if ((right_key != NULL) && (strcmp(key, right_key) == 0)) {
 		token = MENUTOKEN_RIGHT;
 	}
 	else {
@@ -391,9 +424,7 @@ void menuscreen_key_handler(const char *key)
 		return;
 	}
 
-	res = menuitem_process_input(active_menuitem, token, key,
-			((left_key || right_key) ? 1 : 0));
-
+	res = menuitem_process_input(active_menuitem, token, key, keymask);
 	switch (res) {
 	  case MENURESULT_ERROR:
 		report(RPT_ERR, "%s: Error from menuitem_process_input", __FUNCTION__);
@@ -433,6 +464,25 @@ void menuscreen_create_menu(void)
 #ifdef LCDPROC_TESTMENUS
 	MenuItem *test_item;
 	Menu *test_menu;
+
+	char testiso[] = {
+		'D', 'e', 'm', 'o', '\t',
+		/* #160 */
+		160, 161, 162, 163, 164, 165, 166, 167, '\t',
+		168, 169, 170, 171, 172, 173, 174, 175, '\t',
+		176, 177, 178, 179, 180, 181, 182, 183, '\t',
+		184, 185, 186, 187, 188, 189, 190, 191, '\t',
+		/* #192 */
+		192, 193, 194, 195, 196, 197, 198, 199, '\t',
+		200, 201, 202, 203, 204, 205, 206, 207, '\t',
+		208, 209, 210, 211, 212, 213, 214, 215, '\t',
+		216, 217, 218, 219, 220, 221, 222, 223, '\t',
+		/* #224 */
+		224, 225, 226, 227, 228, 229, 230, 231, '\t',
+		232, 233, 234, 245, 236, 237, 238, 239, '\t',
+		240, 241, 242, 243, 244, 245, 246, 247, '\t',
+		248, 249, 250, 251, 252, 253, 254, 255, '\0'
+	};	
 #endif /*LCDPROC_TESTMENUS*/
 
 	debug(RPT_DEBUG, "%s()", __FUNCTION__);
@@ -447,14 +497,20 @@ void menuscreen_create_menu(void)
 	menu_add_item(main_menu, screens_menu);
 #endif /*LCDPROC_TESTMENUS*/
 
-	/* menu's client is NULL since we're in the server */
+	/* add option menu contents:
+	 * menu's client is NULL since we're in the server */
 	checkbox = menuitem_create_checkbox("heartbeat", heartbeat_handler, "Heartbeat", NULL, true, heartbeat);
 	menu_add_item(options_menu, checkbox);
 
-	/* menu's client is NULL since we're in the server */
 	checkbox = menuitem_create_checkbox("backlight", backlight_handler, "Backlight", NULL, true, backlight);
 	menu_add_item(options_menu, checkbox);
 
+	slider = menuitem_create_slider("titlespeed", titlespeed_handler,
+					"TitleSpeed", NULL, "0", "10", TITLESPEED_NO, TITLESPEED_MAX, 1, titlespeed);
+	menu_add_item(options_menu, slider);
+
+	/* add driver specific option menus for each driver:
+	 * menu's client is NULL since we're in the server */
 	for (driver = drivers_getfirst(); driver; driver = drivers_getnext()) {
 		int contrast_avail = (driver->get_contrast && driver->set_contrast) ? 1 : 0;
 		int brightness_avail = (driver->get_brightness && driver->set_brightness) ? 1 : 0;
@@ -526,6 +582,9 @@ void menuscreen_create_menu(void)
 	menu_add_item(test_menu, test_item);
 	test_item = menuitem_create_ip("", NULL, "IPv6", NULL, 1, "1080:0:0:0:8:800:200C:417A");
 	menu_add_item(test_menu, test_item);
+	
+	test_item = menuitem_create_ring("", NULL, "Charset", NULL, testiso, 0);
+	menu_add_item(test_menu, test_item);
 #endif /*LCDPROC_TESTMENUS*/
 }
 
@@ -534,11 +593,10 @@ MenuEventFunc (heartbeat_handler)
 	debug(RPT_DEBUG, "%s(item=[%s], event=%d)", __FUNCTION__,
 			((item != NULL) ? item->id : "(null)"), event);
 
-	if (event == MENUEVENT_UPDATE) {
+	if ((item != NULL) && (event == MENUEVENT_UPDATE)) {
 		/* Set heartbeat setting */
 		heartbeat = item->data.checkbox.value;
-		report(RPT_INFO, "Menu: set heartbeat to %d",
-				item->data.checkbox.value);
+		report(RPT_INFO, "Menu: set heartbeat to %d", heartbeat);
 	}
 	return 0;
 }
@@ -548,12 +606,23 @@ MenuEventFunc (backlight_handler)
 	debug(RPT_DEBUG, "%s(item=[%s], event=%d)", __FUNCTION__,
 			((item != NULL) ? item->id : "(null)"), event);
 
-	if (event == MENUEVENT_UPDATE)
-	{
+	if ((item != NULL) && (event == MENUEVENT_UPDATE)) {
 		/* Set backlight setting */
 		backlight = item->data.checkbox.value;
-		report(RPT_INFO, "Menu: set backlight to %d",
-				item->data.checkbox.value);
+		report(RPT_INFO, "Menu: set backlight to %d", backlight);
+	}
+	return 0;
+}
+
+MenuEventFunc (titlespeed_handler)
+{
+	debug(RPT_DEBUG, "%s(item=[%s], event=%d)", __FUNCTION__,
+			((item != NULL) ? item->id : "(null)"), event);
+
+	if ((item != NULL) && ((event == MENUEVENT_MINUS) || (event == MENUEVENT_PLUS))) {
+		/* set titlespeed setting */
+		titlespeed = item->data.slider.value;
+		report(RPT_INFO, "Menu: set titlespeed to %d", titlespeed);
 	}
 	return 0;
 }
@@ -563,11 +632,9 @@ MenuEventFunc (contrast_handler)
 	debug(RPT_DEBUG, "%s(item=[%s], event=%d)", __FUNCTION__,
 			((item != NULL) ? item->id : "(null)"), event);
 
-	/* This function can be called by one of several drivers that
-	 * support contrast !
-	 * We need to check the menu association to see which driver. */
-	if (event == MENUEVENT_MINUS || event == MENUEVENT_PLUS) {
-		/* Determine the driver */
+	/* This function can be called by one of several drivers that support contrast */
+	if ((item != NULL) && ((event == MENUEVENT_MINUS) || (event == MENUEVENT_PLUS))) {
+		/* Determine the driver by following the menu's association */
 		Driver *driver = item->parent->data.menu.association;
 
 		if (driver != NULL) {
@@ -584,11 +651,9 @@ MenuEventFunc (brightness_handler)
 	debug(RPT_DEBUG, "%s(item=[%s], event=%d)", __FUNCTION__,
 			((item != NULL) ? item->id : "(null)"), event);
 
-	/* This function can be called by one of several drivers that
-	 * support brightness !
-	 * We need to check the menu association to see which driver. */
-	if (event == MENUEVENT_MINUS || event == MENUEVENT_PLUS) {
-		/* Determine the driver */
+	/* This function can be called by one of several drivers that support brightness ! */
+	if ((item != NULL) && ((event == MENUEVENT_MINUS) || (event == MENUEVENT_PLUS))) {
+		/* Determine the driver by following the menu's association */
 		Driver *driver = item->parent->data.menu.association;
 
 		if (driver != NULL) {

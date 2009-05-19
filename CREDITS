@@ -74,6 +74,7 @@ Jason Dale Woodward:
 Ethan Dicks:
 	- PIC-an-LCD original driver (later merged into HD44780 driver)
 	- fixes & tests to the MtxOrb driver and some clients
+	- lcdident.pl client
 
 Michael Reinelt:
 	- SED1520 (copied work of him)
@@ -209,6 +210,8 @@ John Sanders:
 Eric Pooch:
 	- Mac OS X / Darwin support
 	- serialPOS driver
+	- uss720 connection type for hd44780 driver
+	- driver for SoundGraph iMON OEM LCD Modules
 
 Benjamin Wiedmann
 	- Added functionality for HITACHI SP14Q002 gLCD (320x240)
@@ -223,6 +226,44 @@ Karsten Festag
 
 Gatewood Green
 	- picolcd driver
+
+Dave Platt
+	- overhauled CwLnx driver
+
+Nicu Pavel
+	- overhauled & extended picolcd driver
+
+Daryl Fonseca-Holt
+	- lis driver
+
+Thien Vu
+	- shuttleVFD driver
+
+Thomas Jarosch
+	- support reporting in hd44780's ConnectionType functions
+	- build-system clean up: use pkg-config for some libs
+	- HD44780 connection type for a USB connection via a FTDI FT2232D chip
+	- i2500vfd driver
+
+Christian Jodar
+	- mx5000 driver
+
+Mariusz Bialonczyk
+	- ethlcd connection type for HD44780
+
+Jack Cleaver
+	- LIRC support in picolcd
+
+Phant0m / Aron Parsons
+	-IRtrans driver
+
+Malte Poeggel
+	- support for ST7036 controller in hd44780
+
+Dean Harding,
+Christian Leuschen,
+Jonathan Kyler:
+	- driver for SoundGraph iMON OEM LCD Modules
 
 
 Further developers in the sourceforge lcdproc team:

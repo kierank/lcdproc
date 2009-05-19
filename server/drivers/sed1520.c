@@ -1,3 +1,7 @@
+/** \file server/drivers/sed1520.c
+ * LCDd \c sed1520 driver for graphic displays based on the SED1520.
+ */
+
 //////////////////////////////////////////////////////////////////////////
 // This is a driver for 122x32 pixel graphic displays based on the      //
 // SED1520 Controller connected to the parallel port. Check             //
@@ -64,7 +68,8 @@
 #include "report.h"
 
 
-typedef struct driver_private_data {
+/** private data for the \c sed1520 driver */
+typedef struct sed1520_private_data {
     unsigned int port;
 
     unsigned char *framebuf;

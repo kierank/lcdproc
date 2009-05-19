@@ -1,9 +1,10 @@
-/*
- * 8-bit driver module for Hitachi HD44780 based LCD displays.
- * The LCD is operated in it's 8 bit-mode to be connected to a single
- * PC parallel port.
+/** \file server/drivers/hd44780-ext8bit.c
+ * \c 8bit connection type of \c hd44780 driver for Hitachi HD44780 based LCD displays.
  *
- * Copyright (c)  1999, 1995 Benjamin Tse <blt@Comports.com>
+ * The LCD is operated in its 8 bit-mode to be connected to a single PC parallel port.
+ */
+
+/* Copyright (c)  1999, 1995 Benjamin Tse <blt@Comports.com>
  *                2001 Joris Robijn <joris@robijn.net>
  *
  * The connections are:
@@ -80,7 +81,13 @@ void lcdtime_HD44780_output(PrivateData *p, int data);
 
 static int semid;
 
-// initialise the driver
+
+/**
+ * Initialize the driver.
+ * \param drvthis  Pointer to driver structure.
+ * \retval 0       Success.
+ * \retval -1      Error.
+ */
 int
 hd_init_ext8bit(Driver *drvthis)
 {
@@ -115,7 +122,14 @@ hd_init_ext8bit(Driver *drvthis)
 	return 0;
 }
 
-// lcdtime_HD44780_senddata
+
+/**
+ * Send data or commands to the display.
+ * \param p          Pointer to driver's private data structure.
+ * \param displayID  ID of the display (or 0 for all) to send data to.
+ * \param flags      Defines whether to end a command or data.
+ * \param ch         The value to send.
+ */
 void
 lcdtime_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char flags, unsigned char ch)
 {
@@ -141,6 +155,12 @@ lcdtime_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char 
 	sem_signal(semid);
 }
 
+
+/**
+ * Turn display backlight on or off.
+ * \param p      Pointer to driver's private data structure.
+ * \param state  New backlight status.
+ */
 void lcdtime_HD44780_backlight(PrivateData *p, unsigned char state)
 {
 	p->backlight_bit = (state?0:SEL);
@@ -150,6 +170,13 @@ void lcdtime_HD44780_backlight(PrivateData *p, unsigned char state)
 	port_out(p->port + 2, p->backlight_bit ^ OUTMASK);
 }
 
+
+/**
+ * Read keypress.
+ * \param p      Pointer to driver's private data structure.
+ * \param YData  ???
+ * \return       Bitmap of the pressed keys.
+ */
 unsigned char lcdtime_HD44780_readkeypad(PrivateData *p, unsigned int YData)
 {
 	unsigned char readval;
@@ -180,6 +207,12 @@ unsigned char lcdtime_HD44780_readkeypad(PrivateData *p, unsigned int YData)
 		((readval & ACK) / ACK)) & ~p->stuckinputs;	/* pin 10 */
 }
 
+
+/**
+ * Set output port.
+ * \param p      Pointer to driver's private data structure.
+ * \param data   Value the output port shall be set to.
+ */
 void lcdtime_HD44780_output(PrivateData *p, int data)
 {
 	// Setup data bus

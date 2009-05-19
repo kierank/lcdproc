@@ -1,10 +1,12 @@
-/*
- * USB driver module for Hitachi HD44780 based LCD displays.
- * http://www.bwct.de/lcd.html
+/** \file server/drivers/hd44780-bwct-usb.c
+ * \c bwctusb connection type of \c hd44780 driver for Hitachi HD44780 based LCD displays.
  *
- * Copyright (c) 2004, Bernd Walter <bernd@bwct.de>
+ * See http://www.bwct.de/lcd.html
+ */
+
+/* Copyright (c) 2004, Bernd Walter <bernd@bwct.de>
  * Contributions:
- *   Copyright (c) 2004, Peter Marschall <peter@adpm.de>
+ *   Copyright (c) 2004-7, Peter Marschall <peter@adpm.de>
  *
  * This file is released under the GNU General Public License. Refer to the
  * COPYING file distributed with this package.
@@ -31,12 +33,18 @@
 #endif
 
 
-/* USB device handle & interface index we write to */
-static usb_dev_handle *bwct_usb;
-static int bwct_usb_i;
+// connection type specific functions to be exposed using pointers in init()
+void bwct_usb_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char flags, unsigned char ch);
+void bwct_usb_HD44780_set_contrast(PrivateData *p, unsigned char value);
+void bwct_usb_HD44780_close(PrivateData *p);
 
 
-// initialize the driver
+/**
+ * Initialize the driver.
+ * \param drvthis  Pointer to driver structure.
+ * \retval 0       Success.
+ * \retval -1      Error.
+ */
 int
 hd_init_bwct_usb(Driver *drvthis)
 {
@@ -46,12 +54,10 @@ hd_init_bwct_usb(Driver *drvthis)
   //char device_manufacturer[LCD_MAX_WIDTH+1] = "";
   char device_serial[LCD_MAX_WIDTH+1] = DEFAULT_SERIALNO;
   char serial[LCD_MAX_WIDTH+1] = DEFAULT_SERIALNO;
-  int contrast = -1;	/* illegal contrast value (to detect errors) */
 
   p->hd44780_functions->senddata = bwct_usb_HD44780_senddata;
-  p->hd44780_functions->backlight = bwct_usb_HD44780_backlight;
-  p->hd44780_functions->scankeypad = bwct_usb_HD44780_scankeypad;
   p->hd44780_functions->close = bwct_usb_HD44780_close;
+  p->hd44780_functions->set_contrast = bwct_usb_HD44780_set_contrast;
 
   /* Read config file's contents: serial number and contrast */
 
@@ -62,8 +68,6 @@ hd_init_bwct_usb(Driver *drvthis)
     report(RPT_INFO, "hd_init_bwct_usb: Using serial number: %s", serial);
   }
 
-  contrast = drvthis->config_get_int(drvthis->name, "Contrast", 0, DEFAULT_CONTRAST);
-
   /* try to find USB device */
 #if 0
   usb_debug = 2;
@@ -73,7 +77,8 @@ hd_init_bwct_usb(Driver *drvthis)
   usb_find_busses();
   usb_find_devices();
 
-  bwct_usb = NULL;
+  p->usbHandle = NULL;
+  p->usbIndex = 0;
   for (bus = usb_get_busses(); bus != NULL; bus = bus->next) {
     struct usb_device *dev;
 
@@ -87,41 +92,41 @@ hd_init_bwct_usb(Driver *drvthis)
       /* Loop through all of the configurations */
       for (c = 0; c < dev->descriptor.bNumConfigurations; c++) {
         /* Loop through all of the interfaces */
-        for (bwct_usb_i = 0; bwct_usb_i < dev->config[c].bNumInterfaces; bwct_usb_i++) {
+        for (p->usbIndex = 0; p->usbIndex < dev->config[c].bNumInterfaces; p->usbIndex++) {
           int a;
 
           /* Loop through all of the alternate settings */
-          for (a = 0; a < dev->config[c].interface[bwct_usb_i].num_altsetting; a++) {
+          for (a = 0; a < dev->config[c].interface[p->usbIndex].num_altsetting; a++) {
             /* Check if this interface is a BWCT lcd */
-            if (((dev->config[c].interface[bwct_usb_i].altsetting[a].bInterfaceClass == 0xFF) &&
-                 (dev->config[c].interface[bwct_usb_i].altsetting[a].bInterfaceSubClass == 0x01)) ||
+            if (((dev->config[c].interface[p->usbIndex].altsetting[a].bInterfaceClass == 0xFF) &&
+                 (dev->config[c].interface[p->usbIndex].altsetting[a].bInterfaceSubClass == 0x01)) ||
                 (dev->descriptor.idProduct == BWCT_USB_PRODUCTID)) {
 
               /* BWCT device found; try to find its description and serial number */
-              bwct_usb = usb_open(dev);
-              if (bwct_usb == NULL) {
+              p->usbHandle = usb_open(dev);
+              if (p->usbHandle == NULL) {
                 report(RPT_WARNING, "hd_init_bwct_usb: unable to open device");
                 // return -1;                /* it's better to continue */
               }
               else {
                 /* get device information & check for serial number */
-                //if (usb_get_string_simple(bwct_usb, dev->descriptor.iManufacturer,
+                //if (usb_get_string_simple(p->usbHandle, dev->descriptor.iManufacturer,
                 //                          manufacturer, LCD_MAX_WIDTH) <= 0)
                 //  *manufacturer = '\0';
                 //manufacturer[sizeof(manufacturer)-1] = '\0';
 
-                //if (usb_get_string_simple(bwct_usb, dev->descriptor.iProduct,
+                //if (usb_get_string_simple(p->usbHandle, dev->descriptor.iProduct,
                 //                          product, LCD_MAX_WIDTH) <= 0)
                 //  *product = '\0';
                 //product[sizeof(product)-1] = '\0';
 
-                if (usb_get_string_simple(bwct_usb, dev->descriptor.iSerialNumber,
+                if (usb_get_string_simple(p->usbHandle, dev->descriptor.iSerialNumber,
                                           device_serial, LCD_MAX_WIDTH) <= 0)
                   *device_serial = '\0';
                 device_serial[sizeof(device_serial)-1] = '\0';
                 if ((*serial != '\0') && (*device_serial == '\0')) {
                   report(RPT_ERR, "hd_init_bwct_usb: unable to get device's serial number");
-                  usb_close(bwct_usb);
+                  usb_close(p->usbHandle);
                   return -1;
                 }
 
@@ -129,8 +134,8 @@ hd_init_bwct_usb(Driver *drvthis)
                 if ((*serial == '\0') || (strcmp(serial, device_serial) == 0))
                   goto done;
 
-                usb_close(bwct_usb);
-                bwct_usb = NULL;
+                usb_close(p->usbHandle);
+                p->usbHandle = NULL;
               }
             }
           }
@@ -140,20 +145,33 @@ hd_init_bwct_usb(Driver *drvthis)
   }
 
   done:
-  if (bwct_usb != NULL) {
+  if (p->usbHandle != NULL) {
     debug(RPT_DEBUG, "hd_init_bwct_usb: opening device succeeded");
 
-    if (usb_claim_interface(bwct_usb, bwct_usb_i) < 0) {
+    errno = 0;
+    if (usb_set_configuration(p->usbHandle, p->usbIndex) < 0) {
+      report(RPT_WARNING, "hd_init_bwct_usb: unable to set configuration: %s",
+             strerror(errno));
+    }
+
+    errno = 0;
+    if (usb_claim_interface(p->usbHandle, p->usbIndex) < 0) {
 #if defined(LIBUSB_HAS_DETACH_KERNEL_DRIVER_NP)
-      if ((usb_detach_kernel_driver_np(bwct_usb, bwct_usb_i) < 0) ||
-          (usb_claim_interface(bwct_usb, bwct_usb_i) < 0)) {
-        usb_close(bwct_usb);
-        report(RPT_ERR, "hd_init_bwct_usb: unable to re-claim interface");
+      report(RPT_WARNING, "hd_init_bwct_usb: interface may be claimed by "
+                          "kernel driver, attempting to detach it");
+      
+      errno = 0;
+      if ((usb_detach_kernel_driver_np(p->usbHandle, p->usbIndex) < 0) ||
+          (usb_claim_interface(p->usbHandle, p->usbIndex) < 0)) {
+        report(RPT_ERR, "hd_init_bwct_usb: unable to re-claim interface: %s",
+	       strerror(errno));
+        usb_close(p->usbHandle);
         return -1;
       }
 #else
-      usb_close(bwct_usb);
-      report(RPT_ERR, "hd_init_bwct_usb: unable to claim interface");
+      report(RPT_ERR, "hd_init_bwct_usb: unable to claim interface: %s",
+             strerror(errno));
+      usb_close(p->usbHandle);
       return -1;
 #endif
     }
@@ -165,50 +183,48 @@ hd_init_bwct_usb(Driver *drvthis)
 
   common_init(p, IF_4BIT);
 
-  /* set contrast */
-  if ((0 <= contrast) && (contrast <= 1000)) {
-    int res = usb_control_msg(bwct_usb, USB_TYPE_VENDOR, BWCT_LCD_SET_CONTRAST,
-                              (contrast * 255) / 1000, bwct_usb_i, NULL, 0, 1000);
-    if (res < 0)
-      report(RPT_WARNING, "hd_init_bwct_usb: setting contrast failed");
-  } else {
-    report(RPT_INFO, "hd_init_bwct_usb: Using default contrast value");
-  }
-
   return 0;
 }
 
 
-// bwct_usb_HD44780_senddata
+/**
+ * Send data or commands to the display.
+ * \param p          Pointer to driver's private data structure.
+ * \param displayID  ID of the display (or 0 for all) to send data to.
+ * \param flags      Defines whether to end a command or data.
+ * \param ch         The value to send.
+ */
 void
 bwct_usb_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char flags, unsigned char ch)
 {
 int type = (flags == RS_DATA) ? BWCT_LCD_DATA : BWCT_LCD_CMD;
 
-  usb_control_msg(bwct_usb, USB_TYPE_VENDOR, type, ch, bwct_usb_i, NULL, 0, 1000);
-}
-
-
-void
-bwct_usb_HD44780_backlight(PrivateData *p, unsigned char state)
-{
-}
-
-
-unsigned char
-bwct_usb_HD44780_scankeypad(PrivateData *p)
-{
-  return 0;
+  usb_control_msg(p->usbHandle, USB_TYPE_VENDOR, type, ch, p->usbIndex, NULL, 0, 1000);
 }
 
 
 void
 bwct_usb_HD44780_close(PrivateData *p)
 {
-  if (bwct_usb != NULL) {
-    usb_close(bwct_usb);
-    bwct_usb = NULL;
+  if (p->usbHandle != NULL) {
+    usb_close(p->usbHandle);
+    p->usbHandle = NULL;
   }
 }
+
+
+/**
+ * Change LCD contrast.
+ * \param p          Pointer to driver's private data structure.
+ * \param value     New contrast value (one byte).
+ */
+void
+bwct_usb_HD44780_set_contrast(PrivateData *p, unsigned char value)
+{
+  if (usb_control_msg(p->usbHandle, USB_TYPE_VENDOR, BWCT_LCD_SET_CONTRAST,
+                      value, p->usbIndex, NULL, 0, 1000) < 0)
+    p->hd44780_functions->drv_report(RPT_WARNING, "bwct_usb_HD44780_set_contrast: setting contrast failed");
+}
+
 
 /* EOF */

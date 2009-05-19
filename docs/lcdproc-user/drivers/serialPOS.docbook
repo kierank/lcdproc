@@ -7,7 +7,8 @@ This section talks about using LCDproc with a point of sale ("POS") character-di
 
 <para>
 The <code>serialPOS</code> driver is currently working with the AEDEX emulation protocol, 
-but can be extended to work with various other protocols.
+and may support Epson ESC/POS and Logic Controls. It can be extended to work with various 
+other protocol displays.
 </para>
 
 <para>
@@ -42,8 +43,8 @@ Feedback is welcome.
     </row>
     <row>
       <entry>Epson</entry>
-      <entry> </entry>
       <entry>No</entry>
+      <entry>Yes</entry>
       <entry> </entry>
     </row>
     <row>
@@ -60,8 +61,8 @@ Feedback is welcome.
     </row>
     <row>
       <entry>Logic Controls</entry>
-      <entry> </entry>
       <entry>No</entry>
+      <entry>Yes</entry>
       <entry> </entry>
     </row>
     <row>
@@ -82,20 +83,25 @@ Feedback is welcome.
 
 <para>
 Connecting the display should consist of simply plugging it into your computer's
-RS-232 port.  Because these displays typically support full RS-232, no additional 
-wiring is needed. If your computer does not have such a port (many newer computers don't),
-you can use a USB to serial adapter with the appropriate driver.
+RS-232 serial port.  Because these displays typically support full RS-232, no additional 
+wiring is needed.  If your computer does not have such a port (many newer computers don't),
+you can use a USB to serial adapter with a driver provided by the adapter manufacturer.
 </para>
-
+<para>
+If your display supports a <emphasis>pass-through</emphasis> function, you can connect
+an RS-232 keyboard or terminal to the pass-through port.  This will allow you to input
+keystrokes to LCDproc and control features and menus.  Use the pass-through keyboard's
+arrow, delete, and return keys by default.
+</para>
 <note>
   <para>
   If your display supports a <emphasis>pass-through</emphasis> function,
   but you do not have another RS-232 device connected to the pass-through port,
   you may experience hangs if an improperly formatted command sneaks through.
   This is because the display is waiting for the pass-through device to accept
-  the data and a blocking state is created within the device.
-  You can either connect another RS-232 device, or rewire the display to send the
-  pass-through commands back to your computer.
+  the data and a blocking state is created within the display.
+  You can either connect another RS-232 device or use a wire to jumper the CTS and RTS
+  pins together within the display.
   </para>
 </note>
 
@@ -112,7 +118,7 @@ you can use a USB to serial adapter with the appropriate driver.
 
 <varlistentry>
   <term>
-    <command>Device=</command>
+    <command>Device</command> =
     <arg choice="plain"><replaceable>DEVICE</replaceable></arg>
   </term>
   <listitem><para>
@@ -123,7 +129,7 @@ you can use a USB to serial adapter with the appropriate driver.
 
 <varlistentry>
   <term>
-    <command>Size=</command>
+    <command>Size</command> =
     <arg choice="plain">
       <replaceable>WIDTH</replaceable>
       <literal>x</literal>
@@ -138,7 +144,7 @@ you can use a USB to serial adapter with the appropriate driver.
 
 <varlistentry>
   <term>
-    <command>Type=</command>
+    <command>Type</command> =
     <arg choice="plain">
     <group choice="req">
       <arg choice="plain"><literal>IEE</literal></arg>
@@ -160,7 +166,7 @@ you can use a USB to serial adapter with the appropriate driver.
 
 <varlistentry>
   <term>
-    <command>Speed=</command>
+    <command>Speed</command> =
     <arg choice="plain">
     <group choice="req">
       <arg choice="plain"><literal>1200</literal></arg>

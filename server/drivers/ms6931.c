@@ -1,3 +1,7 @@
+/** \file server/drivers/ms6931.c
+ * LCDd \c ms6931 driver for MSI-6931 displays in 1U rack servers by MSI.
+ */
+
 /*  This is the LCDproc driver for MSI-6931 displays
 	as found in the following 1U rack servers by MSI:
 		MS-9202
@@ -50,7 +54,8 @@
 #include "server/configfile.h"
 */
 
-typedef struct driver_private_data {
+/** private data for the \c ms6931 driver */
+typedef struct ms6931_private_data {
 	char device[200];
 	int fd;
 	unsigned char *framebuf;

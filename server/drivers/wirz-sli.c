@@ -1,3 +1,7 @@
+/** \file server/drivers/wirz-sli.c
+ * LCDd \c sli driver for the SLI devices by Wirz, http://www.wirz.com/.
+ */
+
 /*	wirz-sli.c -- Source file for LCDproc Wirz SLI driver
 	Copyright (C) 1999 Horizon Technologies-http://horizon.pair.com/
 	Written by Bryan Rittmeyer <bryanr@pair.com> - Released under GPL
@@ -35,7 +39,8 @@ typedef enum {
 	beat = 8
 } custom_type;
 
-typedef struct driver_private_data {
+/** private data for the \c sli driver */
+typedef struct sli_private_data {
 	char device[256];
 	int speed;
 	int fd;

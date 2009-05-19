@@ -1,3 +1,7 @@
+/** \file server/drivers/t6963.c
+ * LCDd \c t6963 driver for Toshiba T6963 based LCD displays.
+ */
+
 /*
  * Base driver module for Toshiba T6963 based LCD displays. ver 2.2
  *
@@ -36,7 +40,8 @@
 
 //extern int debug_level;
 
-typedef struct driver_private_data {
+/** private data for the \c t6963 driver */
+typedef struct t6963_private_data {
 	u16 port;
 	u16 display_mode;
 	u8  *display_buffer1;
@@ -170,7 +175,7 @@ t6963_init (Driver *drvthis)
 		} while (i < 100 && (ecp_input & 0x03)!=0x03);
 		T6963_DATAOUT(p->port);
 		if (i >= 100) {
-			debug(RPT_WARNING, "T6963: ECP mode not working!\n -> is now disabled  (STA0: %i, STA1: %i\n", ecp_input & 1, ecp_input & 2);
+			debug(RPT_WARNING, "T6963: ECP mode not working!\n -> is now disabled  (STA0: %i, STA1: %i", ecp_input & 1, ecp_input & 2);
 			p->bidirectLPT = 0;
 		}
 		else

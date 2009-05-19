@@ -1,3 +1,7 @@
+/** \file server/drivers/CFontz.c
+ * LCDd \c CFontz driver for the CFA632 & CFA634 displays by CrystalFontz, Inc.
+ */
+
 /*  This is the LCDproc driver for CrystalFontz devices (http://crystalfontz.com)
 
     Copyright (C) 2001 ????
@@ -55,8 +59,8 @@ typedef enum {
 	bigchar		/* big characters */
 } CGmode;
 
-
-typedef struct driver_private_data {
+/** private data for the \c CFontz driver */
+typedef struct CFontz_private_data {
 	char device[200];
 
 	int fd;
@@ -83,7 +87,7 @@ typedef struct driver_private_data {
 
 // Vars for the server core
 MODULE_EXPORT char *api_version = API_VERSION;
-MODULE_EXPORT int stay_in_foreground = 1;
+MODULE_EXPORT int stay_in_foreground = 0;
 MODULE_EXPORT int supports_multiple = 0;
 MODULE_EXPORT char *symbol_prefix = "CFontz_";
 
@@ -267,7 +271,7 @@ CFontz_init(Driver *drvthis)
 
 	report(RPT_DEBUG, "%s: init() done", drvthis->name);
 
-	return 1;
+	return 0;
 }
 
 
@@ -524,12 +528,11 @@ CFontz_set_brightness(Driver *drvthis, int state, int promille)
 	/* store the software value since there is not get */
 	if (state == BACKLIGHT_ON) {
 		p->brightness = promille;
-		//CFontz_backlight(drvthis, BACKLIGHT_ON);
 	}
 	else {
 		p->offbrightness = promille;
-		//CFontz_backlight(drvthis, BACKLIGHT_OFF);
 	}
+	//CFontz_backlight(drvthis, state);
 }
 
 
@@ -798,7 +801,8 @@ CFontz_set_char(Driver *drvthis, int n, unsigned char *dat)
  * \param x        Horizontal character position (column).
  * \param y        Vertical character position (row).
  * \param icon     synbolic value representing the icon.
- * \return  Information whether the icon is handled here or needs to be handled by the server core.
+ * \retval 0       Icon has been successfully defined/written.
+ * \retval <0      Server core shall define/write the icon.
  */
 MODULE_EXPORT int
 CFontz_icon(Driver *drvthis, int x, int y, int icon)

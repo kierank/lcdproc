@@ -1,4 +1,8 @@
-/**
+/** \file server/drivers/imon.c
+ * LCDd \c imon driver for the Soundgraph iMON IR/VFD module.
+ */
+
+/*
  * Driver for Soundgraph/Ahanix/Silverstone/Uneed/Accent iMON IR/VFD Module
  *
  * In order to be able to use it, you have to get and install one of
@@ -93,15 +97,16 @@ MODULE_EXPORT int stay_in_foreground = 0;
 MODULE_EXPORT int supports_multiple = 0;
 MODULE_EXPORT char *symbol_prefix = "imon_";
 
-// our private data
-typedef struct {
-	char info[255];
-	int imon_fd;
-	unsigned char *framebuf;
-	int height;
-	int width;
-	int cellwidth;
-	int cellheight;
+
+/** private data for the \c imon driver */
+typedef struct imon_private_data {
+	char info[255];			/**< info string contents */
+	int imon_fd;			/**< file descriptor to the display */
+	unsigned char *framebuf;	/**< fram buffer */
+	int height;			/**< display height in characters */
+	int width;			/**< display width in characters */
+	int cellwidth;			/**< character cell width */
+	int cellheight;			/**< character cell height */
 } PrivateData;
 
 
@@ -146,7 +151,7 @@ MODULE_EXPORT int imon_init (Driver *drvthis)
 
 	/* Open device for writing */
 	if ((p->imon_fd = open(buf, O_WRONLY)) < 0) {
-		report(RPT_ERR, "%s: ERROR opening %s (%s).", drvthis->name, buf, strerror(errno));
+		report(RPT_ERR, "%s: ERROR opening %s (%s)", drvthis->name, buf, strerror(errno));
 		report(RPT_ERR, "%s: Did you load the iMON VFD kernel module?", drvthis->name);
 		report(RPT_ERR, "%s: More info in lcdproc/docs/README.imon", drvthis->name);
 		return -1;
@@ -281,7 +286,8 @@ MODULE_EXPORT void imon_chr (Driver *drvthis, int x, int y, char c)
  * \param x        Horizontal character position (column).
  * \param y        Vertical character position (row).
  * \param icon     synbolic value representing the icon.
- * \return  Information whether the icon is handled here or needs to be handled by the server core.
+ * \retval 0       Icon has been successfully defined/written.
+ * \retval <0      Server core shall define/write the icon.
  */
 MODULE_EXPORT int imon_icon (Driver *drvthis, int x, int y, int icon)
 {
@@ -393,6 +399,16 @@ MODULE_EXPORT void imon_hbar (Driver *drvthis, int x, int y, int len, int promil
 		if (x + pos > p->width)
 			return;
 
+#ifndef IMON_HBARS_OLD
+		if (pixels >= p->cellwidth ) {
+			/* write a "full" block to the screen... */
+			imon_chr(drvthis, x+pos, y, IMON_CHAR_BLOCK_FILLED);
+		}
+		else if (pixels >= 1) {
+			/* write a partial block, albeit vertically... */
+			imon_chr(drvthis, x+pos, y, pixels * p->cellheight / p->cellwidth);
+		}			
+#else
 		if (pixels >= p->cellwidth * 3/4) {
 			/* write a "full" block to the screen... */
 			imon_chr(drvthis, x+pos, y, IMON_CHAR_BLOCK_FILLED);
@@ -407,6 +423,7 @@ MODULE_EXPORT void imon_hbar (Driver *drvthis, int x, int y, int len, int promil
 			imon_chr(drvthis, x+pos, y, '>');
 			break;
 		}
+#endif
 		else {
 			; // write nothing (not even a space)
 		}

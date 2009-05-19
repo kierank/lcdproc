@@ -16,7 +16,7 @@ This section talks about using LCDproc with text mode VFD displays from
 <variablelist>
 <varlistentry>
   <term>
-    <command>Device=</command>
+    <command>Device</command> =
     <arg choice="plain"><replaceable>DEVICE</replaceable></arg>
   </term>
   <listitem><para>
@@ -27,7 +27,7 @@ This section talks about using LCDproc with text mode VFD displays from
 
 <varlistentry>
   <term>
-    <command>Size=</command>
+    <command>Size</command> =
     <arg choice="plain">
       <replaceable>WIDTH</replaceable>
       <literal>x</literal>
@@ -42,16 +42,29 @@ This section talks about using LCDproc with text mode VFD displays from
 
 <varlistentry>
   <term>
-    <command>Brightness=</command>
+    <command>Brightness</command> =
     <arg choice="plain"><replaceable>BRIGHTNESS</replaceable></arg>
   </term>
   <listitem><para>
+    Set the initial brightness [default: <literal>1000</literal>; legal: <literal>0</literal> - <literal>1000</literal>]
   </para></listitem>
 </varlistentry>
 
 <varlistentry>
   <term>
-    <command>Speed=</command>
+    <command>OffBrightness</command> =
+    <arg choice="plain"><replaceable>BRIGHTNESS</replaceable></arg>
+  </term>
+  <listitem><para>
+    Set the initial off-brightness [default: <literal>0</literal>; legal: <literal>0</literal> - <literal>1000</literal>]
+    This value is used when the display is normally
+    switched off in case LCDd is inactive
+  </para></listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <command>Speed</command> =
     <arg choice="plain">
     <group choice="req">
       <arg choice="plain"><literal>1200</literal></arg>
@@ -70,7 +83,25 @@ This section talks about using LCDproc with text mode VFD displays from
 
 <varlistentry>
   <term>
-    <command>Reboot=</command>
+    <command>Parity</command> =
+    <arg choice="plain">
+    <group choice="req">
+      <arg choice="plain"><literal><emphasis>0</emphasis></literal></arg>
+      <arg choice="plain"><literal>1</literal></arg>
+      <arg choice="plain"><literal>2</literal></arg>
+    </group>
+    </arg>
+  </term>
+  <listitem><para>
+    Set the parity for communication with the device to even parity (<literal>2</literal>),
+    odd parity (<literal>1</literal>) or no parity (<literal>0</literal>).
+    If not given, it defaults to <literal>0</literal>.
+  </para></listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <command>Reboot</command> =
     <arg choice="plain">
     <group choice="req">
       <arg choice="plain"><literal>yes</literal></arg>
@@ -79,6 +110,7 @@ This section talks about using LCDproc with text mode VFD displays from
     </arg>
   </term>
   <listitem><para>
+    Reinitialize the VFD [default: <literal>no</literal>; legal: <literal>yes</literal>, <literal>no</literal>]
   </para></listitem>
 </varlistentry>
 </variablelist>

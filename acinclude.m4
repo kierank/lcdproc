@@ -1,22 +1,25 @@
+dnl
+dnl Define function/macro for driver selection using the --enable-drivers=... option
+dnl
 AC_DEFUN([LCD_DRIVERS_SELECT], [
-AC_CHECKING(for which drivers to compile)
+AC_MSG_NOTICE([checking which drivers to compile...])
 
 AC_ARG_ENABLE(drivers,
 	[  --enable-drivers=<list> compile drivers for LCDs in <list>,]
 	[                  which is a comma-separated list of drivers.]
 	[                  Possible drivers are:]
 	[                    bayrad,CFontz,CFontz633,CFontzPacket,curses,CwLnx,ea65,]
-	[                    EyeboxOne,g15,glcdlib,glk,hd44780,icp_a106,imon,IOWarrior,]
-	[                    irman,joy,lb216,lcdm001,lcterm,lirc,MD8800,ms6931,]
-	[                    mtc_s16209x,MtxOrb,NoritakeVFD,picolcd,pyramid,sed1330]
-	[                    sed1520,serialPOS,serialVFD,sli,stv5730,svga,t6963,text,]
-	[                    tyan,ula200,xosd]
+	[                    EyeboxOne,g15,glcdlib,glk,hd44780,i2500vfd,icp_a106,imon,imonlcd,]
+	[                    IOWarrior,irman,irtrans,joy,lb216,lcdm001,lcterm,lirc,lis,]
+	[                    MD8800,ms6931,mtc_s16209x,MtxOrb,mx5000,NoritakeVFD,picolcd,]
+	[                    pyramid,sed1330,sed1520,serialPOS,serialVFD,shuttleVFD,sli,]
+	[                    stv5730,svga,t6963,text,tyan,ula200,xosd]
 	[                  'all' compiles all drivers;]
 	[                  'all,!xxx,!yyy' de-selects previously selected drivers],
 	drivers="$enableval",
 	drivers=[bayrad,CFontz,CFontz633,curses,CwLnx,glk,lb216,lcdm001,MtxOrb,pyramid,text])
 
-allDrivers=[bayrad,CFontz,CFontz633,CFontzPacket,curses,CwLnx,ea65,EyeboxOne,g15,glcdlib,glk,hd44780,icp_a106,imon,IOWarrior,irman,joy,lb216,lcdm001,lcterm,lirc,MD8800,ms6931,mtc_s16209x,MtxOrb,NoritakeVFD,picolcd,pyramid,sed1330,sed1520,serialPOS,serialVFD,sli,stv5730,svga,t6963,text,tyan,ula200,xosd]
+allDrivers=[bayrad,CFontz,CFontz633,CFontzPacket,curses,CwLnx,ea65,EyeboxOne,g15,glcdlib,glk,hd44780,i2500vfd,icp_a106,imon,imonlcd,IOWarrior,irman,irtrans,joy,lb216,lcdm001,lcterm,lirc,lis,MD8800,ms6931,mtc_s16209x,MtxOrb,mx5000,NoritakeVFD,picolcd,pyramid,sed1330,sed1520,serialPOS,serialVFD,shuttleVFD,sli,stv5730,svga,t6963,text,tyan,ula200,xosd]
 
 drivers=`echo $drivers | sed -e 's/,/ /g'`
 
@@ -185,19 +188,33 @@ dnl			else
 			actdrivers=["$actdrivers glk"]
 			;;
 		hd44780)
-			HD44780_DRIVERS="hd44780-hd44780-serial.o hd44780-hd44780-lis2.o"
+			HD44780_DRIVERS="hd44780-hd44780-serial.o hd44780-hd44780-lis2.o hd44780-hd44780-usblcd.o"
 			if test "$ac_cv_port_have_lpt" = yes ; then
 				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-4bit.o hd44780-hd44780-ext8bit.o hd44780-lcd_sem.o hd44780-hd44780-winamp.o hd44780-hd44780-serialLpt.o"
 			fi
 			if test "$enable_libusb" = yes ; then
-				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-bwct-usb.o hd44780-hd44780-lcd2usb.o"
+				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-bwct-usb.o hd44780-hd44780-lcd2usb.o hd44780-hd44780-uss720.o"
+			fi
+			if test "$enable_libftdi" = yes ; then
+				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-ftdi.o"
+			fi
+			if test "$enable_ethlcd" = yes ; then
+				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-ethlcd.o"
 			fi
 			AC_CHECK_HEADER(linux/i2c-dev.h,
-				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-i2c.o"
+				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-i2c.o"
 				AC_DEFINE(HAVE_I2C,[1],[Define to 1 if you have the i2c headers])
 			)
 			DRIVERS="$DRIVERS hd44780${SO}"
 			actdrivers=["$actdrivers hd44780"]
+			;;
+		i2500vfd)
+			if test "$enable_libftdi" = yes ; then
+				DRIVERS="$DRIVERS i2500vfd${SO}"
+				actdrivers=["$actdrivers i2500vfd"]
+			else
+				AC_MSG_WARN([The i2500vfd driver needs the ftdi library])
+			fi
 			;;
 		icp_a106)
 			DRIVERS="$DRIVERS icp_a106${SO}"
@@ -206,6 +223,10 @@ dnl			else
 		imon)
 			DRIVERS="$DRIVERS imon${SO}"
 			actdrivers=["$actdrivers imon"]
+			;;
+		imonlcd)
+			DRIVERS="$DRIVERS imonlcd${SO}"
+			actdrivers=["$actdrivers imonlcd"]
 			;;
 		IOWarrior)
 			if test "$enable_libusb" = yes ; then
@@ -225,6 +246,10 @@ dnl				else
 				AC_MSG_WARN([The irman driver needs the irman library.])
 			])
 			;;
+		irtrans)
+			DRIVERS="$DRIVERS irtrans${SO}"
+			actdrivers=["$actdrivers irtrans"]
+			;;	
 		joy)
 			AC_CHECK_HEADER(linux/joystick.h, [
 				DRIVERS="$DRIVERS joy${SO}"
@@ -256,6 +281,36 @@ dnl				else
 				AC_MSG_WARN([The lirc driver needs the lirc client library])
 			])
 			;;
+		lis)
+			AC_CHECK_HEADERS([pthread.h],[
+				AC_CHECK_LIB(pthread, pthread_create,[
+					LIBPTHREAD_LIBS="-lpthread"
+					ac_cv_lis_pthread=yes
+				],[
+dnl				else
+					ac_cv_lis_pthread=no
+					AC_MSG_WARN([The lis driver needs the pthread library and pthread_create() from it])
+				])
+			],[
+dnl			else
+				ac_cv_lis_pthread=no
+				AC_MSG_WARN([The lis driver needs pthread.h])
+			])
+			if test "$enable_libftdi" = yes ; then
+				if test "$enable_libusb" = yes; then
+					if test "$ac_cv_lis_pthread" = yes; then
+						DRIVERS="$DRIVERS lis${SO}"
+						actdrivers=["$actdrivers lis"]
+					else
+						AC_MSG_WARN([The lis driver needs the pthread library])
+					fi
+				else
+					AC_MSG_WARN([The lis driver needs the usb library])
+				fi
+			else
+				AC_MSG_WARN([The lis driver needs the ftdi library])
+			fi
+			;;
 		MD8800)
 			DRIVERS="$DRIVERS MD8800${SO}"
 			actdrivers=["$actdrivers MD8800"]
@@ -272,26 +327,32 @@ dnl				else
 			DRIVERS="$DRIVERS MtxOrb${SO}"
 			actdrivers=["$actdrivers MtxOrb"]
 			;;
+		mx5000)
+			AC_CHECK_HEADERS([libmx5000/mx5000.h],[
+				AC_CHECK_LIB(mx5000, mx5000_sc_new_static,[
+					LIBMX5000="-lmx5000"
+					DRIVERS="$DRIVERS mx5000${SO}"
+					actdrivers=["$actdrivers mx5000"]
+				],[
+dnl				else
+					AC_MSG_WARN([The mx5000 driver needs the mx5000tools library])
+				])
+			],[
+dnl			else
+				AC_MSG_WARN([The mx5000 driver needs libmx5000/mx5000.h])
+			])
+			;;
 		NoritakeVFD)
 			DRIVERS="$DRIVERS NoritakeVFD${SO}"
 			actdrivers=["$actdrivers NoritakeVFD"]
 			;;
 		picolcd)
-			AC_CHECK_HEADERS([usblcd.h],[
-				AC_CHECK_LIB(usblcd, main,[
-					LIBUSBLCD="-lusblcd"
-					DRIVERS="$DRIVERS picolcd${SO}"
-					actdrivers=["$actdrivers picolcd"]
-				],[
-dnl				else
-					AC_MSG_WARN([The picolcd driver needs the usblcd library])
-				],
-				[-lusblcd]
-				)
-			],[
-dnl			else        
-				AC_MSG_WARN([The picolcd driver needs widgets.h, usblcd.h and usblcd_util.h from the usblcd package])
-			])       
+			if test "$enable_libusb" = yes ; then
+				DRIVERS="$DRIVERS picolcd${SO}"
+				actdrivers=["$actdrivers picolcd"]
+			else
+				AC_MSG_WARN([The picolcd driver needs the libusb library.])
+			fi
 			;;       
 		pyramid)
 			DRIVERS="$DRIVERS pyramid${SO}"
@@ -322,6 +383,14 @@ dnl			else
 		serialVFD)
 			DRIVERS="$DRIVERS serialVFD${SO}"
 			actdrivers=["$actdrivers serialVFD"]
+			;;
+		shuttleVFD)
+			if test "$enable_libusb" = yes ; then
+				DRIVERS="$DRIVERS shuttleVFD${SO}"
+				actdrivers=["$actdrivers shuttleVFD"]
+			else
+				AC_MSG_WARN([The shuttleVFD driver needs the libusb library.])
+			fi
 			;;
 		sli)
 			DRIVERS="$DRIVERS sli${SO}"
@@ -369,19 +438,12 @@ dnl			else
 			actdrivers=["$actdrivers tyan"]
 			;;
 		ula200)
-			AC_CHECK_HEADERS([usb.h ftdi.h],[
-				AC_CHECK_LIB(ftdi, ftdi_set_line_property,[
-					LIBFTDI="-lusb -lftdi"
-					DRIVERS="$DRIVERS ula200${SO}"
-					actdrivers=["$actdrivers ula200"]
-				],[
-dnl				else
-					AC_MSG_WARN([The ula200 driver needs the ftdi library in version 0.7])
-				])
-			],[
-dnl			else
-				AC_MSG_WARN([The ula200 driver needs ftdi.h and usb.h])
-			])
+			if test "$enable_libftdi" = yes ; then
+				DRIVERS="$DRIVERS ula200${SO}"
+				actdrivers=["$actdrivers ula200"]
+			else
+				AC_MSG_WARN([The ula200 driver needs the ftdi library])
+			fi
 			;;
 		xosd)
 			AC_CHECK_HEADERS([xosd.h],[
@@ -404,8 +466,12 @@ dnl			else
 	esac
 done
 
-actdrivers=`echo $actdrivers | sed -e 's/ /,/g'`
-AC_MSG_RESULT([Will compile drivers: $actdrivers])
+AC_MSG_RESULT([---------------------------------------])
+AC_MSG_RESULT([LCDd will be compiled with the drivers:])
+for driver in $actdrivers; do
+	AC_MSG_RESULT([    -  $driver])
+done	
+AC_MSG_RESULT([---------------------------------------])
 
 AC_SUBST(LIBCURSES)
 AC_SUBST(LIBIRMAN)
@@ -417,7 +483,8 @@ AC_SUBST(LIBG15)
 AC_SUBST(LIBGLCD)
 AC_SUBST(LIBFTDI)
 AC_SUBST(LIBXOSD)
-AC_SUBST(LIBUSBLCD)
+AC_SUBST(LIBPTHREAD_LIBS)
+AC_SUBST(LIBMX5000)
 ])
 
 
@@ -444,10 +511,10 @@ AC_DEFUN([AC_CURSES_ACS_ARRAY], [
 	fi
 ])
 
+
 dnl
 dnl Find out where is the mounted filesystem table
 dnl
-
 AC_DEFUN([AC_FIND_MTAB_FILE], [
 	AC_CACHE_CHECK([for your mounted filesystem table], ac_cv_mtab_file, [
 		dnl Linux
@@ -470,6 +537,7 @@ AC_DEFUN([AC_FIND_MTAB_FILE], [
 	fi
 ])
 
+
 dnl
 dnl Filesystem information detection
 dnl
@@ -478,7 +546,6 @@ dnl
 dnl This code is stolen from mc-4.5.41, which in turn has stolen it
 dnl from GNU fileutils-3.12.
 dnl
-
 AC_DEFUN([AC_GET_FS_INFO], [
     AC_CHECK_HEADERS(fcntl.h sys/dustat.h sys/param.h sys/statfs.h sys/fstyp.h)
     AC_CHECK_HEADERS(mnttab.h mntent.h utime.h sys/statvfs.h sys/vfs.h)
@@ -490,7 +557,7 @@ AC_DEFUN([AC_GET_FS_INFO], [
         ])
     AC_CHECK_FUNCS(getmntinfo)
 
-    AC_CHECKING(how to get filesystem space usage)
+    AC_MSG_NOTICE([checking how to get filesystem space usage...])
     space=no
 
     # Here we'll compromise a little (and perform only the link test)
@@ -646,6 +713,7 @@ AC_DEFUN([AC_GET_FS_INFO], [
     dnl fi
 ])
 
+
 dnl 1.1 (2001/07/26) -- Miscellaneous @ ac-archive-0.5.32
 dnl Warren Young <warren@etr-usa.com>
 dnl This macro checks for the SysV IPC header files. It only checks
@@ -670,6 +738,7 @@ AC_CACHE_CHECK([for System V IPC headers], ac_cv_sysv_ipc, [
                 AC_DEFINE(HAVE_SYSV_IPC, 1, [ Define if you have System V IPC ])
         fi
 ]) dnl ETR_SYSV_IPC
+
 
 dnl 1.1 (2001/07/26) -- Miscellaneous @ ac-archive-0.5.32
 dnl Warren Young <warren@etr-usa.com>
@@ -701,6 +770,7 @@ AC_CACHE_CHECK([for union semun], ac_cv_union_semun, [
                         [ Define if your system's sys/sem.h file defines union semun ])
         fi
 ]) dnl ETR_UNION_SEMUN
+
 
 dnl Loadable modules determination.
 dnl Joris Robijn, 2002
@@ -767,13 +837,22 @@ AC_SUBST(LDSHARED)
 dnl End of loadable modules determination
 ]) dnl AC_MODULES_INFO
 
+
 dnl stolen from cppunit project (http://cppunit.sourceforge.net/)
 AC_DEFUN([BB_ENABLE_DOXYGEN],
 [
-AC_ARG_ENABLE(doxygen, [  --enable-doxygen        enable documentation generation with doxygen (auto)])
-AC_ARG_ENABLE(dot, [  --enable-dot            use 'dot' to generate graphs in doxygen (auto)])
-AC_ARG_ENABLE(html-dox, [  --enable-html-dox       enable HTML generation with doxygen (yes)], [], [ enable_html_dox=yes])
-AC_ARG_ENABLE(latex-dox, [  --enable-latex-dox      enable LaTeX documentation generation with doxygen (no)], [], [ enable_latex_dox=no])
+AC_ARG_ENABLE(doxygen,
+	[AS_HELP_STRING([--enable-doxygen], [enable documentation generation with doxygen (auto)])])
+AC_ARG_ENABLE(dot,
+	[AS_HELP_STRING([--enable-dot], [use 'dot' to generate graphs in doxygen (auto)])])
+AC_ARG_ENABLE(html-dox,
+	[AS_HELP_STRING([--enable-html-dox], [enable HTML generation with doxygen (yes)])],
+	[],
+	[enable_html_dox=yes])
+AC_ARG_ENABLE(latex-dox,
+	[AS_HELP_STRING([--enable-latex-dox], [enable LaTeX documentation generation with doxygen (no)])],
+	[],
+	[enable_latex_dox=no])
 if test "x$enable_doxygen" = xno; then
         enable_dox=no
 else
@@ -802,6 +881,7 @@ AC_SUBST(enable_dot)
 AC_SUBST(enable_html_dox)
 AC_SUBST(enable_latex_dox)
 ])
+
 
 dnl From: http://autoconf-archive.cryp.to/ax_cflags_gcc_option.html
 dnl Author: Guido Draheim <guidod@gmx.de>

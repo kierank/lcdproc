@@ -87,8 +87,7 @@
 	<para>
 	  These installation instructions assume that you are installing the module into
 	  a PC or PC-style system (one with AT- or ATX-compliant power cabling) and that
-	  you have some idea of where you intend to permanently mount the module. For
-	  mounting ideas and tips, refer to the section "Mounting" below.
+	  you have some idea of where you intend to permanently mount the module.
 	</para>
 	<tip>
 	  <title>Before you start</title>
@@ -234,7 +233,7 @@ Slightly modified in order to include it in this document March 2002, Rene Wagne
 <variablelist>
 <varlistentry>
   <term>
-    <command>Device=</command>
+    <command>Device</command> =
     <arg choice="plain"><replaceable>DEVICE</replaceable></arg>
   </term>
   <listitem><para>
@@ -244,7 +243,7 @@ Slightly modified in order to include it in this document March 2002, Rene Wagne
 
 <varlistentry>
   <term>
-    <command>Size=</command>
+    <command>Size</command> =
     <arg choice="plain">
       <replaceable>WIDTH</replaceable>
       <literal>x</literal>
@@ -258,7 +257,7 @@ Slightly modified in order to include it in this document March 2002, Rene Wagne
 
 <varlistentry>
   <term>
-    <command>Type=</command>
+    <command>Type</command> =
     <arg choice="plain">
     <group choice="req">
       <arg choice="plain"><literal><emphasis>lcd</emphasis></literal></arg>
@@ -278,7 +277,7 @@ Slightly modified in order to include it in this document March 2002, Rene Wagne
 
 <varlistentry>
   <term>
-    <command>Contrast=</command>
+    <command>Contrast</command> =
     <arg choice="plain"><replaceable>CONTRAST</replaceable></arg>
   </term>
   <listitem><para>
@@ -295,7 +294,26 @@ Slightly modified in order to include it in this document March 2002, Rene Wagne
 
 <varlistentry>
   <term>
-    <command>Brightness=</command>
+    <command>hasAdjustableBacklight</command> =
+    <arg choice="plain">
+    <group choice="req">
+      <arg choice="plain"><literal><emphasis>yes</emphasis></literal></arg>
+      <arg choice="plain"><literal>no</literal></arg>
+    </group>
+    </arg>    
+  </term>
+  <listitem><para>
+    Some old firmware versions of Matrix Orbital modules do not support an
+    adjustable backlight but only can switch the backlight on/off. If you own
+    such a module and experience randomly appearing block characters and
+    backlight cannot be switched on or off, use this to <literal>no</literal>
+    [default: <literal>yes</literal>].
+  </para></listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <command>Brightness</command> =
     <arg choice="plain"><replaceable>BRIGHTNESS</replaceable></arg>
   </term>
   <listitem><para>
@@ -305,7 +323,7 @@ Slightly modified in order to include it in this document March 2002, Rene Wagne
 
 <varlistentry>
   <term>
-    <command>OffBrightness=</command>
+    <command>OffBrightness</command> =
     <arg choice="plain"><replaceable>BRIGHTNESS</replaceable></arg>
   </term>
   <listitem><para>
@@ -317,7 +335,7 @@ Slightly modified in order to include it in this document March 2002, Rene Wagne
 
 <varlistentry>
   <term>
-    <command>Speed=</command>
+    <command>Speed</command> =
     <arg choice="plain">
     <group choice="req">
       <arg choice="plain"><literal>1200</literal></arg>
@@ -335,7 +353,7 @@ Slightly modified in order to include it in this document March 2002, Rene Wagne
 
 <varlistentry>
   <term>
-    <command>KeyMap_<replaceable>LETTER</replaceable>=</command>
+    <command>KeyMap_<replaceable>LETTER</replaceable></command> =
     <arg choice="plain"><replaceable>KEY</replaceable></arg>
   </term>
   <listitem>
@@ -372,27 +390,27 @@ Slightly modified in order to include it in this document March 2002, Rene Wagne
 <!--
 <varlistentry>
   <term>
-    <command>LeftKey=</command>
+    <command>LeftKey</command> =
     <arg choice="plain"><replaceable>MTX-KEY</replaceable></arg>
   </term>
   <term>
-    <command>RightKey=</command>
+    <command>RightKey</command> =
     <arg choice="plain"><replaceable>MTX-KEY</replaceable></arg>
   </term>
   <term>
-    <command>EnterKey=</command>
+    <command>EnterKey</command> =
     <arg choice="plain"><replaceable>MTX-KEY</replaceable></arg>
   </term>
   <term>
-    <command>UpKey=</command>
+    <command>UpKey</command> =
     <arg choice="plain"><replaceable>MTX-KEY</replaceable></arg>
   </term>
   <term>
-    <command>DownKey=</command>
+    <command>DownKey</command> =
     <arg choice="plain"><replaceable>MTX-KEY</replaceable></arg>
   </term>
   <term>
-    <command>EscapeKey=</command>
+    <command>EscapeKey</command> =
     <arg choice="plain"><replaceable>MTX-KEY</replaceable></arg>
   </term>
   <listitem><para>
@@ -407,7 +425,7 @@ Slightly modified in order to include it in this document March 2002, Rene Wagne
 
 <varlistentry>
   <term>
-    <command>keypad_test_mode=</command>
+    <command>keypad_test_mode</command> =
     <arg choice="plain">
     <group choice="req">
       <arg choice="plain"><literal>yes</literal></arg>

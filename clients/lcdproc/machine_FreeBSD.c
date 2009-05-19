@@ -45,19 +45,30 @@
 #include <sys/mount.h>
 #include <sys/time.h>
 #include <sys/user.h>
-#include <machine/apm_bios.h>
 #include <kvm.h>
 #include <errno.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <net/if_mib.h>
 
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
+
+#ifdef HAVE_MACHINE_APM_BIOS_H
+# include <machine/apm_bios.h>
+#endif
+
+#ifdef HAVE_SYS_PCPU_H
+# include <sys/pcpu.h>
+#endif
+
 #include "main.h"
 #include "machine.h"
-#include "config.h"
 #include "shared/LL.h"
 
 static int pageshift;
+static kvm_t *kvmd;
 #define pagetok(size) ((size) << pageshift)
 static int swapmode(int *retavail, int *retfree);
 
@@ -76,22 +87,31 @@ int machine_init(void)
 	/* we only need the amount of log(2)1024 for our conversion */
 	pageshift -= 10;
 
+	/* open kernel virtual memory */
+	if ((kvmd = kvm_open(NULL, NULL, NULL, O_RDONLY, "kvm_open")) == NULL)
+	{
+		perror("kvm_open");
+		return(FALSE);
+	}
+
 	return(TRUE);
 }
 
 int machine_close(void)
 {
+	kvm_close(kvmd);
 	return(TRUE);
 }
 
 int machine_get_battstat(int *acstat, int *battflag, int *percent)
 {
-	int apmd;
-	struct apm_info aip;
-
 	*acstat   = LCDP_AC_ON;
 	*battflag = LCDP_BATT_ABSENT;
 	*percent  = 100;
+
+#ifdef HAVE_MACHINE_APM_BIOS_H
+	int apmd;
+	struct apm_info aip;
 
 	if ((apmd = open("/dev/apm", O_RDONLY)) == -1)
 	{
@@ -142,6 +162,7 @@ int machine_get_battstat(int *acstat, int *battflag, int *percent)
 		*percent = -1;
 
 	close(apmd);
+#endif
 
 	return(TRUE);
 }
@@ -161,6 +182,7 @@ int machine_get_fs(mounts_type fs[], int *cnt)
 	for (statcnt = 0, pp = mntbuf, i = 0; i < fscnt; pp++, i++)
 	{
 		if (    strcmp(pp->f_fstypename, "procfs")
+			&& strcmp(pp->f_fstypename, "devfs")
 			&& strcmp(pp->f_fstypename, "kernfs")
 			&& strcmp(pp->f_fstypename, "linprocfs")
 #ifndef STAT_NFS
@@ -197,7 +219,7 @@ int machine_get_load(load_type *curr_load)
 	static load_type last_load = { 0, 0, 0, 0, 0 };
 	static load_type last_ret_load;
 	load_type load;
-	u_int32_t cp_time[CPUSTATES];
+	long cp_time[CPUSTATES];
 	size_t size;
 
 	size = sizeof(cp_time);
@@ -289,13 +311,6 @@ int machine_get_procs(LinkedList *procs)
 	struct kinfo_proc *kprocs;
 	int nproc, i;
 	procinfo_type *p;
-	kvm_t *kvmd;
-
-	if ((kvmd = kvm_open(NULL, NULL, NULL, O_RDONLY, "kvm_open")) == NULL)
-	{
-		perror("kvm_open");
-		return(FALSE);
-	}
 
 	kprocs = kvm_getprocs(kvmd, KERN_PROC_ALL, 0, &nproc);
 	if (kprocs == NULL)
@@ -332,8 +347,6 @@ int machine_get_procs(LinkedList *procs)
 		kprocs++;
 	}
 
-	kvm_close(kvmd);
-
 	return(TRUE);
 }
 
@@ -341,7 +354,14 @@ int machine_get_smpload(load_type *result, int *numcpus)
 {
 	int i, num;
 	size_t size;
-	load_type curr_load;
+	load_type load;
+#ifdef HAVE_SYS_PCPU_H
+	static load_type last_load[MAX_CPUS];
+	struct pcpu *pcpudata;
+#endif
+
+	if (numcpus == NULL)
+		return(FALSE);
 
 	size = sizeof(int);
 	if (sysctlbyname("hw.ncpu", &num, &size, NULL, 0) < 0) {
@@ -349,19 +369,49 @@ int machine_get_smpload(load_type *result, int *numcpus)
 		return(FALSE);
 	}
 
-	if (machine_get_load(&curr_load) == FALSE)
-		return(FALSE);
-
-	if (numcpus == NULL)
-		return(FALSE);
-
 	/* restrict #CPUs to max. *numcpus */
 	num = (*numcpus >= num) ? num : *numcpus;
 	*numcpus = num;
 
-	/* Don't know how to get per-cpu-load values */
+#ifndef HAVE_SYS_PCPU_H
+	if (machine_get_load(&load) == FALSE)
+		return(FALSE);
+#endif
+
 	for (i = 0; i < num; i++) {
-		result[i] = curr_load;
+#ifdef HAVE_SYS_PCPU_H
+		pcpudata = kvm_getpcpu(kvmd, i);
+
+		if (pcpudata == NULL || pcpudata == (void *) -1)
+			return(FALSE);
+		
+		/* extract the data for single CPU */
+		load.user   = (unsigned long) (pcpudata->pc_cp_time[CP_USER]);
+		load.nice   = (unsigned long) (pcpudata->pc_cp_time[CP_NICE]);
+		load.system = (unsigned long) (pcpudata->pc_cp_time[CP_SYS] +
+						pcpudata->pc_cp_time[CP_INTR]);
+		load.idle   = (unsigned long) (pcpudata->pc_cp_time[CP_IDLE]);
+		load.total  = load.user + load.nice + load.system + load.idle;
+
+		/* store difference in result */
+		result[i].user   = load.user   - last_load[i].user;
+		result[i].nice   = load.nice   - last_load[i].nice;
+		result[i].system = load.system - last_load[i].system;
+		result[i].idle   = load.idle   - last_load[i].idle;
+		result[i].total  = load.total  - last_load[i].total;
+
+		/* store current value for next round */
+		last_load[i].user   = load.user;
+		last_load[i].nice   = load.nice;
+		last_load[i].system = load.system;
+		last_load[i].idle   = load.idle;
+		last_load[i].total  = load.total;
+
+		/* free pcpu buffer */
+		free(pcpudata);
+#else
+		result[i] = load;
+#endif
 	}
 
 	return(TRUE);
@@ -431,7 +481,6 @@ static int swapmode(int *retavail, int *retfree)
  */
 int machine_get_iface_stats (IfaceInfo *interface)
 {
-	static int      first_time = 1;	/* is it first time we call this function? */
 	int             rows;
 	int             name[6] = {CTL_NET, PF_LINK, NETLINK_GENERIC, IFMIB_IFDATA, 0, IFDATA_GENERAL};
 	size_t          len;
@@ -453,31 +502,32 @@ int machine_get_iface_stats (IfaceInfo *interface)
 			}
 			/* check if its interface name matches */
 			if (strcmp(ifmd.ifmd_name, interface->name) == 0) {
-				interface->last_online = time(NULL);	/* save actual time */
-
-				if ((ifmd.ifmd_flags & IFF_UP) == IFF_UP)
-					interface->status = up;	/* is up */
 
 				interface->rc_byte = ifmd.ifmd_data.ifi_ibytes;
 				interface->tr_byte = ifmd.ifmd_data.ifi_obytes;
 				interface->rc_pkt = ifmd.ifmd_data.ifi_ipackets;
 				interface->tr_pkt = ifmd.ifmd_data.ifi_opackets;
 
-				if (first_time) {
+				if (interface->last_online == 0) {
 					interface->rc_byte_old = interface->rc_byte;
 					interface->tr_byte_old = interface->tr_byte;
 					interface->rc_pkt_old = interface->rc_pkt;
 					interface->tr_pkt_old = interface->tr_pkt;
-					first_time = 0;	/* now it isn't first time */
 				}
-				return 1;
+
+				if ((ifmd.ifmd_flags & IFF_UP) == IFF_UP) {
+					interface->status = up;			/* is up */
+					interface->last_online = time(NULL);	/* save actual time */
+				}
+
+				return (TRUE);
 			}
 		}
 		/* if we are here there is no interface with the given name */
-		return 0;
+		return (TRUE);
 	} else {
 		perror("read sysctlbyname");
-		return 0;
+		return (FALSE);
 	}
 } /* get_iface_stats() */
 

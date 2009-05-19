@@ -1,3 +1,9 @@
+/** \file server/drivers/ea65.c
+ * LCDd \c ea65 driver for the VFD used in the Aopen XC Cube-AV EA65 media barebone.
+ *
+ * \todo  Implement API functions to change brightness on-the-fly
+ */
+
 /*  This is the LCDproc driver for the vfd on the Aopen EA65, based on
     the Crystal Fontz driver.
 
@@ -38,7 +44,9 @@
 #include "report.h"
 #include "lcd_lib.h"
 
-typedef struct driver_private_data {
+
+/** private data for the \c ea65 driver */
+typedef struct EA65_private_data {
         int fd;
         int brightness;
         int offbrightness;
@@ -49,20 +57,21 @@ typedef struct driver_private_data {
 
 // Vars for the server core
 MODULE_EXPORT char *api_version = API_VERSION;
-MODULE_EXPORT int stay_in_foreground = 1;
+MODULE_EXPORT int stay_in_foreground = 0;
 MODULE_EXPORT int supports_multiple = 0;
-MODULE_EXPORT int does_input = 0;
-MODULE_EXPORT int does_output = 1;
 MODULE_EXPORT char *symbol_prefix = "EA65_";
 
-/////////////////////////////////////////////////////////////////
-// Opens com port and sets baud correctly...
-//
+/**
+ * Initialize the driver.
+ * Opens com port and sets baud correctly.
+ * \param drvthis  Pointer to driver structure.
+ * \retval 0   Success.
+ * \retval <0  Error.
+ */
 MODULE_EXPORT int
 EA65_init (Driver *drvthis)
 {
-        debug(RPT_INFO, "EA65: init(%p)", drvthis);
-
+        struct termios portset;
         /* device is fixed */
         char device[] = "/dev/ttyS1";
         /*speed is fixed at 9600*/
@@ -70,13 +79,16 @@ EA65_init (Driver *drvthis)
 
         /* Allocate and store private data */
         PrivateData *p;
+
+        debug(RPT_INFO, "EA65: init(%p)", drvthis);
+        
         p = (PrivateData *) malloc(sizeof(PrivateData));
         if (p == NULL)
                 return -1;
         if (drvthis->store_private_ptr(drvthis, p))
                 return -1;
 
-        //// initialize private data 
+        //// initialize private data
         // Width and Height are fixed
         p->width = 9;
         p->height = 1;
@@ -96,7 +108,8 @@ EA65_init (Driver *drvthis)
                         p->brightness = 0x02;           // command char that turns button LEDs on half
                 }
         } else {
-                report (RPT_WARNING, "EA65_init: Brightness must be between 0 and 1000. Using default value.\n");
+                report (RPT_WARNING, "%s: Brightness must be between 0 and 1000. Using default %d",
+				drvthis->name, DEFAULT_BRIGHTNESS);
                 p->brightness = DEFAULT_BRIGHTNESS;
         }
 
@@ -111,16 +124,16 @@ EA65_init (Driver *drvthis)
                         p->offbrightness = 0x02;           // command char that turns button LEDs on half
                 }
         } else {
-                report (RPT_WARNING, "EA65_init: OffBrightness must be between 0 and 1000. Using default value.\n");
+                report (RPT_WARNING, "%s: OffBrightness must be between 0 and 1000. Using default %d",
+				drvthis->name, DEFAULT_OFFBRIGHTNESS);
                 p->offbrightness = DEFAULT_OFFBRIGHTNESS;
         }
 
         // Set up io port correctly, and open it...
         debug( RPT_DEBUG, "EA65: Opening serial device: %s", device);
-        struct termios portset;
         p->fd = open (device, O_RDWR | O_NOCTTY | O_NDELAY);
         if (p->fd == -1) {
-                report (RPT_ERR, "EA65_init: failed (%s)\n", strerror (errno));
+                report (RPT_ERR, "EA65_init: failed (%s)", strerror (errno));
                 return -1;
         }
         tcgetattr (p->fd, &portset);
@@ -145,28 +158,38 @@ EA65_init (Driver *drvthis)
         // Do it...
         tcsetattr (p->fd, TCSANOW, &portset);
 
-        report (RPT_DEBUG, "EA65_init: done\n");
+        report (RPT_DEBUG, "EA65_init: done");
 
         return 0;
 }
 
-/////////////////////////////////////////////////////////////////
-// Clean-up
-//
+/**
+ * Close the driver (do necessary clean-up).
+ * \param drvthis  Pointer to driver structure.
+ */
 MODULE_EXPORT void
 EA65_close (Driver *drvthis)
 {
-        PrivateData *p = (PrivateData *) drvthis->private_data;
+	PrivateData *p = drvthis->private_data;
 
-        close (p->fd);
+	if (p != NULL) {
+		if (p->fd >= 0)
+			close(p->fd);
 
-        if(p->framebuf) free (p->framebuf);
-        p->framebuf = NULL;
+		if (p->framebuf)
+			free(p->framebuf);
+		p->framebuf = NULL;
+
+		free(p);
+	}
+	drvthis->store_private_ptr(drvthis, NULL);
 }
 
-/////////////////////////////////////////////////////////////////
-// Returns the display width
-//
+/**
+ * Return the display width in characters.
+ * \param drvthis  Pointer to driver structure.
+ * \return  Number of characters the display is wide.
+ */
 MODULE_EXPORT int
 EA65_width (Driver *drvthis)
 {
@@ -175,9 +198,11 @@ EA65_width (Driver *drvthis)
         return p->width;
 }
 
-/////////////////////////////////////////////////////////////////
-// Returns the display height
-//
+/**
+ * Return the display height in characters.
+ * \param drvthis  Pointer to driver structure.
+ * \return  Number of characters the display is high.
+ */
 MODULE_EXPORT int
 EA65_height (Driver *drvthis)
 {
@@ -186,9 +211,10 @@ EA65_height (Driver *drvthis)
         return p->height;
 }
 
-//////////////////////////////////////////////////////////////////
-// Flushes all output to the lcd...
-//
+/**
+ * Flushes all output to the lcd.
+ * \param drvthis  Pointer to driver structure.
+ */
 MODULE_EXPORT void
 EA65_flush (Driver *drvthis)
 {
@@ -217,7 +243,7 @@ EA65_flush (Driver *drvthis)
                 else if (p->framebuf[i] >= 210 && p->framebuf[i] <= 214)   // use an "O"
                         p->framebuf[i] = 79;
                 else if (p->framebuf[i] >= 217 && p->framebuf[i] <= 220)   // use an "U"
-                        p->framebuf[i] = 85; 
+                        p->framebuf[i] = 85;
                 else p->framebuf[i] = 32;  // other characters replaced by a space
         }
         snprintf(out, sizeof(out), "%c%c%c%c%c", 0xa0, 0x00, 0x80, 0x8a, 0x8a);
@@ -225,10 +251,16 @@ EA65_flush (Driver *drvthis)
         write(p->fd, p->framebuf, p->width * p->height);
 }
 
-/////////////////////////////////////////////////////////////////
-// Prints a character on the lcd display, at position (x,y).  The
-// upper-left is (1,1), and the lower right should be (9,1).
-//
+/**
+ * Print a character on the screen at position (x,y).
+ * The upper-left corner is (1,1), the lower-right corner is (9, 1).
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param y        Vertical character position (row).
+ * \param c        Character that gets written.
+ *
+ * \todo  Boundary checks necessary
+ */
 MODULE_EXPORT void
 EA65_chr (Driver *drvthis, int x, int y, char c)
 {
@@ -241,16 +273,18 @@ EA65_chr (Driver *drvthis, int x, int y, char c)
         //      c += 128;
 
         // For V2 of the firmware to get the block to display right
-        //if (newfirmware && c==-1) {
-        //      c=214;
-        //}
+        //if (newfirmware && c==-1)
+        //      c = 214;
 
         p->framebuf[(y * p->width) + x] = c;
 }
 
-/////////////////////////////////////////////////////////////////
-// Sets the backlight on or off
-//
+/**
+ * Sets the backlight on or off.
+ * Uses the \c brightness / \c offbrightness values from \c LCDd.conf
+ * \param drvthis  Pointer to driver structure.
+ * \param on       New backlight status.
+ */
 MODULE_EXPORT void
 EA65_backlight (Driver *drvthis, int on)
 {
@@ -265,9 +299,10 @@ EA65_backlight (Driver *drvthis, int on)
         write (p->fd, out, 5);
 }
 
-/////////////////////////////////////////////////////////////////
-// Clears the LCD screen
-//
+/**
+ * Clear the screen.
+ * \param drvthis  Pointer to driver structure.
+ */
 MODULE_EXPORT void
 EA65_clear (Driver *drvthis)
 {
@@ -277,10 +312,14 @@ EA65_clear (Driver *drvthis)
 
 }
 
-/////////////////////////////////////////////////////////////////
-// Prints a string on the lcd display, at position (x,y).  The
-// upper-left is (1,1), and the lower right should be (9,1).
-//
+/**
+ * Print a string on the screen at position (x,y).
+ * The upper-left corner is (1,1), the lower-right corner is (p->width, p->height).
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param y        Vertical character position (row).
+ * \param string   String that gets written.
+ */
 MODULE_EXPORT void
 EA65_string (Driver *drvthis, int x, int y, const char string[])
 {
@@ -288,7 +327,8 @@ EA65_string (Driver *drvthis, int x, int y, const char string[])
 
         int i;
 
-        x -= 1;                                                   // Convert 1-based coords to 0-based...
+        // Convert 1-based coords to 0-based...
+        x -= 1;
         y -= 1;
 
         for (i = 0; string[i]; i++) {
@@ -300,9 +340,11 @@ EA65_string (Driver *drvthis, int x, int y, const char string[])
         }
 }
 
-/////////////////////////////////////////////////////////////////
-//// Turns the recording LED on or off as desired.
-////
+/**
+ * Turns the recording LED on or off as desired.
+ * \param drvthis  Pointer to driver structure.
+ * \param on       0 = LED off, 1 = LED on.
+ */
 MODULE_EXPORT void
 EA65_output (Driver *drvthis, int on)
 {

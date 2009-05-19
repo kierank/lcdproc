@@ -1,8 +1,13 @@
-/*lcterm.c*/
-/*
-  This is the LCDproc driver for the "LCTerm" serial LCD terminal
-  from Helmut Neumark Elektronik, www.neumark.de
+/** \file server/drivers/lcterm.c
+ * LCDd \c lcterm driver for the LCTerm serial LCD terminal from Helmut Neumark Elektronik,
+ * www.neumark.de.
+ *
+ * \todo Support keyboard input
+ * \todo Convert to use pixel-row based logic for custom characters, icons,
+ *       bar graphs etc.
+ */
 
+/*
   Copyright (C) 2002  Michael Schwingen <michael@schwingen.org>
 
   This program is free software; you can redistribute it and/or modify
@@ -22,8 +27,6 @@
   This driver is mostly based on the HD44780 and the LCDM001 driver.
   (Hopefully I have NOT forgotten any file I have stolen code from.
   If so send me an e-mail or add your copyright here!)
-
-  TODO: support keyboard input
 */
 
 #include <stdlib.h>
@@ -51,15 +54,16 @@ typedef enum
   CCMODE_BIGNUM
 } CCMode;
 
-typedef struct
-{
-  CCMode ccmode;      /* custom character mode for current display */
-  CCMode last_ccmode; /* custom character set that is loaded in the display */
-  unsigned char *framebuf;
-  unsigned char *last_framebuf;
-  int width;
-  int height;
-  int fd;
+
+/** private data for the \c lcterm driver */
+typedef struct lcterm_private_data {
+  CCMode ccmode;	/**< custom character mode for current display */
+  CCMode last_ccmode;	/**< custom character set that is loaded in the display */
+  unsigned char *framebuf;	/**< frame buffer */
+  unsigned char *last_framebuf;	/**< old frame buffer contents */
+  int width;		/**< display width in characters */
+  int height;		/**< display height in characters */
+  int fd;		/**< handle to the device */	
 } PrivateData;
 
 
@@ -70,9 +74,13 @@ MODULE_EXPORT int supports_multiple = 0;
 MODULE_EXPORT char *symbol_prefix = "lcterm_";
 
 
-/////////////////////////////////////////////////////////////////
-// Opens com port and sets baud correctly...
-//
+/**
+ * Initialize the driver.
+ * Open com port and set baud correctly...
+ * \param drvthis  Pointer to driver structure.
+ * \retval 0       Success.
+ * \retval <0      Error.
+ */
 MODULE_EXPORT int
 lcterm_init (Driver *drvthis)
 {
@@ -164,12 +172,14 @@ lcterm_init (Driver *drvthis)
 
   report(RPT_DEBUG, "%s: init() done", drvthis->name);
 
-  return 1;
+  return 0;
 }
 
-/////////////////////////////////////////////////////////////////
-// Clean-up
-//
+
+/**
+ * Close the driver (do necessary clean-up).
+ * \param drvthis  Pointer to driver structure.
+ */
 MODULE_EXPORT void
 lcterm_close (Driver *drvthis)
 {
@@ -193,9 +203,12 @@ lcterm_close (Driver *drvthis)
   report(RPT_INFO, "%s: closed", drvthis->name);
 }
 
-/////////////////////////////////////////////////////////////////
-// Returns the display width
-//
+
+/**
+ * Return the display width in characters.
+ * \param drvthis  Pointer to driver structure.
+ * \return         Number of characters the display is wide.
+ */
 MODULE_EXPORT int
 lcterm_width (Driver *drvthis)
 {
@@ -204,9 +217,12 @@ lcterm_width (Driver *drvthis)
   return p->width;
 }
 
-/////////////////////////////////////////////////////////////////
-// Returns the display height
-//
+
+/**
+ * Return the display height in characters.
+ * \param drvthis  Pointer to driver structure.
+ * \return         Number of characters the display is high.
+ */
 MODULE_EXPORT int
 lcterm_height (Driver *drvthis)
 {
@@ -215,9 +231,11 @@ lcterm_height (Driver *drvthis)
   return p->height;
 }
 
-/////////////////////////////////////////////////////////////////
-// Clears the LCD screen
-//
+
+/**
+ * Clear the screen.
+ * \param drvthis  Pointer to driver structure.
+ */
 MODULE_EXPORT void
 lcterm_clear (Driver *drvthis)
 {
@@ -227,9 +245,11 @@ lcterm_clear (Driver *drvthis)
   p->ccmode = CCMODE_STANDARD;
 }
 
-//////////////////////////////////////////////////////////////////
-// Flushes all output to the lcd...
-//
+
+/**
+ * Flush data on screen to the display.
+ * \param drvthis  Pointer to driver structure.
+ */
 MODULE_EXPORT void
 lcterm_flush (Driver *drvthis)
 {
@@ -262,44 +282,54 @@ lcterm_flush (Driver *drvthis)
   memcpy(p->last_framebuf, p->framebuf, p->width * p->height);
 }
 
-/////////////////////////////////////////////////////////////////
-// Prints a character on the lcd display, at position (x,y).  The
-// upper-left is (1,1), and the lower right should be (16,2).
-//
+
+/**
+ * Print a character on the screen at position (x,y).
+ * The upper-left corner is (1,1), the lower-right corner is (p->width, p->height).
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param y        Vertical character position (row).
+ * \param c        Character that gets written.
+ */
 MODULE_EXPORT void
-lcterm_chr (Driver *drvthis, int x, int y, char ch)
+lcterm_chr (Driver *drvthis, int x, int y, char c)
 {
   PrivateData *p = (PrivateData *) drvthis->private_data;
   y--;
   x--;
-  //debug(RPT_DEBUG, "lcterm_chr: x=%d, y=%d, chr=%x", x,y,ch);
+  //debug(RPT_DEBUG, "lcterm_chr: x=%d, y=%d, c=%x", x,y,c);
   if ((x >= 0) && (x < p->width) && (y >= 0) && (y < p->height))
-    p->framebuf[y * p->width + x] = ch;
+    p->framebuf[y * p->width + x] = c;
 }
 
-/////////////////////////////////////////////////////////////////
-// Prints a string on the lcd display, at position (x,y).  The
-// upper-left is (1,1), and the lower right should be (16,2).
-//
+
+/**
+ * Print a string on the screen at position (x,y).
+ * The upper-left corner is (1,1), the lower-right corner is (p->width, p->height).
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param y        Vertical character position (row).
+ * \param string   String that gets written.
+ */
 MODULE_EXPORT void
-lcterm_string (Driver *drvthis, int x, int y, char *s)
+lcterm_string (Driver *drvthis, int x, int y, const char string[])
 {
   PrivateData *p = (PrivateData *) drvthis->private_data;
   x --;  // Convert 1-based coords to 0-based
   y --;
 
-  for ( ; (*s != '\0') && (x < p->width); x++)
-    p->framebuf[y * p->width + x] = *s++;
+  for ( ; (*string != '\0') && (x < p->width); x++)
+    p->framebuf[y * p->width + x] = *string++;
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Sets a custom character from 0-7...
-//
-// For input, values > 0 mean "on" and values <= 0 are "off".
-//
-// The input is just an array of characters...
-//
+/**
+ * Define a custom character and write it to the LCD.
+ * \param drvthis  Pointer to driver structure.
+ * \param n        Custom character to define [0 - (NUM_CCs-1)].
+ * \param dat      Array of 40(=8*5=cellheight*cellwidth) bytes, each representing a pixel
+ *                 starting from the top left to the bottom right.
+ */
 MODULE_EXPORT void
 lcterm_set_char (Driver *drvthis, int n, char *dat)
 {
@@ -325,9 +355,11 @@ lcterm_set_char (Driver *drvthis, int n, char *dat)
   write(p->fd, buf, 11);
 }
 
-/////////////////////////////////////////////////////////////////
-// Sets up for vertical bars.  Call before lcterm->vbar()
-//
+
+/**
+ * Set up vertical bars.
+ * \param drvthis  Pointer to driver structure.
+ */
 static void
 lcterm_init_vbar (Driver *drvthis)
 {
@@ -425,9 +457,11 @@ lcterm_init_vbar (Driver *drvthis)
   lcterm_set_char(drvthis, 7, vbar_7);
 }
 
-/////////////////////////////////////////////////////////////////
-// Inits horizontal bars...
-//
+
+/**
+ * Set up horizontal bars.
+ * \param drvthis  Pointer to driver structure.
+ */
 static void
 lcterm_init_hbar (Driver *drvthis)
 {
@@ -504,9 +538,15 @@ lcterm_init_hbar (Driver *drvthis)
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Draws a vertical bar, from the bottom of the screen up.
-//
+/**
+ * Draw a vertical bar bottom-up.
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column) of the starting point.
+ * \param y        Vertical character position (row) of the starting point.
+ * \param len      Number of characters that the bar is high at 100%
+ * \param promille Current height level of the bar in promille.
+ * \param options  Options (currently unused).
+ */
 MODULE_EXPORT void
 lcterm_vbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 {
@@ -515,9 +555,15 @@ lcterm_vbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Draws a horizontal bar to the right.
-//
+/**
+ * Draw a horizontal bar to the right.
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column) of the starting point.
+ * \param y        Vertical character position (row) of the starting point.
+ * \param len      Number of characters that the bar is long at 100%
+ * \param promille Current length level of the bar in promille.
+ * \param options  Options (currently unused).
+ */
 MODULE_EXPORT void
 lcterm_hbar(Driver *drvthis, int x, int y, int len, int promille, int options)
 {
@@ -526,9 +572,10 @@ lcterm_hbar(Driver *drvthis, int x, int y, int len, int promille, int options)
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Sets up for big numbers.
-//
+/**
+ * Sets up for big numbers.
+ * \param drvthis  Pointer to driver structure.
+ */
 static void
 lcterm_init_num (Driver *drvthis)
 {
@@ -627,9 +674,13 @@ lcterm_init_num (Driver *drvthis)
     lcterm_set_char(drvthis, i, bignum_ccs[i]);
 }
 
-/////////////////////////////////////////////////////////////////
-// Writes a big number.
-//
+
+/**
+ * Write a big number to the screen.
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param num      Character to write (0 - 10 with 10 representing ':')
+ */
 MODULE_EXPORT void
 lcterm_num (Driver *drvthis, int x, int num)
 {
@@ -726,9 +777,15 @@ lcterm_num (Driver *drvthis, int x, int num)
 }
 
 
-/////////////////////////////////////////////////////////////////
-// Sets character 0 to an icon...
-//
+/**
+ * Place an icon on the screen.
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param y        Vertical character position (row).
+ * \param icon     synbolic value representing the icon.
+ * \retval 0       Icon has been successfully defined/written.
+ * \retval <0      Server core shall define/write the icon.
+ */
 MODULE_EXPORT int
 lcterm_icon (Driver *drvthis, int x, int y, int icon)
 {

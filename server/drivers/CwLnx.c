@@ -1,12 +1,14 @@
-/*  This is the LCDproc driver for Cwlinux devices (http://www.cwlinux.com)
+/** \file server/drivers/CwLnx.c
+ *  LCDd \c CwLnx driver for CwLinux devices (http://www.cwlinux.com).
+ */
 
-    Applicable Data Sheets:
+/* Applicable Data Sheets:
     - http://www.cwlinux.com/downloads/cw1602/cw1602-manual.pdf
     - http://www.cwlinux.com/downloads/lcd/cw12232-manual.pdf
 
         Copyright (C) 2002, Andrew Ip
                       2003, David Glaude
-                      2006,7 Peter Marschall
+                      2006,7,8 Peter Marschall
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -84,7 +86,8 @@ typedef enum {
 } CGmode;
 
 
-typedef struct driver_private_data {
+/** private data for the \c CwLnx driver */
+typedef struct CwLnx_private_data {
 	int fd;
 
 	int have_keypad;
@@ -122,6 +125,7 @@ MODULE_EXPORT char *symbol_prefix = "CwLnx_";
 static void CwLnx_linewrap(int fd, int on);
 static void CwLnx_autoscroll(int fd, int on);
 static void CwLnx_hidecursor(int fd);
+static void CwLnx_set_char_unrestricted(Driver *drvthis, int n, unsigned char *dat);
 
 
 #define LCD_CMD			254
@@ -132,39 +136,51 @@ static void CwLnx_hidecursor(int fd);
 #define LCD_LIGHT_OFF		70
 #define LCD_LIGHT_BRIGHTNESS	65
 #define LCD_CLEAR		88
-#define LCD_SET_INSERT		71
-#define LCD_INIT_INSERT		72
+#define LCD_SET_INSERT		71	/* go to X,Y */
+#define LCD_INIT_INSERT		72	/* go to home */
 #define LCD_SET_BAUD		57
 #define LCD_ENABLE_WRAP		67
 #define LCD_DISABLE_WRAP	68
 #define LCD_SETCHAR		78
 #define LCD_ENABLE_SCROLL	81
 #define LCD_DISABLE_SCROLL	82
-#define LCD_OFF_CURSOR		72
+#define LCD_SOFT_RESET		86
+#define LCD_OFF_CURSOR		72	/* is this correct? */
+#define LCD_UNDERLINE_CURSOR_ON	74	/* set cursor on at X,Y */
+#define	LCD_UNDERLINE_CURSOR_OFF	75
+#define LCD_MOVE_CURSOR_LEFT	76
+#define LCD_MOVE_CURSOR_RIGHT	77
+#define LCD_INVERSE_TEXT_ON	102
+#define LCD_INVERSE_TEXT_OFF	103
 
 #define LCD_PUT_PIXEL		112
 #define LCD_CLEAR_PIXEL		113
 
 #define DELAY			2000	/* 2 milli sec */
-#define UPDATE_DELAY		0	/* 1 imicro sec */
-#define SETUP_DELAY		1	/* 2 micro sec */
+#define UPDATE_DELAY		20000	/* 20 milliseconds */
+#define SETUP_DELAY		20000	/* 20 milliseconds */
 
-
+#define MOVE_COST		5	/* # bytes for most move-to ops */
 
 static int Write_LCD(int fd, char *c, int size)
 {
-    int rc;
+    int rc, wrote = 0;
     int retries = 30;
 
     do {
 	rc = write(fd, c, size);
-        if (rc == size)
+	if (rc > 0) {
+	    c += rc;
+	    size -= rc;
+	    wrote += rc;
+	} else if (rc == 0 || (rc < 0 && errno == EAGAIN)) { /* would have blocked */
+	    usleep(DELAY);
+	} else {
 	    break;
-	usleep(DELAY);
+	}
+    } while (size > 0 && --retries > 0);
         
-    } while (--retries > 0);
-
-    return rc;
+    return wrote;
 }
 
 
@@ -289,7 +305,7 @@ static void Disable_Cursor(int fd)
 
 
 /* Hardware function */
-static void Init_Port(fd)
+static void Init_Port(int fd)
 {
     /* Posix - set baudrate to 0 and back */
     struct termios tty, old;
@@ -392,7 +408,20 @@ CwLnx_autoscroll(int fd, int on)
 static void
 CwLnx_hidecursor(int fd)
 {
-	Disable_Cursor(fd);
+    Disable_Cursor(fd);
+}
+
+
+/********************************************************************
+ * Reset the display bios
+ */
+static void CwLnx_reboot(int fd)
+{
+    char cmd[] = { LCD_CMD, LCD_SOFT_RESET, LCD_CMD_END };
+
+    Write_LCD(fd, cmd, 3);
+    usleep(SETUP_DELAY);
+    return;
 }
 
 
@@ -410,8 +439,6 @@ CwLnx_hidecursor(int fd)
 MODULE_EXPORT int
 CwLnx_init(Driver *drvthis)
 {
-    struct termios portset_save;
-
     char device[200] = DEFAULT_DEVICE;
     int speed = DEFAULT_SPEED;
     char size[200] = DEFAULT_SIZE;
@@ -449,12 +476,12 @@ CwLnx_init(Driver *drvthis)
 
     /* Read config file */
 
-    /* Which model is it (1602 or 12232)? */
+    /* Which model is it (1602, 12232 or 12832)? */
     tmp = drvthis->config_get_int(drvthis->name, "Model", 0, 12232);
     debug(RPT_INFO, "%s: Model (in config) is '%d'", __FUNCTION__, tmp);
-    if ((tmp != 1602) && (tmp != 12232)) {
+    if ((tmp != 1602) && (tmp != 12232) && (tmp != 12832)) {
 	tmp = 12232;
-	report(RPT_WARNING, "%s: Model must be 12232 or 1602; using default %d",
+	report(RPT_WARNING, "%s: Model must be 12232, 12832 or 1602; using default %d",
 		drvthis->name, tmp);
     }
     p->model = tmp;
@@ -470,6 +497,11 @@ CwLnx_init(Driver *drvthis)
 	default_speed = DEFAULT_SPEED_12232;
 	p->cellwidth = DEFAULT_CELL_WIDTH_12232;
 	p->cellheight = DEFAULT_CELL_HEIGHT_12232;
+    } else if (p->model == 12832) {
+	default_size = DEFAULT_SIZE_12832;
+	default_speed = DEFAULT_SPEED_12832;
+	p->cellwidth = DEFAULT_CELL_WIDTH_12832;
+	p->cellheight = DEFAULT_CELL_HEIGHT_12832;
     }
 
     /* Which device should be used */
@@ -576,23 +608,26 @@ CwLnx_init(Driver *drvthis)
     }
     report(RPT_INFO, "%s: opened display on %s", drvthis->name, device);
 
+    /* 
+       Since we don't know what speed the display is using when
+       we first connect to it, configure the port for the speed
+       we don't want to use, send a command to switch the display
+       to the speed we want to use, and flush the command.
+    */
+
     Init_Port(p->fd);
-    tcgetattr(p->fd, &portset_save);
-    speed = B19200;
-    Setup_Port(p->fd, speed);
+    if (speed == B9600) {
+	Setup_Port(p->fd, B19200);
     Set_9600(p->fd); 
-    close(p->fd);
-
-    p->fd = open(device, O_RDWR | O_NOCTTY | O_NDELAY);
-    if (p->fd == -1) {
-	report(RPT_ERR, "%s: open(%s) failed (%s)", drvthis->name, device, strerror(errno));
-	return -1;
+    } else {
+	Setup_Port(p->fd, B9600);
+	Set_19200(p->fd);
     }
-    report(RPT_INFO, "%s: opened display on %s", drvthis->name, device);
-
+    tcdrain(p->fd);
+    usleep(SETUP_DELAY);
     Init_Port(p->fd);
-    speed = B9600; 
     Setup_Port(p->fd, speed);
+
     CwLnx_hidecursor(p->fd);
     CwLnx_linewrap(p->fd, 1);
     CwLnx_autoscroll(p->fd, 0);
@@ -712,7 +747,8 @@ CwLnx_flush(Driver *drvthis)
     PrivateData *p = drvthis->private_data;
 
     int i, j;
-    int move = 1;
+    int iUpdate = 0, jUpdate = 0;
+    unsigned char *firstUpdate = NULL, *lastUpdate = NULL;
 
     unsigned char *q = p->framebuf;
     unsigned char *r = p->backingstore;
@@ -720,25 +756,43 @@ CwLnx_flush(Driver *drvthis)
     for (i = 0; i < p->height; i++) {
 	for (j = 0; j < p->width; j++) {
 	    if ((*q == *r) && !((0 < *q) && (*q < 16))) {
-		move = 1;
-	    }
-	    else {
-		/* Draw characters that have changed, as well
-		 * as custom characters.  We know not if a custom
-		 * character has changed.  */ 
-		if (move == 1) {
-		    Set_Insert(p->fd, i, j);
-		    move = 0;
+		if (firstUpdate && q - lastUpdate > MOVE_COST) {
+		    Set_Insert(p->fd, iUpdate, jUpdate);
+		    Write_LCD(p->fd, (char *) firstUpdate,
+			  lastUpdate - firstUpdate + 1);		
+		    firstUpdate = lastUpdate = NULL;
 		}
-		Write_LCD(p->fd, (char *) q, 1);
+	    } else {
+		lastUpdate = q;
+		if (!firstUpdate) {
+		    firstUpdate = q;
+		    iUpdate = i;
+		    jUpdate = j;
+		}
 	    }
 	    q++;
 	    r++; 
 	}
     }
-    memcpy(p->backingstore, p->framebuf, p->width * p->height);
-}
+    if (firstUpdate) {
+	Set_Insert(p->fd, iUpdate, jUpdate);
+	Write_LCD(p->fd, (char *) firstUpdate,
+		lastUpdate - firstUpdate + 1);
+    }
 
+    memcpy(p->backingstore, p->framebuf, p->width * p->height);
+
+    if (p->backlight != p->saved_backlight ||
+	p->brightness != p->saved_brightness) {
+	if (!p->backlight) {
+	    Backlight_Brightness(p->fd, 1);
+	} else {
+	    Backlight_Brightness(p->fd, 1 + p->brightness * 6 / 900); /* 90% and up is full brightness */
+	}
+	p->saved_backlight = p->backlight;
+	p->saved_brightness = p->brightness;
+    }
+}
 
 /**
  * Print a character on the screen at position (x,y).
@@ -904,7 +958,11 @@ CwLnx_hbar(Driver *drvthis, int x, int y, int len, int promille, int options)
 	for (i = 1; i <= p->cellwidth; i++) {
 	    // fill pixel columns from left to right.
 	    memset(hBar, 0xFF & ~((1 << (p->cellwidth - i)) - 1), sizeof(hBar));
+#if defined(SEAMLESS_HBARS)
+	    CwLnx_set_char_unrestricted(drvthis, i+1, hBar);
+#else
 	    CwLnx_set_char(drvthis, i+1, hBar);
+#endif
 	}
     }
 
@@ -996,7 +1054,7 @@ CwLnx_set_char(Driver *drvthis, int n, unsigned char *dat)
 	    c = dat[row] & mask;
 	    Write_LCD(p->fd, &c, 1);
 	}
-    } else if (p->model == 12232) {	// the graphical model
+    } else if ((p->model == 12232) || (p->model == 12832)) {	// graphical models
 	int col;
 
 	for (col = p->cellwidth - 1; col >= 0; col--) {
@@ -1020,13 +1078,73 @@ CwLnx_set_char(Driver *drvthis, int n, unsigned char *dat)
 }
 
 
+/*
+ * Identical to CwLnx_set_char, but it doesn't restrict the 12232 to
+ * using only 5 of its 6 columns.  Full 6-column mode is required
+ * for seamless H-bars.
+ */
+
+#if defined(SEAMLESS_HBARS)
+static void
+CwLnx_set_char_unrestricted(Driver *drvthis, int n, unsigned char *dat)
+{
+    PrivateData *p = drvthis->private_data;
+
+    char c;
+    int rc;
+
+    if ((n <= 0) || (n > CwLnx_get_free_chars(drvthis)))
+	return;
+    if (!dat)
+	return;
+
+    c = LCD_CMD;
+    rc = Write_LCD(p->fd, &c, 1);
+    c = LCD_SETCHAR;
+    rc = Write_LCD(p->fd, &c, 1);
+    c = (char) n;
+    rc = Write_LCD(p->fd, &c, 1);
+
+    if (p->model == 1602) {	// the character model
+	unsigned char mask = (1 << p->cellwidth) - 1;
+	int row;
+
+	for (row = 0; row < p->cellheight; row++) {
+	    c = dat[row] & mask;
+	    Write_LCD(p->fd, &c, 1);
+	}
+    } else if ((p->model == 12232) || (p->model == 12832)) {	// graphical models
+	int col;
+
+	for (col = p->cellwidth - 1; col >= 0; col--) {
+	    int letter = 0;
+	    int row;
+
+	    for (row = p->cellheight - 1; row >= 0; row--) {
+		letter <<= 1;
+		letter |= ((dat[row] >> col) & 1);
+	    }
+
+	    c = letter;
+
+	    Write_LCD(p->fd, &c, 1);
+	}
+    }
+
+    c = LCD_CMD_END;
+    rc = Write_LCD(p->fd, &c, 1);
+}
+#endif
+
+
 /**
  * Place an icon on the screen.
  * \param drvthis  Pointer to driver structure.
  * \param x        Horizontal character position (column).
  * \param y        Vertical character position (row).
  * \param icon     synbolic value representing the icon.
- * \return  Information whether the icon is handled here or needs to be handled by the server core.
+ * \retval 0       Icon has been successfully defined/written.
+ * \retval <0      Server core shall define/write the icon.
  */
 MODULE_EXPORT int 
 CwLnx_icon(Driver *drvthis, int x, int y, int icon)
@@ -1267,9 +1385,10 @@ CwLnx_string(Driver *drvthis, int x, int y, const char string[])
 
 
 /**
- * Get next key from the KeyRing.
+ * Get key from the device.
  * \param drvthis  Pointer to driver structure.
- * \return  String representation of the key.
+ * \return         String representation of the key;
+ *                 \c NULL if nothing available / unmapped key.
  */
 MODULE_EXPORT const char *
 CwLnx_get_key(Driver *drvthis)

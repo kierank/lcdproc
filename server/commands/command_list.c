@@ -1,20 +1,17 @@
-/*
- * commands/command_list.c
- * This file is part of LCDd, the lcdproc server.
- *
- * This file is released under the GNU General Public License. Refer to the
- * COPYING file distributed with this package.
- *
- * Copyright (c) 1999, William Ferrell, Scott Scriven
- *		 2003, Joris Robijn
- *
+/** \file server/commands/command_list.c
+ * Implements the dispatcher for handlers dealing with the client commands.
  *
  * This contains definitions for all the functions which clients can run.
  * The functions here are to be called only from parse.c's interpreter.
+ */
+
+/* This file is part of LCDd, the lcdproc server.
  *
- * The client's available function set is defined here, as is the syntax
- * for each command. <-- TODO !
+ * This file is released under the GNU General Public License.
+ * Refer to the COPYING file distributed with this package.
  *
+ * Copyright (c) 1999, William Ferrell, Scott Scriven
+ *		 2003, Joris Robijn
  */
 
 #include "command_list.h"
@@ -56,7 +53,11 @@ static client_function commands[] = {
 	{ NULL,             NULL},
 };
 
-
+/**
+ * Looks up a function for a command sent by the client.
+ * \param cmd  Command to look up as string.
+ * \return  Pointer to the implementing function.
+ */
 CommandFunc get_command_function(char *cmd)
 {
 	int i;

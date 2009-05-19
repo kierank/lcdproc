@@ -1,14 +1,14 @@
-/*
- * client.h
- * This file is part of LCDd, the lcdproc server.
+/** \file server/client.h
+ * Defines all the client data and actions.
+ */
+
+/* This file is part of LCDd, the lcdproc server.
  *
- * This file is released under the GNU General Public License. Refer to the
- * COPYING file distributed with this package.
+ * This file is released under the GNU General Public License.
+ * Refer to the COPYING file distributed with this package.
  *
  * Copyright (c) 1999, William Ferrell, Scott Scriven
  *		 2002, Joris Robijn
- *
- * Defines all the client data and actions.
  */
 
 #include "menu.h"
@@ -23,23 +23,28 @@
 
 #define CLIENT_NAME_SIZE 256
 
+/** Possible states of a client. */
+typedef enum _clientstate {
+	NEW,			/**< Client did not yet send \c hello. */
+	ACTIVE,			/**< Client sent \c hello, but not yet \c bye. */
+	GONE			/**< Client sent \c bye. */
+} ClientState;
+
+
+/** The structure representing a client in the server. */
 typedef struct Client {
 	char *name;
-	int ack;
+	ClientState state;
 	int sock;
 	int backlight;
 	int heartbeat;
 
-	/* Messages that the client generated */
-	LinkedList *messages;
+	LinkedList *messages;		/**< Messages that the client sent. */
+	LinkedList *screenlist;		/**< List of client's screens. */
 
-	/* The list of screens */
-	LinkedList *screenlist;
-
-	/* Maybe it has created a menu */
-	Menu *menu;
-
+	Menu *menu;			/**< Menu hierarchy, if any */
 } Client;
+
 
 #include "screen.h"
 

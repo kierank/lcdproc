@@ -2,38 +2,171 @@
 <title>The HD44780 Driver</title>
 
 <para>
-There are several ways of wiring up the HD44780 devices. Your choice
-will probably be governed largely by your ability to wire up each one
-and/or a desire to use the device with other programs.
+The HD44780 has become the de-facto standard of alphanumeric character displays.
+Although the original Hitachi HD44780 is long out of production, its command
+set has survived in a variety of (fully or nearly) compatible LCD, VFD and
+even OLED displays sold by a broad range of manufacturers all over the world.
+To name only a few: KS0066, KS0070, KS0076, LC7985, NT3881, SED1278, ST7066 ...
 </para>
 
 <para>
-The LCDproc HD44780 driver supports the following connections on a
-parallel port:
+The command set of these displays, which sometimes are advertised as being
+"industry standards compatible", is thus the workhorse of controllers for
+displays ranging from 8x1 to 20x4 or 40x2 characters.
+There are even displays with larger dimensions sporting two controllers,
+one for each half of the display.
+</para>
+
+<para>
+The HD44780 driver supports various ways of connecting HD44780 devices
+to your system.
+Each of these different ways is called a <emphasis>connection type</emphasis>
+of the driver.
+</para>
+
+<para>
+On a parallel port, probably the first interface type HD44780 devices were
+historically connected to, the driver supports the connection types:
 </para>
 
 <itemizedlist>
- <listitem><para>4bit</para></listitem>
- <listitem><para>8bit (winamp style)</para></listitem>
- <listitem><para>extended 8bit (LCD + LED bargraph)</para></listitem>
- <listitem><para>serial LPT</para></listitem>
+  <listitem>
+    <link linkend="hd44780-4bit">4bit</link>:
+    4bit Wiring
+  </listitem>
+
+  <listitem>
+    <link linkend="hd44780-8bit-lcdtime">8bit</link>:
+    8bit Wiring ("lcdtime")
+  </listitem>
+
+  <listitem>
+    <link linkend="hd44780-8bit-winamp">winamp</link>:
+    8bit Wiring "winamp" Style
+  </listitem>
+
+  <listitem>
+    <link linkend="hd44780-seriallpt">serialLpt</link>:
+    Serial LPT Wiring
+  </listitem>
 </itemizedlist>
 
 <para>
-It also supports the following connections:
+For serial RS-232 ports you can choose among these connection types:
 </para>
 
 <itemizedlist>
- <listitem><para>A PIC-an-LCD or LCD serializer connected to a serial port</para></listitem>
- <listitem><para>A I<superscript>2</superscript>C port expander connected to an I<superscript>2</superscript>C port</para></listitem>
+  <listitem>
+    <link linkend="hd44780-picanlcd">picanlcd</link>:
+    PIC-an-LCD serial device
+  </listitem>
+
+  <listitem>
+    <link linkend="hd44780-lcdserializer">lcdserializer</link>:
+   LCD serializer
+  </listitem>
+
+  <listitem>
+    <link linkend="hd44780-los-panel">los-panel</link>:
+    LCD on Serial panel device (<ulink url="http://www.xs4all.nl/~mlf/los/"></ulink>)
+  </listitem>
+
+  <listitem>
+    <link linkend="hd44780-vdr-lcd">vdr-lcd</link>:
+    VDR LCD serial device
+  </listitem>
+
+  <listitem>
+    <link linkend="hd44780-vdr-wakeup">vdr-wakeup</link>:
+    VDR-Wakeup module
+  </listitem>
 </itemizedlist>
 
+<para>
+In recent years, with with parallel ports and serial ports being declared legacy
+and on the demise on modern computers, the USB connection types get
+more important. Here are the USB connection types the HD44780 driver supports:
+</para>
+
+<itemizedlist>
+  <listitem>
+    <link linkend="hd44780-pertelian">pertelian</link>:
+    Pertelian X2040 LCD display (<ulink url="http://pertelian.com/joomla/index.php?option=com_content&amp;task=view&amp;id=43&amp;Itemid=48"></ulink>)
+  </listitem>
+
+  <listitem>
+    <link linkend="hd44780-bwctusb">bwctusb</link>:
+    BWCT USB LCD module (<ulink url="http://www.bwct.de/lcd.html"></ulink>)
+  </listitem>
+
+  <listitem>
+    <link linkend="hd44780-lcd2usb">lcd2usb</link>:
+    Till Harbaum's LCD2USB (<ulink url="http://www.harbaum.org/till/lcd2usb/"></ulink>)
+  </listitem>
+
+  <listitem>
+    <link linkend="hd44780-uss720">uss720</link>:
+    Display connected to USS-720 USB-to-IEEE 1284 Bridge (Belkin F5U002)
+  </listitem>
+
+  <listitem>
+    <link linkend="hd44780-lis2">lis2</link>:
+    LIS2 from VLSystem (<ulink url="http://www.vlsys.co.kr"></ulink>)
+  </listitem>
+
+  <listitem>
+    <link linkend="hd44780-mplay">mplay</link>:
+    MPlay Blast from VLSystem (<ulink url="http://www.vlsys.co.kr"></ulink>)
+  </listitem>
+
+  <listitem>
+    <link linkend="hd44780-ftdi">ftdi</link>:
+    Display connected to a dual channel FTDI 2232D USB chip
+  </listitem>
+
+  <listitem>
+    <link linkend="hd44780-usblcd">usblcd</link>:
+    USBLCD from Adams IT Services (<ulink url="http://www.usblcd.de/"></ulink>)
+  </listitem>
+</itemizedlist>
+
+<para>
+Last but not least, for special purposes, there are even more connection types:
+</para>
+
+<itemizedlist>
+  <listitem>
+    <link linkend="hd44780-i2c">i2c</link>:
+    LCD driven by PCF8574(A)/PCA9554(A) connected via I<superscript>2</superscript>C
+  </listitem>
+
+  <listitem>
+    <link linkend="hd44780-ethlcd">ethlcd</link>:
+    Display connected via TCP to PoE powered ethlcd device (<ulink url="http://manio.skyboo.net/ethlcd/"></ulink>)
+  </listitem>
+</itemizedlist>
+
+
+<para>
+Depending on the connection type and the display connected, the driver supports
+various special features.
+<itemizedlist>
+  <listitem>Input keys</listitem>
+  <listitem>software controllable brightness / backlight</listitem>
+  <listitem>software controllable contrast</listitem>
+  <listitem>multiple displays / multi-controller displays</listitem>
+</itemizedlist>
+</para>
+
+<!--
 <para>
 The driver also lets you use multiple displays as a single virtual
 display.  For example, a 4, 2 and 1 line display can be used to form a
 7 line display. The number of displays is limited by the individual
 HD44780 driver.
 </para>
+-->
+
 
 <sect2 id="hd44780-connections">
 <title>Connections</title>
@@ -42,7 +175,7 @@ HD44780 driver.
 <title>Common connections for all connectiontypes</title>
 
 <para>
-No matter what connectiontype you choose, you will always need some
+No matter what connection type you choose, you will always need some
 connections. They are explaned here.
 </para>
 
@@ -56,30 +189,35 @@ All variants use the same method of obtaining power. i.e., for each LCD:
 <table id="hd44780-connections-power.table">
 <title>HD44780: Power Connections</title>
 <tgroup cols="3" align="left">
- <thead>
-  <row>
-   <entry>LCD</entry>
-   <entry>pin</entry>
-   <entry>signal</entry>
-  </row>
- </thead>
- <tbody>
-  <row>
-   <entry>1</entry>
-   <entry>GND</entry>
-   <entry>(connect to any of pins 18 - 25 of you parallel port)</entry>
-  </row>
-  <row>
-   <entry>2</entry>
-   <entry>+5V</entry>
-   <entry></entry>
-  </row>
-  <row>
-   <entry>3</entry>
-   <entry>Vadj</entry>
-   <entry>(contrast)</entry>
-  </row>
- </tbody>
+<colspec colname="lpt1"/>
+<colspec colname="lpt2" align="right"/>
+  <thead>
+    <row>
+      <entry namest="lpt1" nameend="lpt2" align="center">LCD</entry>
+      <entry morerows="1">Signal</entry>
+    </row>
+    <row>
+       <entry>name</entry>
+       <entry>pin</entry>
+    </row>
+  </thead>
+  <tbody>
+    <row>
+      <entry>V<subscript>EE</subscript></entry>
+      <entry>1</entry>
+      <entry>GND (connect to any of pins 18 - 25 of you parallel port)</entry>
+    </row>
+    <row>
+      <entry>V<subscript>CC</subscript></entry>
+      <entry>2</entry>
+      <entry>+5V</entry>
+    </row>
+    <row>
+      <entry>V<subscript>LC</subscript></entry>
+      <entry>3</entry>
+      <entry>(contrast adjustment)</entry>
+    </row>
+  </tbody>
 </tgroup>
 </table>
 
@@ -95,29 +233,34 @@ There are several ways to get 5V:
 </para>
 
 <itemizedlist>
- <listitem><para>
-  Connect to a 5V line intented for disk drives (the red wire is 5V,
-  black is GND).
- </para></listitem>
- <listitem><para>
-  Get it from a joystick port (pin 1 and 9 are 5V, 4, 5 and 12 are GND).
-  It seems that some soundcards can use these lines for communication,
-  so if you want to use this first check wether it really gives a 'clean' 5V.
- </para></listitem>
- <listitem><para>
-  If you don't have a backlight, you can sometimes get the needed mA's
-  from the LPT port itself. Connect a few diodes from the data pins to
-  a capacitor and you have the 5V. If it's strong enough is another question...
- </para></listitem>
- <listitem><para>
-  Get it from the keyboard connector. I do not recommend to use this with
-  a backlight, as the keyboard connector is often protected with a fuse
-  of 100mA or 200mA.
- </para></listitem>
+  <listitem><para>
+    Connect to a 5V line intented for disk drives (the red wire is 5V,
+    black is GND).
+  </para></listitem>
+  <listitem><para>
+    Get it from the V<subscript>CC</subscript> and GND pins of an USB connector.
+    For the USB connection types this is done automatically, as the circuits
+    used there automatically power the LCD.
+  </para></listitem>
+  <listitem><para>
+    Get it from a joystick port (pin 1 and 9 are 5V, 4, 5 and 12 are GND).
+    It seems that some soundcards can use these lines for communication,
+    so if you want to use this first check wether it really gives a 'clean' 5V.
+  </para></listitem>
+  <listitem><para>
+    If you don't have a backlight, you can sometimes get the needed mA's
+    from the LPT port itself. Connect a few diodes from the data pins to
+    a capacitor and you have the 5V. If it's strong enough is another question...
+  </para></listitem>
+  <listitem><para>
+    Get it from the keyboard connector. I do not recommend to use this with
+    a backlight, as the keyboard connector is often protected with a fuse
+    of 100mA or 200mA.
+  </para></listitem>
 </itemizedlist>
 
 <figure id="hd44780-connections-power.contrast-circuit">
-<title>HD44780: Connecting the contrast adjusting pin (Vadj.)</title>
+<title>HD44780: Connecting the contrast adjusting pin (V<subscript>LC</subscript>)</title>
 <screen>
 <![CDATA[
 
@@ -127,7 +270,7 @@ There are several ways to get 5V:
         `---^--'
            /|\
             |
-          Vadj.
+           Vlc
 
 ]]>
 </screen>
@@ -181,35 +324,46 @@ per input pin. It is a simple solution if you need only few keys.
 
 <para>
 By default, the following keystrokes are generated by the different keys:
-</para>
 
 <table id="hd44780-connections-keypad-direct.mapping">
  <title>HD44780: Direct Key Mapping</title>
  <tgroup cols="2" align="left">
+  <thead>
+   <row>
+    <entry>key index</entry>
+    <entry>mapped string</entry>
+   </row>
+  </thead>
   <tbody>
    <row>
-    <entry>X0</entry>
+    <entry>X<subscript>1</subscript></entry>
     <entry><literal>A</literal></entry>
    </row>
    <row>
-    <entry>X1</entry>
+    <entry>X<subscript>2</subscript></entry>
     <entry><literal>B</literal></entry>
    </row>
    <row>
-    <entry>X2</entry>
+    <entry>X<subscript>3</subscript></entry>
     <entry><literal>C</literal></entry>
    </row>
    <row>
-    <entry>X3</entry>
+    <entry>X<subscript>4</subscript></entry>
     <entry><literal>D</literal></entry>
    </row>
    <row>
-    <entry>X4</entry>
+    <entry>X<subscript>5</subscript></entry>
     <entry><literal>E</literal></entry>
    </row>
   </tbody>
  </tgroup>
 </table>
+
+You can change the mapping using the
+<command>KeyDirect_<replaceable>NUM</replaceable></command>
+configuration option, where <replaceable>NUM</replaceable>
+is the subscript to the <literal>X</literal> in the table above.
+</para>
 
 </sect5>
 
@@ -252,13 +406,13 @@ We connect the matrix of keys like this:
 <screen>
 <![CDATA[
 
-Y0 o---|<---@--@--@
-            |  |  |
 Y1 o---|<---@--@--@
             |  |  |
 Y2 o---|<---@--@--@
             |  |  |
-Y3 o---|<---@--@--@            O 5V
+Y3 o---|<---@--@--@
+            |  |  |
+Y4 o---|<---@--@--@            O 5V
             |  |  |            |
     diodes  |  |  |     ___    |
     1N4148  +----------|___|---+
@@ -268,7 +422,7 @@ Y3 o---|<---@--@--@            O 5V
             |  |  +----|___|---+     resistors 22k
             |  |  |
             o  o  o
-            X0 X1 X2
+            X1 X2 X3
 
 ]]>
 </screen>
@@ -276,9 +430,9 @@ Y3 o---|<---@--@--@            O 5V
 
 <para>
 As you can see, you need 1 resistor per X line, and 1 diode per Y line.
-Lcdproc will presume that you have a keypad with a layout like a telephone
-connected, with X and Y lines connected as show. To be more precise, it
-assumes this:
+By default, Lcdproc will presume that you have a keypad with a layout
+like a telephone connected, with X and Y lines connected as show.
+To be more precise, it assumes this mapping:
 </para>
 
 <table id="hd44780-connections-keypad-matrix.mapping">
@@ -287,14 +441,14 @@ assumes this:
   <tbody>
     <row>
       <entry></entry>
-      <entry><emphasis>X0</emphasis></entry>
-      <entry><emphasis>X1</emphasis></entry>
-      <entry><emphasis>X2</emphasis></entry>
-      <entry><emphasis>X3</emphasis></entry>
-      <entry><emphasis>X4</emphasis></entry>
+      <entry><emphasis>X<subscript>1</subscript></emphasis></entry>
+      <entry><emphasis>X<subscript>2</subscript></emphasis></entry>
+      <entry><emphasis>X<subscript>3</subscript></emphasis></entry>
+      <entry><emphasis>X<subscript>4</subscript></emphasis></entry>
+      <entry><emphasis>X<subscript>5</subscript></emphasis></entry>
     </row>
     <row>
-      <entry><emphasis>Y0</emphasis></entry>
+      <entry><emphasis>Y<subscript>1</subscript></emphasis></entry>
       <entry><literal>1</literal></entry>
       <entry><literal>2</literal></entry>
       <entry><literal>3</literal></entry>
@@ -302,7 +456,7 @@ assumes this:
       <entry><literal>E</literal></entry>
     </row>
     <row>
-      <entry><emphasis>Y1</emphasis></entry>
+      <entry><emphasis>Y<subscript>2</subscript></emphasis></entry>
       <entry><literal>4</literal></entry>
       <entry><literal>5</literal></entry>
       <entry><literal>6</literal></entry>
@@ -310,7 +464,7 @@ assumes this:
       <entry><literal>F</literal></entry>
     </row>
     <row>
-      <entry><emphasis>Y2</emphasis></entry>
+      <entry><emphasis>Y<subscript>3</subscript></emphasis></entry>
       <entry><literal>7</literal></entry>
       <entry><literal>8</literal></entry>
       <entry><literal>9</literal></entry>
@@ -318,7 +472,7 @@ assumes this:
       <entry><literal>G</literal></entry>
     </row>
     <row>
-      <entry><emphasis>Y3</emphasis></entry>
+      <entry><emphasis>Y<subscript>4</subscript></emphasis></entry>
       <entry><literal>*</literal></entry>
       <entry><literal>0</literal></entry>
       <entry><literal>#</literal></entry>
@@ -329,9 +483,14 @@ assumes this:
 </tgroup>
 </table>
 
+This mapping can be changed using the
+<command>KeyMatrix_<replaceable>X</replaceable>_<replaceable>Y</replaceable></command>
+configuration option, where <replaceable>X</replaceable> and
+<replaceable>Y</replaceable> are the subscripts to the respective axes above.
+
 <para>
-If you only need 10 keys, leave the rest away. However, the lcdproc menu is
-controlled by the keystrokes A to D. You should modify and recompile the
+If you only need e.g. 10 keys, leave the rest away.
+You should modify and recompile the
 driver to get an other keypad layout.
 </para>
 
@@ -358,13 +517,13 @@ wiring, it looks (completely drawn) like this:
      diodes      | |
      1N4148      '-'
             ___   |
-Y0 o---|<---o o---+
-            ___   |
 Y1 o---|<---o o---+
             ___   |
 Y2 o---|<---o o---+
             ___   |
-Y3 o---|<---o o---+----o return line
+Y3 o---|<---o o---+
+            ___   |
+Y4 o---|<---o o---+----o return line
 
 ]]>
 </screen>
@@ -375,7 +534,7 @@ Y3 o---|<---o o---+----o return line
  If the driver generates keypresses without that you actually press a key,
  it might be that the unconnected input lines are picking up
  electromagnetic waves from the air. In that case connect the unconnected
- input lines (pin 10, 11, 12, 13 and 15 of the LPT) to VCC = 5V.
+ input lines (pin 10, 11, 12, 13 and 15 of the LPT) to V<subscript>CC</subscript> = 5V.
  </para>
 </tip>
 
@@ -436,14 +595,14 @@ The BC327 transistor has the following connections:
  <para>
  Sometimes the backlight connections are not on the 'main' connector, but on
  the side. If that is the case, there is usually NO RESISTOR present to limit
- the current through the LEDs. Therefor you should then add a resistor after
+ the current through the LEDs. Therefore you should then add a resistor after
  the transistor of about 10 ohm (see display documentation).
  </para>
 </caution>
 
 <tip>
  <para>
- If you want the backlight to light a bit while it's switched 'off', you can
+ If you want the backlight to light a bit while it is "switched off", you can
  add a resistor bypassing the transistor from e to c, with a value of, say
  47ohm or 22ohm. (My 4x20 has an internal resistor of 6ohm, so with 47 ohm
  extra it lights at only 1/9th. I like this. Joris.)
@@ -458,19 +617,21 @@ The BC327 transistor has the following connections:
 <title>4bit</title>
 
 <para>
-This is originally based on "lcdtext" (by Matthias Prinke).
+This wiring is originally based on "lcdtext" (by Matthias Prinke).
 </para>
 
 <table id="hd44780-4bit.base-mapping">
 <title>HD44780: 4bit Pinouts (1)</title>
-<tgroup cols="4" align="left">
+<tgroup cols="5" align="left">
 <colspec colname="lpt1"/>
-<colspec colname="lpt2"/>
+<colspec colname="lpt2" align="right"/>
+<colspec colname="base" align="center"/>
 <colspec colname="lcd1"/>
 <colspec colname="lcd2"/>
   <thead>
     <row>
       <entry namest="lpt1" nameend="lpt2" align="center">printer port</entry>
+      <entry morerows="1">&lt;-&gt;</entry>
       <entry namest="lcd1" nameend="lcd2" align="center">LCD</entry>
     </row>
     <row>
@@ -482,95 +643,168 @@ This is originally based on "lcdtext" (by Matthias Prinke).
   </thead>
   <tbody>
     <row>
+      <entry></entry>
+      <entry></entry>
+      <entry>GND</entry>
+      <entry>V<subscript>EE</subscript></entry>
+      <entry>1</entry>
+    </row>
+    <row>
+      <entry></entry>
+      <entry></entry>
+      <entry>+5V</entry>
+      <entry>V<subscript>CC</subscript></entry>
+      <entry>2</entry>
+    </row>
+    <row>
+      <entry></entry>
+      <entry></entry>
+      <entry>(contrast adjustment)</entry>
+      <entry>V<subscript>LC</subscript></entry>
+      <entry>3</entry>
+    </row>
+    <row>
+      <entry>D4</entry>
+      <entry>6</entry>
+      <entry></entry>
+      <entry>RS</entry>
+      <entry>4</entry>
+    </row>
+    <row>
+      <entry></entry>
+      <entry></entry>
+      <entry>GND</entry>
+      <entry>RW</entry>
+      <entry>5</entry>
+    </row>
+    <row>
+      <entry>D6</entry>
+      <entry>8</entry>
+      <entry></entry>
+      <entry>EN</entry>
+      <entry>6</entry>
+    </row>
+    <row>
       <entry>D0</entry>
       <entry>2</entry>
+      <entry></entry>
       <entry>D4</entry>
       <entry>11</entry>
     </row>
     <row>
       <entry>D1</entry>
       <entry>3</entry>
+      <entry></entry>
       <entry>D5</entry>
       <entry>12</entry>
     </row>
     <row>
       <entry>D2</entry>
       <entry>4</entry>
+      <entry></entry>
       <entry>D6</entry>
-      <entry>(13)</entry>
+      <entry>13</entry>
     </row>
     <row>
       <entry>D3</entry>
       <entry>5</entry>
+      <entry></entry>
       <entry>D7</entry>
       <entry>14</entry>
-    </row>
-    <row>
-      <entry>D4</entry>
-      <entry>6</entry>
-      <entry>RS</entry>
-      <entry>4</entry>
-    </row>
-    <row>
-      <entry>D5</entry>
-      <entry>7</entry>
-      <entry>RW</entry>
-      <entry>5 (LCD3 - 6) (optional - pull all LCD RW low (*) )</entry>
-    </row>
-    <row>
-      <entry>D6</entry>
-      <entry>8</entry>
-      <entry>EN</entry>
-      <entry>6</entry>
-    </row>
-    <row>
-      <entry>D7</entry>
-      <entry>9</entry>
-      <entry>EN2</entry>
-      <entry>(LCD2 - 6) (optional)</entry>
     </row>
   </tbody>
 </tgroup>
 </table>
 
+<note>
 <para>
-(*) on the RW line of the display: this line decides whether the display receives data from the 
-LPT port, or whether it sends data to the LPT port. If grounded, it receives. If High or connected 
-to nothing at all, it "sends" (i.e., will not work as intended). So, if you are not sure that 
+The <literal>RW</literal> (pin 5) line of the display decides whether the display receives data from the 
+LPT port, or whether it sends data to the LPT port: if grounded it receives, if High or connected 
+to nothing at all it "sends" (i.e., will not work as intended). So, if you are not sure that 
 you need it otherwise, then connect it to GND. This certainly applies if you have only one display.
+</para>
+<para>
+Theoretically this wiring sends the data over twice as slow as the
+winamp or ext8bit wirings, because it only sends 4 bits at a time.
+</para>
+</note>
+
+<para>
+The <code>4bit</code> connection type supports more than one display connected
+to the same parallel port.
+If you want to connect more than one display, then wire the all the displays to the
+parallel port according to the scheme above with the exception of the <literal>EN</literal>
+(pin 6) line of the LCDs.
 </para>
 
 <para>
-If you want to connect more than two displays to the parallel port then
-wire D5 (pin 7) to the enable line (pin 6) of the third LCD. Then for
-displays four to seven use:
+For the second and further displays, you can find the wiring for the <literal>EN</literal>
+(pin 6) line in the table below.
 </para>
 
 <table id="hd44780-4bit.multi-mapping">
 <title>HD44780: 4bit Pinouts (2)</title>
-<tgroup cols="2" align="left">
+<tgroup cols="5" align="left">
+<colspec colname="lpt1"/>
+<colspec colname="lpt2" align="right"/>
+<colspec colname="base" align="center"/>
+<colspec colname="lcd1"/>
+<colspec colname="lcd2"/>
   <thead>
     <row>
-      <entry>printer port</entry>
-      <entry>LCD</entry>
+      <entry namest="lpt1" nameend="lpt2" align="center">printer port</entry>
+      <entry morerows="1">&lt;-&gt;</entry>
+      <entry namest="lcd1" nameend="lcd2" align="center">LCD</entry>
+    </row>
+    <row>
+      <entry>name</entry>
+      <entry>pin</entry>
+      <entry>name</entry>
+      <entry>pin</entry>
     </row>
   </thead>
   <tbody>
     <row>
-      <entry>STR (1)</entry>
-      <entry>EN4</entry>
+      <entry>D7</entry>
+      <entry>9</entry>
+      <entry></entry>
+      <entry>EN<subscript>2</subscript></entry>
+      <entry>6 of 2<superscript>nd</superscript> display</entry>
     </row>
     <row>
-      <entry>LF (14)</entry>
-      <entry>EN5</entry>
+      <entry>D5</entry>
+      <entry>7</entry>
+      <entry></entry>
+      <entry>EN<subscript>3</subscript></entry>
+      <entry>6 of 3<superscript>rd</superscript> display</entry>
     </row>
     <row>
-      <entry>INIT (16)</entry>
-      <entry>EN6</entry>
+      <entry>STR</entry>
+      <entry>1</entry>
+      <entry></entry>
+      <entry>EN<subscript>4</subscript></entry>
+      <entry>6 of 4<superscript>th</superscript> display</entry>
     </row>
     <row>
-      <entry>SEL (17)</entry>
-      <entry>EN7</entry>
+      <entry>LF</entry>
+      <entry>14</entry>
+      <entry></entry>
+      <entry>EN<subscript>5</subscript></entry>
+      <entry>6 of 5<superscript>th</superscript> display</entry>
+    </row>
+    <row>
+      <entry>INIT</entry>
+      <entry>16</entry>
+      <entry></entry>
+      <entry>EN<subscript>6</subscript></entry>
+      <entry>6 of 6<superscript>th</superscript> display</entry>
+    </row>
+    <row>
+      <entry>SEL</entry>
+      <entry>17</entry>
+      <entry></entry>
+      <entry>EN<subscript>7</subscript></entry>
+      <entry>6 of 7<superscript>th</superscript> display</entry>
     </row>
   </tbody>
 </tgroup>
@@ -582,73 +816,112 @@ The optional keypad can be connected as follows:
 
 <table id="hd44780-4bit.keypad-mapping">
 <title>HD44780: 4bit Keypad Pinouts</title>
-<tgroup cols="2" align="left">
+<tgroup cols="4" align="left">
+<colspec colname="lpt1"/>
+<colspec colname="lpt2" align="right"/>
+<colspec colname="base" align="center"/>
   <thead>
     <row>
-      <entry>printer port</entry>
-      <entry>LCD</entry>
-  </row>
+      <entry namest="lpt1" nameend="lpt2" align="center">printer port</entry>
+      <entry morerows="1">&lt;-&gt;</entry>
+      <entry align="center">keypad</entry>
+    </row>
+    <row>
+      <entry>name</entry>
+      <entry>pin</entry>
+      <entry>pin</entry>
+    </row>
   </thead>
   <tbody>
     <row>
-      <entry>D0 (2)</entry>
-      <entry>Y0</entry>
+      <entry>D0</entry>
+      <entry>2</entry>
+      <entry></entry>
+      <entry>Y<subscript>1</subscript></entry>
     </row>
     <row>
-      <entry>D1 (3)</entry>
-      <entry>Y1</entry>
+      <entry>D1</entry>
+      <entry>3</entry>
+      <entry></entry>
+      <entry>Y<subscript>2</subscript></entry>
     </row>
     <row>
-      <entry>D2 (4)</entry>
-      <entry>Y2</entry>
+      <entry>D2</entry>
+      <entry>4</entry>
+      <entry></entry>
+      <entry>Y<subscript>3</subscript></entry>
     </row>
     <row>
-      <entry>D3 (5)</entry>
-      <entry>Y3</entry>
+      <entry>D3</entry>
+      <entry>5</entry>
+      <entry></entry>
+      <entry>Y<subscript>4</subscript></entry>
     </row>
     <row>
-      <entry>D4 (6)</entry>
-      <entry>Y4</entry>
+      <entry>D4</entry>
+      <entry>6</entry>
+      <entry></entry>
+      <entry>Y<subscript>5</subscript></entry>
     </row>
     <row>
-      <entry>D5 (7)</entry>
-      <entry>Y5</entry>
+      <entry>D5</entry>
+      <entry>7</entry>
+      <entry></entry>
+      <entry>Y<subscript>6</subscript></entry>
     </row>
     <row>
-      <entry>nSTRB (1)</entry>
-      <entry>Y6</entry>
+      <entry>nSTRB</entry>
+      <entry>1</entry>
+      <entry></entry>
+      <entry>Y<subscript>7</subscript></entry>
     </row>
     <row>
-      <entry>nLF  (14)</entry>
-      <entry>Y7</entry>
+      <entry>nLF</entry>
+      <entry>14</entry>
+      <entry></entry>
+      <entry>Y<subscript>8</subscript></entry>
     </row>
     <row>
-      <entry>INIT (16)</entry>
-      <entry>Y8</entry>
+      <entry>INIT</entry>
+      <entry>16</entry>
+      <entry></entry>
+      <entry>Y<subscript>9</subscript></entry>
     </row>
     <row>
-      <entry>nSEL (17)</entry>
-      <entry>Y9</entry>
+      <entry>nSEL</entry>
+      <entry>17</entry>
+      <entry></entry>
+      <entry>Y<subscript>10</subscript></entry>
     </row>
     <row>
-      <entry>nACK (10)</entry>
-      <entry>X0</entry>
+      <entry>nACK</entry>
+      <entry>10</entry>
+      <entry></entry>
+      <entry>X<subscript>1</subscript></entry>
     </row>
     <row>
-      <entry>BUSY (11)</entry>
-      <entry>X1</entry>
+      <entry>BUSY</entry>
+      <entry>11</entry>
+      <entry></entry>
+      <entry>X<subscript>2</subscript></entry>
     </row>
     <row>
-      <entry>PAPEREND (12)</entry>
-      <entry>X2</entry>
+      <entry>PAPEREND</entry>
+      <entry>12</entry>
+      <entry></entry>
+      <entry>X<subscript>3</subscript></entry>
     </row>
     <row>
-      <entry>SELIN (13)</entry>
-      <entry>X3</entry>
+      <entry>SELIN</entry>
+      <entry>13</entry>
+      <entry></entry>
+      <entry>X<subscript>4</subscript></entry>
     </row>
     <row>
-      <entry>nFAULT (15)</entry>
-      <entry>X4</entry>
+      <entry>nFAULT</entry>
+      <entry>15</entry>
+      <entry></entry>
+      <entry>X<subscript>5</subscript></entry>
     </row>
   </tbody>
 </tgroup>
@@ -669,14 +942,16 @@ This type of connection should work with winamp.
 
 <table id="hd44780-8bit-winamp.base-mapping">
 <title>HD44780: "Winamp" wiring</title>
-<tgroup cols="4" align="left">
+<tgroup cols="5" align="left">
 <colspec colname="lpt1"/>
-<colspec colname="lpt2"/>
+<colspec colname="lpt2" align="right"/>
+<colspec colname="base" align="center"/>
 <colspec colname="lcd1"/>
 <colspec colname="lcd2"/>
   <thead>
     <row>
       <entry namest="lpt1" nameend="lpt2" align="center">printer port</entry>
+      <entry morerows="1">&lt;-&gt;</entry>
       <entry namest="lcd1" nameend="lcd2" align="center">LCD</entry>
     </row>
     <row>
@@ -690,74 +965,86 @@ This type of connection should work with winamp.
     <row>
       <entry>D0</entry>
       <entry>2</entry>
+      <entry></entry>
       <entry>D0</entry>
       <entry>7</entry>
     </row>
     <row>
       <entry>D1</entry>
       <entry>3</entry>
+      <entry></entry>
       <entry>D1</entry>
       <entry>8</entry>
     </row>
     <row>
       <entry>D2</entry>
       <entry>4</entry>
+      <entry></entry>
       <entry>D2</entry>
       <entry>9</entry>
     </row>
     <row>
       <entry>D3</entry>
       <entry>5</entry>
+      <entry></entry>
       <entry>D3</entry>
       <entry>10</entry>
     </row>
     <row>
       <entry>D4</entry>
       <entry>6</entry>
+      <entry></entry>
       <entry>D4</entry>
       <entry>11</entry>
     </row>
     <row>
       <entry>D5</entry>
       <entry>7</entry>
+      <entry></entry>
       <entry>D5</entry>
       <entry>12</entry>
     </row>
     <row>
       <entry>D6</entry>
       <entry>8</entry>
+      <entry></entry>
       <entry>D6</entry>
       <entry>13</entry>
     </row>
     <row>
       <entry>D7</entry>
       <entry>9</entry>
+      <entry></entry>
       <entry>D7</entry>
       <entry>14</entry>
     </row>
     <row>
       <entry>nSTRB</entry>
-      <entry>(1)</entry>
+      <entry>1</entry>
+      <entry></entry>
       <entry>EN</entry>
       <entry>6</entry>
     </row>
     <row>
       <entry>nLF</entry>
       <entry>14</entry>
-      <entry>nRW</entry>
+      <entry></entry>
+      <entry>RW</entry>
       <entry>5 (EN3 6 - LCD 3) (optional (*) )</entry>
     </row>
     <row>
       <entry>INIT</entry>
       <entry>16</entry>
+      <entry></entry>
       <entry>RS</entry>
       <entry>4</entry>
     </row>
     <row>
       <entry>nSEL</entry>
       <entry>17</entry>
+      <entry></entry>
       <entry>EN2</entry>
-      <entry>6 - LCD 2) (optional)</entry>
+      <entry>(6 - LCD 2) (optional)</entry>
     </row>
   </tbody>
 </tgroup>
@@ -765,14 +1052,14 @@ This type of connection should work with winamp.
 
 <para>
 (*) on the RW line of the display: this line decides whether the display receives data from the 
-LPT port, or whether it sends data to the LPT port. If grounded, it receives. If High or connected 
-to nothing at all, it "sends" (i.e., will not work as intended). So, if you are not sure that 
+LPT port, or whether it sends data to the LPT port: if grounded it receives, if High or connected 
+to nothing at all it "sends" (i.e., will not work as intended). So, if you are not sure that 
 you need it otherwise, then connect it to GND. This certainly applies if you have only one display.
 </para>
 
 <para>
 If you want the display to work with the Winamp plugin, wire nLF (pin 14)
-to nRW of your LCD. You can then use the plugin in bidirectional mode (wich
+to RW of your LCD. You can then use the plugin in bidirectional mode (wich
 is much faster). With 3 connected LCDs this is not possible.
 Note from Benjamin: I haven't tried using winamp while having the third LCD
 connected to this line.
@@ -784,73 +1071,100 @@ The optional keypad can be connected as follows:
 
 <table id="hd44780-8bit-winamp.keypad-mapping">
 <title>HD44780: "Winamp" wiring - Keypad</title>
-<tgroup cols="2" align="left">
+<tgroup cols="4" align="left">
+<colspec colname="lpt1"/>
+<colspec colname="lpt2" align="right"/>
+<colspec colname="base" align="center"/>
   <thead>
     <row>
-      <entry>printer port</entry>
-      <entry>keypad</entry>
+      <entry namest="lpt1" nameend="lpt2" align="center">printer port</entry>
+      <entry morerows="1">&lt;-&gt;</entry>
+      <entry align="center">keypad</entry>
+    </row>
+    <row>
+      <entry>name</entry>
+      <entry>pin</entry>
+      <entry>pin</entry>
     </row>
   </thead>
   <tbody>
     <row>
-      <entry>D0 (2)</entry>
-      <entry>Y0</entry>
+      <entry>D0</entry>
+      <entry>2</entry>
+      <entry></entry>
+      <entry>Y<subscript>1</subscript></entry>
     </row>
     <row>
-      <entry>D1 (3)</entry>
-      <entry>Y1</entry>
+      <entry>D1</entry>
+      <entry>3</entry>
+      <entry></entry>
+      <entry>Y<subscript>2</subscript></entry>
     </row>
     <row>
-      <entry>D2 (4)</entry>
-      <entry>Y2</entry>
+      <entry>D2</entry>
+      <entry>4</entry>
+      <entry></entry>
+      <entry>Y<subscript>3</subscript></entry>
     </row>
     <row>
-      <entry>D3 (5)</entry>
-      <entry>Y3</entry>
+      <entry>D3</entry>
+      <entry>5</entry>
+      <entry></entry>
+      <entry>Y<subscript>4</subscript></entry>
     </row>
     <row>
-      <entry>D4 (6)</entry>
-      <entry>Y4</entry>
+      <entry>D4</entry>
+      <entry>6</entry>
+      <entry></entry>
+      <entry>Y<subscript>5</subscript></entry>
     </row>
     <row>
-      <entry>D5 (7)</entry>
-      <entry>Y5</entry>
+      <entry>D5</entry>
+      <entry>7</entry>
+      <entry></entry>
+      <entry>Y<subscript>6</subscript></entry>
     </row>
     <row>
-      <entry>D6 (8)</entry>
-      <entry>Y6</entry>
+      <entry>D6</entry>
+      <entry>8</entry>
+      <entry></entry>
+      <entry>Y<subscript>7</subscript></entry>
     </row>
     <row>
-      <entry>D7 (9)</entry>
-      <entry>Y7</entry>
+      <entry>D7</entry>
+      <entry>9</entry>
+      <entry></entry>
+      <entry>Y<subscript>8</subscript></entry>
     </row>
     <row>
-      <entry>nLF (14)</entry>
-      <entry>Y8</entry>
+      <entry>nACK</entry>
+      <entry>10</entry>
+      <entry></entry>
+      <entry>X<subscript>1</subscript></entry>
     </row>
     <row>
-      <entry>INIT (16)</entry>
-      <entry>Y9</entry>
+      <entry>BUSY</entry>
+      <entry>11</entry>
+      <entry></entry>
+      <entry>X<subscript>2</subscript></entry>
     </row>
     <row>
-      <entry>nACK (10)</entry>
-      <entry>X0</entry>
+      <entry>PAPEREND</entry>
+      <entry>12</entry>
+      <entry></entry>
+      <entry>X<subscript>3</subscript></entry>
     </row>
     <row>
-      <entry>BUSY (11)</entry>
-      <entry>X1</entry>
+      <entry>SELIN</entry>
+      <entry>13</entry>
+      <entry></entry>
+      <entry>X<subscript>4</subscript></entry>
     </row>
     <row>
-      <entry>PAPEREND (12)</entry>
-      <entry>X2</entry>
-    </row>
-    <row>
-      <entry>SELIN (13)</entry>
-      <entry>X3</entry>
-    </row>
-    <row>
-      <entry>nFAULT (15)</entry>
-      <entry>X4</entry>
+      <entry>nFAULT</entry>
+      <entry>15</entry>
+      <entry></entry>
+      <entry>X<subscript>5</subscript></entry>
     </row>
   </tbody>
 </tgroup>
@@ -872,18 +1186,17 @@ bargraph. The LCD is driven by LCDproc and the LEDs by another program
 such as portato. Further details can be obtained from:
 </para>
 
-<para>
-<ulink url="http://metalab.unc.edu/pub/linux/system/status/lcdtime-0.2.tar.gz"></ulink>
-<ulink url="http://metalab.unc.edu/pub/linux/system/status/meter-0.2.tar.gz"></ulink>
-<ulink url="http://metalab.unc.edu/pub/linux/system/status/portato-1.2.tar.gz"></ulink>
-</para>
-
-<note>
-<para>
-Theoretically this wiring sends the data over twice as slow as the
-winamp or ext8bit wirings, because it only sends 4 bits at a time.
-</para>
-</note>
+<simplelist type="vert" columns="1">
+  <member>
+    <ulink url="http://www.ibiblio.org/pub/linux/system/status/lcdtime-0.2.tar.gz"></ulink>
+  </member>
+  <member>
+    <ulink url="http://www.ibiblio.org/pub/linux/system/status/meter-0.2.tar.gz"></ulink>
+  </member>
+  <member>
+    <ulink url="http://www.ibiblio.org/pub/linux/system/status/portato-1.2.tar.gz"></ulink>
+  </member>
+</simplelist>
 
 <para>
 The LCD connections are:
@@ -891,14 +1204,16 @@ The LCD connections are:
 
 <table id="hd44780-8bit-lcdtime.base-mapping">
 <title>HD44780: "lcdtime" wiring</title>
-<tgroup cols="4" align="left">
+<tgroup cols="5" align="left">
 <colspec colname="lpt1"/>
-<colspec colname="lpt2"/>
+<colspec colname="lpt2" align="right"/>
+<colspec colname="base" align="center"/>
 <colspec colname="lcd1"/>
 <colspec colname="lcd2"/>
   <thead>
     <row>
       <entry namest="lpt1" nameend="lpt2" align="center">printer port</entry>
+      <entry morerows="1">&lt;-&gt;</entry>
       <entry namest="lcd1" nameend="lcd2" align="center">LCD</entry>
     </row>
     <row>
@@ -912,72 +1227,84 @@ The LCD connections are:
     <row>
       <entry>D0</entry>
       <entry>2</entry>
+      <entry></entry>
       <entry>D0</entry>
       <entry>7</entry>
     </row>
     <row>
       <entry>D1</entry>
       <entry>3</entry>
+      <entry></entry>
       <entry>D1</entry>
       <entry>8</entry>
     </row>
     <row>
       <entry>D2</entry>
       <entry>4</entry>
+      <entry></entry>
       <entry>D2</entry>
       <entry>9</entry>
     </row>
     <row>
       <entry>D3</entry>
       <entry>5</entry>
+      <entry></entry>
       <entry>D3</entry>
       <entry>10</entry>
     </row>
     <row>
       <entry>D4</entry>
       <entry>6</entry>
+      <entry></entry>
       <entry>D4</entry>
       <entry>11</entry>
     </row>
     <row>
       <entry>D5</entry>
       <entry>7</entry>
+      <entry></entry>
       <entry>D5</entry>
       <entry>12</entry>
     </row>
     <row>
       <entry>D6</entry>
       <entry>8</entry>
+      <entry></entry>
       <entry>D6</entry>
       <entry>13</entry>
     </row>
     <row>
       <entry>D7</entry>
       <entry>9</entry>
+      <entry></entry>
       <entry>D7</entry>
       <entry>14</entry>
     </row>
     <row>
       <entry>nSEL</entry>
       <entry>17</entry>
+      <entry></entry>
       <entry>-</entry>
       <entry></entry>
     </row>
     <row>
       <entry>nSTRB</entry>
       <entry>1</entry>
+      <entry></entry>
       <entry>RS</entry>
       <entry>4</entry>
     </row>
     <row>
       <entry>nLF</entry>
       <entry>14</entry>
+      <entry></entry>
       <entry>RW</entry>
-      <entry>5 (LCD2 - 6) (optional - pull all LCD RW low (*)</entry>
+      <entry>5 (optional - pull LCD RW low (*)</entry>
     </row>
     <row>
       <entry>INIT</entry>
       <entry>16</entry>
+      <entry></entry>
       <entry>EN</entry>
       <entry>6</entry>
     </row>
@@ -987,9 +1314,9 @@ The LCD connections are:
 
 <para>
 (*) on the RW line of the display: this line decides whether the display receives data from the 
-LPT port, or whether it sends data to the LPT port. If grounded, it receives. If High or connected 
-to nothing at all, it "sends" (i.e., will not work as intended). So, if you are not sure that 
-you need it otherwise, then connect it to GND. This certainly applies if you have only one display.
+LPT port, or whether it sends data to the LPT port: if grounded it receives, if High or connected 
+to nothing at all it "sends" (i.e., will not work as intended). So, if you are not sure that 
+you need it otherwise, then connect it to GND.
 </para>
 
 <para>
@@ -1003,73 +1330,112 @@ The optional keypad can be connected as follows:
 
 <table id="hd44780-8bit-lcdtime.keypad-mapping">
 <title>HD44780: "lcdtime" wiring - keypad</title>
-<tgroup cols="2" align="left">
+<tgroup cols="4" align="left">
+<colspec colname="lpt1"/>
+<colspec colname="lpt2" align="right"/>
+<colspec colname="base" align="center"/>
   <thead>
     <row>
-      <entry>printer port</entry>
-      <entry>keypad</entry>
+      <entry namest="lpt1" nameend="lpt2" align="center">printer port</entry>
+      <entry morerows="1">&lt;-&gt;</entry>
+      <entry align="center">keypad</entry>
+    </row>
+    <row>
+      <entry>name</entry>
+      <entry>pin</entry>
+      <entry>pin</entry>
     </row>
   </thead>
   <tbody>
     <row>
-      <entry>D0 (2)</entry>
-      <entry>Y0</entry>
+      <entry>D0</entry>
+      <entry>2</entry>
+      <entry></entry>
+      <entry>Y<subscript>1</subscript></entry>
     </row>
     <row>
-      <entry>D1 (3)</entry>
-      <entry>Y1</entry>
+      <entry>D1</entry>
+      <entry>3</entry>
+      <entry></entry>
+      <entry>Y<subscript>2</subscript></entry>
     </row>
     <row>
-      <entry>D2 (4)</entry>
-      <entry>Y2</entry>
+      <entry>D2</entry>
+      <entry>4</entry>
+      <entry></entry>
+      <entry>Y<subscript>3</subscript></entry>
     </row>
     <row>
-      <entry>D3 (5)</entry>
-      <entry>Y3</entry>
+      <entry>D3</entry>
+      <entry>5</entry>
+      <entry></entry>
+      <entry>Y<subscript>4</subscript></entry>
     </row>
     <row>
-      <entry>D4 (6)</entry>
-      <entry>Y4</entry>
+      <entry>D4</entry>
+      <entry>6</entry>
+      <entry></entry>
+      <entry>Y<subscript>5</subscript></entry>
     </row>
     <row>
-      <entry>D5 (7)</entry>
-      <entry>Y5</entry>
+      <entry>D5</entry>
+      <entry>7</entry>
+      <entry></entry>
+      <entry>Y<subscript>6</subscript></entry>
     </row>
     <row>
-      <entry>D6 (8)</entry>
-      <entry>Y6</entry>
+      <entry>D6</entry>
+      <entry>8</entry>
+      <entry></entry>
+      <entry>Y<subscript>7</subscript></entry>
     </row>
     <row>
-      <entry>D7 (9)</entry>
-      <entry>Y7</entry>
+      <entry>D7</entry>
+      <entry>9</entry>
+      <entry></entry>
+      <entry>Y<subscript>8</subscript></entry>
     </row>
     <row>
-      <entry>nSTRB (1)</entry>
-      <entry>Y8</entry>
+      <entry>nSTRB</entry>
+      <entry>1</entry>
+      <entry></entry>
+      <entry>Y<subscript>9</subscript></entry>
     </row>
     <row>
-      <entry>nSEL (17)</entry>
-      <entry>Y9</entry>
+      <entry>nSEL</entry>
+      <entry>17</entry>
+      <entry></entry>
+      <entry>Y<subscript>10</subscript></entry>
     </row>
     <row>
-      <entry>nACK (10)</entry>
-      <entry>X0</entry>
+      <entry>nACK</entry>
+      <entry>10</entry>
+      <entry></entry>
+      <entry>X<subscript>1</subscript></entry>
     </row>
     <row>
-      <entry>BUSY (11)</entry>
-      <entry>X1</entry>
+      <entry>BUSY</entry>
+      <entry>11</entry>
+      <entry></entry>
+      <entry>X<subscript>2</subscript></entry>
     </row>
     <row>
-      <entry>PAPEREND (12)</entry>
-      <entry>X2</entry>
+      <entry>PAPEREND</entry>
+      <entry>12</entry>
+      <entry></entry>
+      <entry>X<subscript>3</subscript></entry>
     </row>
     <row>
-      <entry>SELIN (13)</entry>
-      <entry>X3</entry>
+      <entry>SELIN</entry>
+      <entry>13</entry>
+      <entry></entry>
+      <entry>X<subscript>4</subscript></entry>
     </row>
     <row>
-      <entry>nFAULT (15)</entry>
-      <entry>X4</entry>
+      <entry>nFAULT</entry>
+      <entry>15</entry>
+      <entry></entry>
+      <entry>X<subscript>5</subscript></entry>
     </row>
   </tbody>
 </tgroup>
@@ -1131,21 +1497,21 @@ GND to pin 8 of the IC.
                             5V    | shift reg |                    display
                              O    |           |                            keys
                              |   1|           |4
-                             +----|STR      Q0|--------------------o 11 D4   Y0
+                             +----|STR      Q0|--------------------o 11 D4   Y1
                              |    |           |5
-           Data              |   2|         Q1|--------------------o 12 D5   Y1
+           Data              |   2|         Q1|--------------------o 12 D5   Y2
    D3 5 o-------------------------|D          |6
-                             |    |         Q2|--------------------o 13 D6   Y2
+                             |    |         Q2|--------------------o 13 D6   Y3
                              |   3|           |7
-   D4 6 o-------------------------|CK       Q3|--------------------o 14 D7   Y3
+   D4 6 o-------------------------|CK       Q3|--------------------o 14 D7   Y4
                              |    |           |14
-                             |  15|         Q4|--------------------o         Y4
+                             |  15|         Q4|--------------------o         Y5
                              +----|OE         |13
-                                  |         Q5|--------------------o 4  RS   Y5
+                                  |         Q5|--------------------o 4  RS   Y6
                                   |           |12
-                                  |         Q6|--------------------o         Y6
+                                  |         Q6|--------------------o         Y7
                                   |           |11
-                                  |         Q7|--------------------o         Y7
+                                  |         Q7|--------------------o         Y8
                                   |           |9
                                   |         QS|--               +--o 5  RW
                                   |         __|10               |
@@ -1191,19 +1557,19 @@ complex. If you do not understand the schematic, do not build it.
                                   | shift reg |                    display
                                   |           |                            keys
            Data                  1|           |3
-   D3 5 o---------------------+---|D        Q0|--------------------o 11 D4   Y0
+   D3 5 o---------------------+---|D        Q0|--------------------o 11 D4   Y1
                               |   |           |4
-                              |  2|         Q1|--------------------o 12 D5   Y1
+                              |  2|         Q1|--------------------o 12 D5   Y2
                               +---|D          |5
-                                  |         Q2|--------------------o 13 D6   Y2
+                                  |         Q2|--------------------o 13 D6   Y3
                                   |           |6
-                                  |         Q3|--------------------o 14 D7   Y3
+                                  |         Q3|--------------------o 14 D7   Y4
                                   |           |10
-           Clock                 8|         Q4|--------------------o         Y4
+           Clock                 8|         Q4|--------------------o         Y5
    D4 6 o-------------------------|CK         |11
-                                  |         Q5|--------------------o 4  RS   Y5
+                                  |         Q5|--------------------o 4  RS   Y6
                ___       9|\ 8   9|_          |12
-           +--|___|--+----| >o----|R        Q6|--------------------o         Y6
+           +--|___|--+----| >o----|R        Q6|--------------------o         Y7
            |   22k   |    |/      |           |13
            |        ---   IC1     |         Q7|---+             +--o 5  RW
            |        ---           |           |   |     5V      |
@@ -1258,27 +1624,52 @@ serialLpt wiring supports a keypad. The 3 wires version supports
 
 <table id="hd44780-seriallpt-keypad.mapping">
 <title>HD44780: Serial LPT - Keypad return lines</title>
-<tgroup cols="2" align="left">
+<tgroup cols="4" align="left">
+<colspec colname="lpt1"/>
+<colspec colname="lpt2" align="right"/>
+<colspec colname="base" align="center"/>
+  <thead>
+    <row>
+      <entry namest="lpt1" nameend="lpt2" align="center">printer port</entry>
+      <entry morerows="1">&lt;-&gt;</entry>
+      <entry align="center">keypad</entry>
+    </row>
+    <row>
+      <entry>name</entry>
+      <entry>pin</entry>
+      <entry>pin</entry>
+    </row>
+  </thead>
   <tbody>
     <row>
-      <entry>nACK (10)</entry>
-      <entry>X0</entry>
+      <entry>nACK</entry>
+      <entry>10</entry>
+      <entry></entry>
+      <entry>X<subscript>1</subscript></entry>
     </row>
     <row>
-      <entry>BUSY (11)</entry>
-      <entry>X1</entry>
+      <entry>BUSY</entry>
+      <entry>11</entry>
+      <entry></entry>
+      <entry>X<subscript>2</subscript></entry>
     </row>
     <row>
-      <entry>PAPEREND (12)</entry>
-      <entry>X2</entry>
+      <entry>PAPEREND</entry>
+      <entry>12</entry>
+      <entry></entry>
+      <entry>X<subscript>3</subscript></entry>
     </row>
     <row>
-      <entry>SELIN (13)</entry>
-      <entry>X3</entry>
+      <entry>SELIN</entry>
+      <entry>13</entry>
+      <entry></entry>
+      <entry>X<subscript>4</subscript></entry>
     </row>
     <row>
-      <entry>nFAULT (15)</entry>
-      <entry>X4</entry>
+      <entry>nFAULT</entry>
+      <entry>15</entry>
+      <entry></entry>
+      <entry>X<subscript>5</subscript></entry>
     </row>
   </tbody>
 </tgroup>
@@ -1340,14 +1731,156 @@ that. The BL output below should be connected to the BL input in the
 
 </sect3>
 
+<sect3 id="hd44780-ftdi">
+<title>FTDI FT2232D USB chip "ftdi"</title>
+
+<para>
+You can use a FTDI FT2232D dual channel USB &lt;-&gt; parallel FIFO chip
+to connect a display via the USB bus. The chip is switched to bitbang mode
+and drives both channels as outputs to control the display in 8bit mode.
+</para>
+
+<table id="hd44780-ftdi.base-mapping">
+<title>HD44780: 8bit FTDI</title>
+<tgroup cols="5" align="left">
+<colspec colname="ftdi1"/>
+<colspec colname="ftdi2" align="right"/>
+<colspec colname="base" align="center"/>
+<colspec colname="lcd1"/>
+<colspec colname="lcd2"/>
+  <thead>
+    <row>
+      <entry namest="ftdi1" nameend="ftdi2" align="center">FTDI chip</entry>
+      <entry morerows="1">&lt;-&gt;</entry>
+      <entry namest="lcd1" nameend="lcd2" align="center">LCD</entry>
+    </row>
+    <row>
+      <entry>name</entry>
+      <entry>pin</entry>
+      <entry>name</entry>
+      <entry>pin</entry>
+    </row>
+  </thead>
+  <tbody>
+    <row>
+      <entry>ADBUS0</entry>
+      <entry>24</entry>
+      <entry></entry>
+      <entry>D0</entry>
+      <entry>7</entry>
+    </row>
+    <row>
+      <entry>ADBUS1</entry>
+      <entry>23</entry>
+      <entry></entry>
+      <entry>D1</entry>
+      <entry>8</entry>
+    </row>
+    <row>
+      <entry>ADBUS2</entry>
+      <entry>22</entry>
+      <entry></entry>
+      <entry>D2</entry>
+      <entry>9</entry>
+    </row>
+    <row>
+      <entry>ADBUS3</entry>
+      <entry>21</entry>
+      <entry></entry>
+      <entry>D3</entry>
+      <entry>10</entry>
+    </row>
+    <row>
+      <entry>ADBUS4</entry>
+      <entry>20</entry>
+      <entry></entry>
+      <entry>D4</entry>
+      <entry>11</entry>
+    </row>
+    <row>
+      <entry>ADBUS5</entry>
+      <entry>19</entry>
+      <entry></entry>
+      <entry>D5</entry>
+      <entry>12</entry>
+    </row>
+    <row>
+      <entry>ADBUS6</entry>
+      <entry>18</entry>
+      <entry></entry>
+      <entry>D6</entry>
+      <entry>13</entry>
+    </row>
+    <row>
+      <entry>ADBUS7</entry>
+      <entry>17</entry>
+      <entry></entry>
+      <entry>D7</entry>
+      <entry>14</entry>
+    </row>
+    <row>
+      <entry>BDBUS0</entry>
+      <entry>40</entry>
+      <entry></entry>
+      <entry>RS</entry>
+      <entry>4</entry>
+    </row>
+    <row>
+      <entry>BDBUS1</entry>
+      <entry>39</entry>
+      <entry></entry>
+      <entry>RW</entry>
+      <entry>5</entry>
+    </row>
+    <row>
+      <entry>BDBUS2</entry>
+      <entry>38</entry>
+      <entry></entry>
+      <entry>EN</entry>
+      <entry>6</entry>
+    </row>
+    <row>
+      <entry>BDBUS3</entry>
+      <entry>37</entry>
+      <entry></entry>
+      <entry>BL</entry>
+      <entry>Backlight (optional)</entry>
+    </row>
+  </tbody>
+</tgroup>
+</table>
+
+<para>
+You can configure the USB vendor/product ID in <filename>LCDd.conf</filename>.
+The wiring of the control lines can optionally be reconfigured,
+please look at the driver source if you really need that.
+</para>
+
+</sect3>
+
 <sect3 id="hd44780-lis2">
 <title>LIS2 USB device "lis2"</title>
 
 <para>
-LIS2 from VLSystem (<ulink url="http://www.vlsys.co.kr"></ulink>) is a full featured USB VFD module
-with four channel fan controls. This device can be accessed as a serial device with the
-help of the kernel modules <filename>ftdi_sio.ko</filename> that map the USB port to a serial port
-(<filename class="devicefile">/dev/ttyUSB<replaceable>x</replaceable></filename>).
+LIS2 from VLSystem (<ulink url="http://www.vlsys.co.kr"></ulink>)
+is a full featured USB VFD module with four channel fan controls.
+This device can be accessed as a serial device with the help of the kernel
+module <filename>ftdi_sio.ko</filename> that maps the USB port to a serial port
+(e.g. <filename class="devicefile">/dev/ttyUSB<replaceable>x</replaceable></filename>).
+</para>
+
+</sect3>
+
+<sect3 id="hd44780-mplay">
+<title>MPlay Blast USB device "mplay"</title>
+
+<para>
+MPlay Blast from VLSystem (<ulink url="http://www.vlsys.co.kr"></ulink>)
+is a full featured USB VFD module with two channel fan controls and
+two channel temperature sensors.
+This device can be accessed as a serial device with the help of the kernel
+module <filename>ftdi_sio.ko</filename> that maps the USB port to a serial port
+(e.g. <filename class="devicefile">/dev/ttyUSB<replaceable>x</replaceable></filename>).
 </para>
 
 </sect3>
@@ -1419,7 +1952,7 @@ serial port <filename>/dev/ttyUSB<replaceable>x</replaceable></filename>.
 The PIC-an-LCD module is also supported. It is not connected to the LPT port
 but to a serial port, which saves you from a lot of potential problems.
 To use it, specify the device to which you have connected the module in the
-config file with the <command>Device=</command> setting.
+config file with the <command>Device</command> setting.
 The default is <filename>/dev/lcd</filename>.
 It does not support a keypad nor backlight switching.
 </para>
@@ -1609,18 +2142,32 @@ Refer to <link linkend="hd44780-lcdserializer-burning">burning section</link> in
 
 
 <sect3 id="hd44780-bwctusb">
-<title>BWCT USB device "bwctusb"</title>
+<title>BWCT USB LCD module "bwctusb"</title>
 
 <para>
-The BWCT USB LCD module is also supported. It is not connected to an LPT port
-but to an USB port, which saves you from a lot of potential problems.
-To use it, set the connection type in the config file with the ConnectionType=
-setting to "bwctusb" (without the quotes).
-It does neither support a keypad nor backlight switching but it supports setting
-the display's contrast using the "Contrast" configuration parameter as well as
-specifying which one (of multiple BWCT LCD devices) is wanted using the
-"SerialNumber" configuration parameter.
+The BWCT USB LCD module, sold by Bernd Walter Computing Technology 
+(<ulink url="http://www.bwct.de/lcd.html"></ulink>) is a little board
+that can be piggy-packed to a HD44780 display and connects that to USB.
 </para>
+
+<para>
+The board, driven by the <code>bwctusb</code> connection type,
+does neither support a keypad for input, nor more than one single-controller
+display, nor does it allow setting the backlight or brightness.
+But you can set the display's contrast using software
+(see the <command>Contrast</command> configuration parameter). 
+</para>
+
+<sect4 id="hd44780-bwctusb-config">
+<title>Special configuration options</title>
+
+<para>
+If there is more than one BWCT USB module connected to the system,
+the <command>SerialNumber</command> configuration parameter allows
+selecting which display is used in LCDd.
+</para>
+
+</sect4>
 
 </sect3>
 
@@ -1630,54 +2177,119 @@ specifying which one (of multiple BWCT LCD devices) is wanted using the
 
 <para>
 <ulink url="http://www.harbaum.org/till/lcd2usb/">LCD2USB</ulink>
-is a cheap but powerful do-it-yourself interface to connect HD44780 based displays via USB,
-consisting of easily available parts only.
-The device supports software adjustable contrast and backlight as well as dual controller displays
-(required for 4*27 and 4*40).
+is a cheap but powerful do-it-yourself interface to connect HD44780
+based displays via USB, consisting of easily available parts only.
+The device supports software adjustable contrast and backlight
+as well as dual controller displays (required for 4*27 and 4*40).
 </para>
 
 <para>
-It is based upon Atmel AVR Mega8 CPU with a pure software implementation of the USB protocol
-for the Atmel AVR microcontroller series. 
+It is based upon an Atmel AVR Mega8 CPU with a pure software implementation
+of the USB protocol for the Atmel AVR microcontroller series. 
 </para>
 
 <para>
 The whole interface incl. the hardware layout is under a GPL like license.
-This means that you can take these schematics and use it as a basis for your own interface
-e.g. for a graphic LCD
+This means that you can take these schematics and use it as a basis
+for your own interface e.g. for a graphic LCD.
+</para>
+
+<para>
+Two keys can be connected to the LCD2USB interface board.
+They can generate three key events that can be mapped to key names using
+the <command>DirectKey_1</command> to <command>DirectKey_3</command> commands:
+one for each key and the third if the keys are pressed simultaneously.
+With this 3-key setup, menus can be used (see example below).
+</para>
+
+<para>
+This driver supports the original LCD2USB interface board as described above
+as well as compatible devices like those sold by <ulink url="http://www.lcdmodkit.com/">Lcdmod Kit</ulink>
+or those developed by <ulink url="http://www.maltepoeggel.de/index.php?site=sp-lcd&amp;lang=en">Malte Pöggel</ulink>.
 </para>
 
 <sect4 id="hd44780-lcd2usb-config">
-<title>Special config options</title>
+<title>Special configuration options</title>
 
 <para>
 Besides the standard configuration options for <code>hd44780</code> displays, the
-<code>lcd2usb</code> connection type supports two additional options:
-<command>Contrast=</command> to set the display's contrast and 
-<command>Brightness=</command> to set the display's brightness.
-Both options expect a number in the range from <literal>0</literal> to <literal>1000</literal>.
+<code>lcd2usb</code> connection type supports three additional options:
+<command>Contrast</command> to set the display's contrast,
+<command>Brightness</command> to set the display's brightness when the backlight is switched on and
+<command>OffBrightness</command> to set the display's brightness when is backlight is switched off.
+All three options expect a number in the range from <literal>0</literal> to <literal>1000</literal>.
 </para>
-</sect4>
 
-<sect4 id="hd44780-lcd2usb-status">
-<title>Status</title>
+<example id="hd44780-lcd2usb-config.example">
+<title>HD44780: Configuration for LCD2USB</title>
+<screen>
+<![CDATA[
+[menu]
+MenuKey=Escape
+EnterKey=Enter
+DownKey=Down
 
-<para>
-The <code>lcd2usb</code> connection type has been written to support displays
-with one and two HD44780 controllers.
-Owing to the lack of a 2-controller display, it has only been tested with a 
-1-controller display.
-If you happen to have a 2-controller display connected to LCD2USB,
-please report to the mailing list.
+[hd44780]
+ConnectionType=lcd2usb
+Contrast=850
+Brightness=800
+OffBrightness=0
+Keypad=yes
+Backlight=yes
+Size=20x2
+KeyDirect_1=Enter
+KeyDirect_2=Down
+KeyDirect_3=Escape
+]]>
+</screen>
+</example>
+
 <tip>
  <para>
   In order to make the <code>lcd2usb</code> connection type work with a 2-controller display
-  you may need to set the <command>vSpan=</command> config option accordingly.
+  you may need to set the <command>vSpan</command> config option accordingly.
  </para>
 </tip> 
-Although the LCD2USB sports two keys, they are currently not supported by
-<package>LCDproc</package>. Patches to fix the situation are very welcome.
+</sect4>
+
+</sect3>
+
+
+
+<sect3 id="hd44780-uss720">
+<title>USS-720 USB-to-IEEE 1284 Bridge (Belkin F5U002) "uss720"</title>
+
+<para>
+The USS-720 USB-to-IEEE 1284 Bridge is a fully featured USB to parallel chip that is used 
+in most (but not all) Belkin F5U002 USB Parallel Printer Adapters.  Because these adapters are 
+inexpensive and readily available on the second-hand market, they provide an excellent solution 
+for users who want to experiment with a parallel port but only have USB ports on their computers.  
 </para>
+
+<para>
+Because the chip acts as a parallel port, the driver maintains the same features and wiring as 
+the 8-bit "winamp" driver. However, because most USB Parallel Printer Adapters use a centronics 
+printer connector, be sure to convert the pin numbering of the parallel port pins in the "winamp" 
+wiring to the pin numbering of the centronics port.  Many tables are available on the internet 
+that illustrate how the pin numbering differs between the two.
+</para>
+
+<sect4 id="hd44780-uss720-config">
+<title>Special configuration options</title>
+
+<para>
+Because several manufacturers used the USS720 chip in their USB Parallel Printer Adapters, the 
+<command>VendorID</command> and <command>ProductID</command> options are configurable in the 
+<filename>LCDd.conf</filename> file.
+</para>
+
+<note>
+<para>
+Not all Belkin F5U002 USB Parallel Printer Adapters used the USS720 chip.  Look for the dark grey 
+adapters with the removable USB cable for best results. 
+</para>
+</note>
+
 </sect4>
 
 </sect3>
@@ -1760,7 +2372,7 @@ Keypad=no
 </example>
 
 <para>
-The <command>Device=</command> configuration setting denotes the device file
+The <command>Device</command> configuration setting denotes the device file
 of your I<superscript>2</superscript>C bus (here <filename>/dev/i2c-0</filename>).
 You have to load the kernel standard module <filename>i2c-dev.ko</filename> and
 the bus driver, but <emphasis>no</emphasis> I<superscript>2</superscript>C 
@@ -1768,7 +2380,7 @@ chip modules (e.g. <filename>pcf8574.ko</filename>)!
 </para>
 
 <para>
-The <command>Port=</command> config option contains the I<superscript>2</superscript>C
+The <command>Port</command> config option contains the I<superscript>2</superscript>C
 address of the I<superscript>2</superscript>C port expander
 (here 0x20, the PCF8574 from the example above, with all address bits set to <literal>0</literal>).
 
@@ -1784,7 +2396,7 @@ off the address.
 <tgroup cols="2" align="left">
   <thead>
     <row>
-      <entry><command>Port=</command> value</entry>
+      <entry><command>Port</command> value</entry>
       <entry>Meaning</entry>
     </row>
   </thead>
@@ -1813,7 +2425,94 @@ off the address.
 
 </sect3>
 
+<sect3 id="hd44780-ethlcd">
+<title>ethlcd Device</title>
+
+<para>
+The ethlcd (<ulink url="http://manio.skyboo.net/ethlcd"></ulink>) device is simply
+an LCD display driven by an ATmega microcontroller, controlled and powered by
+"home-made" Power over Ethernet. The hardware and software are open source.
+
+<itemizedlist>
+<title>Features</title>
+<listitem><para>ethernet connection using ENC28J60 ethernet controller</para></listitem>
+<listitem><para>Power over Ethernet (data and power using single UTP cable)</para></listitem>
+<listitem><para>Atmel's ATmega168 microcontroller</para></listitem>
+<listitem><para>6 buttons (MENU, UP, DOWN, LEFT, RIGHT, ENTER)</para></listitem>
+<listitem><para>backlight control in three states: ON, Night-Mode (partialy ON) and OFF</para></listitem>
+<listitem><para>beeper</para></listitem>
+<listitem><para>device act as a TCP server - LCDproc driver is connecting to device just by creating
+a TCP socket - no need to PC-side additional hardware besides NIC</para></listitem>
+</itemizedlist>
+</para>
+
+<figure id="hd44780-connections-ethlcd.block-diagram">
+<title>HD44780: ethlcd - block diagram</title>
+<screen>
+<![CDATA[
+
+   _____________________________________________________
+  |                    buttons                          |
+  |                       ^                             |
+  |                       |                             |
+  |  _________       ___________         ____________   |
+  | |         |     |           |       |            |  |
+  | |         |     |           |       |            |  |
+  | |   LCD   |     |           |  SPI  |  ENC28J60  |  |  UTP cable
+  | | HD44780 |<--- | ATmega168 | <---> |  ethernet  |<========+------> PC running
+  | |         |     |           |       | controller |  |      |         LCDproc
+  | |         |     |           |       |            |  |      |
+  | |_________|     |___________|       |____________|  |      |
+  |                       |                             |      |
+  |                       |                             |      |
+  |                     beeper                          |      |
+  |_____________________________________________________|      |
+   ethlcd                                                  AC Adapter
+
+]]>
+</screen>
+</figure>
+
+<para>
+The device is "visible" to LCDproc just like any other HD44780 device. The difference
+is the wiring - instead of connecting the display directly to PC (via serial/parallel/usb port),
+it is connected via ethernet and the communication is done over TCP connection.
+The main feature is - that to power and control the LCD is needed single UTP cable.
+To use the driver, specify the device IP address or hostname, on which the ethlcd device
+is accessible by setting in config file the <command>Device</command> value.
+The default is <filename>ethlcd</filename>.
+</para>
+
+</sect3>
+
+<sect3 id="hd44780-usblcd">
+<title>USBLCD adapter</title>
+
+<para>
+The USBLCD adapter from Adams IT Services (<ulink url="http://www.usblcd.de/"></ulink>)
+is a small interface board which allows you to connect an alphanumerical display
+module based on the HD44780 or compatible controller to the USB. The display
+will be powered by the USB. It features a switchable backlight (on or off) and
+can be used with 16x2, 16x4 or 20x4 displays.
+</para>
+
+<para>
+The <code>usblcd</code> connection type communicates with a kernel
+driver by using a device file <filename class="devicefile">/dev/usb/lcd<replaceable>x</replaceable></filename>.
+The kernel driver providing this device currently only exists for Linux kernels
+newer than 2.4.20-pre7.
+</para>
+
+<note>
+<para>
+As of 2007 these device are not sold anymore. This driver has been ported from
+lcdproc 0.4.5 to support existing users.
+</para>
+</note>
+</sect3>
+
 </sect2>
+
 
 <sect2 id="hd44780-compiling">
 <title>Compiling</title>
@@ -1827,6 +2526,7 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
 
 </sect2>
 
+
 <!-- ## Hitachi HD44780 driver ## -->
 <sect2 id="hd44780-config">
 <title>Configuration in LCDd.conf</title>
@@ -1837,11 +2537,11 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
 <variablelist>
 <varlistentry>
   <term>
-    <command>Port=</command>
+    <command>Port</command> =
     <arg choice="plain"><replaceable>PORT</replaceable></arg>
   </term>
   <listitem><para>
-    Specify the address of the parallel port the LCD is connected to.
+    For parallel connections, specify the address of the parallel port the LCD is connected to.
     Common values for <replaceable>PORT</replaceable> are <literal>0x278</literal>,
     <literal>0x378</literal> and <literal>0x3BC</literal>.
     If not given, the default is <literal>0x378</literal>.
@@ -1850,13 +2550,13 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
 
 <varlistentry>
   <term>
-    <command>Device=</command>
+    <command>Device</command> =
     <arg choice="plain"><replaceable>DEVICE</replaceable></arg>
   </term>
   <listitem><para>
-    If you are using a serial connection, you must
-    set this parameter to the device your LCD is connected to. For
-    example, if the display is connected to the first serial port,
+    If you are using a serial or I<superscript>2</superscript>C connection,
+    you need to set this parameter to the device your LCD is connected to.
+    For example, if the display is connected to the first serial port,
     you have to set it to <filename>/dev/ttyS0</filename>.
     The default value is <filename>/dev/lcd</filename>.
   </para></listitem>
@@ -1864,7 +2564,7 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
 
 <varlistentry>
   <term>
-    <command>ConnectionType=</command>
+    <command>ConnectionType</command> =
     <arg choice="plain">
     <group choice="req">
       <arg choice="plain"><literal><emphasis>4bit</emphasis></literal></arg>
@@ -1880,7 +2580,10 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
       <arg choice="plain"><literal>bwctusb</literal></arg>
       <arg choice="plain"><literal>lcd2usb</literal></arg>
       <arg choice="plain"><literal>lis2</literal></arg>
+      <arg choice="plain"><literal>mplay</literal></arg>
       <arg choice="plain"><literal>i2c</literal></arg>
+      <arg choice="plain"><literal>ftdi</literal></arg>
+      <arg choice="plain"><literal>usblcd</literal></arg>
     </group>
     </arg>
   </term>
@@ -1897,22 +2600,24 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
         </row>
       </thead>
       <tbody>
+        <!-- parallel -->  
         <row>
           <entry><literal><link linkend="hd44780-4bit">4bit</link></literal></entry>
-          <entry>HD44780 4bit Wiring (default)</entry>
+          <entry>4bit Wiring to parallel port(default)</entry>
         </row>
         <row>
           <entry><literal><link linkend="hd44780-8bit-lcdtime">8bit</link></literal></entry>
-          <entry>HD44780 8bit Wiring ("lcdtime")</entry>
+          <entry>8bit Wiring to parallel port ("lcdtime")</entry>
         </row>
         <row>
           <entry><literal><link linkend="hd44780-8bit-winamp">winamp</link></literal></entry>
-          <entry>HD44780 8bit Wiring "winamp" Style</entry>
+          <entry>8bit Wiring "winamp" Style to parallel port</entry>
         </row>
         <row>
           <entry><literal><link linkend="hd44780-seriallpt">serialLpt</link></literal></entry>
-          <entry>HD44780 Serial LPT Wiring</entry>
+          <entry>Serial LPT Wiring</entry>
         </row>
+        <!-- serial -->  
         <row>
           <entry><literal><link linkend="hd44780-picanlcd">picanlcd</link></literal></entry>
           <entry>PIC-an-LCD serial device "picanlcd"</entry>
@@ -1933,6 +2638,7 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
           <entry><literal><link linkend="hd44780-vdr-wakeup">vdr-wakeup</link></literal></entry>
           <entry>VDR-Wakeup module "vdr-wakeup"</entry>
         </row>
+        <!-- USB -->  
         <row>
           <entry><literal><link linkend="hd44780-pertelian">pertelian</link></literal></entry>
           <entry>Pertelian X2040 LCD display (<ulink url="http://pertelian.com/joomla/index.php?option=com_content&amp;task=view&amp;id=43&amp;Itemid=48"></ulink>)</entry>
@@ -1943,12 +2649,25 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
         </row>
         <row>
           <entry><literal><link linkend="hd44780-lcd2usb">lcd2usb</link></literal></entry>
-          <entry>Tim Harbaum's LCD2USB (<ulink url="http://www.harbaum.org/till/lcd2usb/"></ulink>)</entry>
+          <entry>Till Harbaum's LCD2USB (<ulink url="http://www.harbaum.org/till/lcd2usb/"></ulink>)</entry>
         </row>
         <row>
           <entry><literal><link linkend="hd44780-lis2">lis2</link></literal></entry>
           <entry>LIS2 from VLSystem (<ulink url="http://www.vlsys.co.kr"></ulink>)</entry>
         </row>
+        <row>
+          <entry><literal><link linkend="hd44780-mplay">mplay</link></literal></entry>
+          <entry>MPlay Blast from VLSystem (<ulink url="http://www.vlsys.co.kr"></ulink>)</entry>
+        </row>
+        <row>
+          <entry><literal><link linkend="hd44780-ftdi">ftdi</link></literal></entry>
+          <entry>Display connected to a dual channel FTDI 2232D USB chip</entry>
+        </row>
+        <row>
+          <entry><literal><link linkend="hd44780-usblcd">usblcd</link></literal></entry>
+          <entry>USBLCD adapter from Adams IT Services (<ulink url="http://www.usblcd.de/"></ulink>)</entry>
+        </row>
+        <!-- I2C -->  
         <row>
           <entry><literal><link linkend="hd44780-i2c">i2c</link></literal></entry>
           <entry>LCD driven by PCF8574(A)/PCA9554(A) connected via I<superscript>2</superscript>C</entry>
@@ -1959,7 +2678,7 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
 
     <tip>
       <para>
-      The above table might be outdated, when you read this.
+      <!-- The above table might be outdated, when you read this. -->
       If you suspect the table above to be outdated, you might want to have a look at
       <filename>server/drivers/hd44780-drivers.h</filename> in <package>LCDproc</package>'s
       source directory which contains the actual translation code.
@@ -1971,7 +2690,7 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
 
 <varlistentry>
   <term>
-    <command>Speed=</command>
+    <command>Speed</command> =
     <arg choice="plain"><replaceable>BITRATE</replaceable></arg>
   </term>
   <listitem><para>
@@ -1982,27 +2701,53 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
 
 <varlistentry>
   <term>
-    <command>Charmap=</command>
+    <command>CharMap</command> =
     <arg choice="plain">
     <group choice="req">
       <arg choice="plain"><literal><emphasis>hd44780_default</emphasis></literal></arg>
+      <arg choice="plain"><literal>hd44780_euro</literal></arg>
       <arg choice="plain"><literal>ea_ks0073</literal></arg>
+      <arg choice="plain"><literal>sed12780f_0b</literal></arg>
     </group>
     </arg>
   </term>
   <listitem><para>
-      You need to set this parameter only if you do not have a standard
-      HD44780 display. <literal>ea_ks0073</literal> is the charmap for Electronic
-      Assembly's KS0073 based displays. These devices have a richer
-      charset, including many icons and many more characters of the
-      ISO-8859-1 than standard HD44780s. Refer to <filename>hd44780-charset.h</filename>
-      for more information.
+      Set the character mapping depending on the display you have:
+      <itemizedlist>
+        <listitem><para>
+          The default, <literal>hd44780_default</literal>, is for "classic"
+          HD44780 displays.
+	</para></listitem>
+	<listitem><para>
+          <literal>hd44780_euro</literal> is for displays with a ROM mask
+          supporting the european charset (ROM code A02).
+	</para></listitem>
+	<listitem><para>
+          <literal>ea_ks0073</literal> is the charmap for Electronic
+          Assembly's KS0073 based displays. These devices have a richer
+          charset, including many icons and many more characters of the
+          ISO-8859-1 than standard HD44780s.
+	</para></listitem>  
+	<listitem><para>
+	  <literal>sed12780f_0b</literal> is for some SED 1278 displays.
+	</para></listitem>
+      </itemizedlist>	  
+      You only need to set this parameter if you have a non-standard
+      HD44780 display.
+
+      <tip>
+        <para>
+        See <filename>server/drivers/hd44780-charset.h</filename>
+        in <package>LCDproc</package>'s source directory for the actual
+        mappings.
+        </para>
+      </tip>
   </para></listitem>
 </varlistentry>
 
 <varlistentry>
   <term>
-    <command>Keypad=</command>
+    <command>Keypad</command> =
     <arg choice="plain">
     <group choice="req">
       <arg choice="plain"><literal>yes</literal></arg>
@@ -2018,19 +2763,50 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
 
 <varlistentry>
   <term>
-    <command>Contrast=</command>
-    <arg choice="plain"><replaceable>CONTRAST</replaceable></arg>
+    <command>Brightness</command> =
+    <arg choice="plain"><replaceable>BRIGHTNESS</replaceable></arg>
   </term>
   <listitem><para>
-    Set the initial contrast for the <literal>bwctusb</literal> connection type.
-    Legal values for <replaceable>CONTRAST</replaceable> are <literal>0</literal> - <literal>1000</literal>.
+    Set the initial brightness when the backlight is on
+    for the <literal>lcd2usb</literal> connection type.
+    Legal values are <literal>0</literal> - <literal>1000</literal>,
+    with <literal>800</literal> being the default.
+  </para></listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <command>OffBrightness</command> =
+    <arg choice="plain"><replaceable>BRIGHTNESS</replaceable></arg>
+  </term>
+  <listitem><para>
+    Set the initial off-brightness, i.e. the brightness when the backlight is off,
+    for the <code>lcd2usb</code> connection type.
+    The ilegal range is <literal>0</literal> - <literal>1000</literal>.
     If not given, it defaults to <literal>300</literal>.
   </para></listitem>
 </varlistentry>
 
 <varlistentry>
   <term>
-    <command>Backlight=</command>
+    <command>Contrast</command> =
+    <arg choice="plain"><replaceable>CONTRAST</replaceable></arg>
+  </term>
+  <listitem><para>
+    Set the initial contrast for the <code>bwctusb</code> and
+    <code>lcd2usb</code> connection types.
+    Legal values for <replaceable>CONTRAST</replaceable> are
+    <literal>0</literal> - <literal>1000</literal>.
+    If not given, it defaults to <literal>500</literal> which may
+    be too low or too high for the selected connection type.
+    So, if the screen is blank or dark, please try playing with
+    the contrast a bit.
+  </para></listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <command>Backlight</command> =
     <arg choice="plain">
     <group choice="req">
       <arg choice="plain"><literal>yes</literal></arg>
@@ -2045,7 +2821,7 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
 
 <varlistentry>
   <term>
-    <command>OutputPort=</command>
+    <command>OutputPort</command> =
     <arg choice="plain">
     <group choice="req">
       <arg choice="plain"><literal>yes</literal></arg>
@@ -2061,7 +2837,7 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
 
 <varlistentry>
   <term>
-    <command>Lastline=</command>
+    <command>Lastline</command> =
     <arg choice="plain">
     <group choice="req">
       <arg choice="plain"><literal><emphasis>yes</emphasis></literal></arg>
@@ -2078,7 +2854,7 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
 
 <varlistentry>
   <term>
-    <command>Size=</command>
+    <command>Size</command> =
     <arg choice="plain">
       <replaceable>WIDTH</replaceable>
       <literal>x</literal>
@@ -2094,20 +2870,23 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
 
 <varlistentry>
   <term>
-    <command>vSpan=</command>
+    <command>vSpan</command> =
     <arg choice="plain">
       <replaceable>HEIGHT</replaceable>
       <literal>,</literal>&hellip;
     </arg>
   </term>
   <listitem><para>
-    The "vertical span" when using multiple displays or multi-controller displays.
-    It is a comma separated list of the heights of each display. In multi-controller
-    displays it lists the number of lines each controller is responsible for.
+    The "vertical span" when using the driver with multi-controller displays
+    or with multiple displays that are treated as a single virtual display.
+    It is a comma separated list of the heights of each display.
+    In multi-controller displays it lists the number of lines each controller
+    is responsible for.
     </para>
     <para>
-    E.g. <code>VSpan=2,2</code> means you have two displays and
-    each has two lines.
+    E.g. <code>vSpan=2,2,1</code> means you have three physical displays, the first
+    two having two lines each, and the third having one line, that together form
+    a virtual display that is 5 lines high.
     </para>
     <para>
     The sum of the <replaceable>HEIGHT</replaceable>s must match the total height
@@ -2117,7 +2896,7 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
 
 <varlistentry>
   <term>
-    <command>ExtendedMode=</command>
+    <command>ExtendedMode</command> =
     <arg choice="plain">
     <group choice="req">
       <arg choice="plain"><literal>yes</literal></arg>
@@ -2127,14 +2906,24 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
   </term>
   <listitem><para>
     If you have a KS0073 or an other 'almost HD44780-compatible', set this
-    flag to get into extended mode (4-line linear).
-    This flag is NOT the old obsolete Extended option.
+    flag to get into extended,4-line linear addressing mode.
   </para></listitem>
 </varlistentry>
 
 <varlistentry>
   <term>
-    <command>DelayMult=</command>
+    <command>LineAddress</command> =
+    <arg choice="plain"><replaceable>ADDR</replaceable></arg>
+  </term>
+  <listitem><para>
+    If the next line of your display doesn't start <literal>0x20</literal> higher in
+    DDRAM you can override the default value of the ExtendedMode with this parameter.
+  </para></listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <command>DelayMult</command> =
     <arg choice="plain"><replaceable>DELAY</replaceable></arg>
   </term>
   <listitem><para>
@@ -2147,7 +2936,7 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
 
 <varlistentry>
   <term>
-    <command>DelayBus=</command>
+    <command>DelayBus</command> =
     <arg choice="plain">
     <group choice="req">
       <arg choice="plain"><literal><emphasis>yes</emphasis></literal></arg>
@@ -2164,12 +2953,13 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
 
 <varlistentry>
   <term>
-    <command>KeepAliveDisplay=</command>
+    <command>KeepAliveDisplay</command> =
     <arg choice="plain"><replaceable>SECONDS</replaceable></arg>
   </term>
   <listitem><para>
-    Some displays (e.g. <code>vdr-wakeup</code>) need a message from the driver to that it
-    is still alive. When set to a value bigger then <literal>0</literal> the character in the
+    Some displays (e.g. <code>vdr-wakeup</code>) need a message from the driver to
+    indicate that it is still alive.
+    When set to a value greater than <literal>0</literal> the character in the
     upper left corner is updated every <replaceable>SECONDS</replaceable> seconds.
     The default <literal>0</literal> does not cause any extra updates.
   </para></listitem>
@@ -2177,30 +2967,32 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
 
 <varlistentry>
   <term>
-    <command>RefreshDisplay=</command>
+    <command>RefreshDisplay</command> =
     <arg choice="plain"><replaceable>SECONDS</replaceable></arg>
   </term>
   <listitem><para>
     If you experience occasional garbage on your display you can use this
-    option as workaround. If set to a value bigger than <literal>0</literal> it forces a
-    full screen refresh <replaceable>SECONDS</replaceable> seconds.
+    option as workaround. If set to a value greater than <literal>0</literal> it forces a
+    full screen refresh every <replaceable>SECONDS</replaceable> seconds.
     Default: <literal>0</literal>.
   </para></listitem>
 </varlistentry>
 
 <varlistentry>
   <term>
-    <command>DirectKey_<replaceable>NUM</replaceable>=</command>
+    <command>KeyDirect_<replaceable>NUM</replaceable></command> =
     <arg choice="plain"><replaceable>KEY</replaceable></arg>
   </term>
   <term>
-    <command>KeyMatrix_<replaceable>X</replaceable>_<replaceable>Y</replaceable>=</command>
+    <command>KeyMatrix_<replaceable>X</replaceable>_<replaceable>Y</replaceable></command> =
     <arg choice="plain"><replaceable>KEY</replaceable></arg>
   </term>
   <listitem>
     <para>
       If you have a keypad you can assign keystrings to the keys.
-      See documentation for used terms and how to wire it.
+      See the <link linkend="hd44780-connections-keypad">keypad section</link>
+      for used terms and the section on the specific connection type how to
+      wire it.
     </para>
     <para>
       To map, for example, the directly connected key <literal>4</literal>
@@ -2211,18 +3003,59 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
     </para>
   </listitem>
 </varlistentry>
+
+<varlistentry>
+  <term>
+    <command>VendorID</command> =
+    <arg choice="plain"><replaceable>VENDORID</replaceable></arg>
+  </term>
+  <listitem><para>
+    USB vendor ID to look for in certain USB connection types.  
+    When using an FTDI chip with connection type <code>ftdi</code>, the default value is 
+    <literal>0x4003</literal>. 
+    When using a USS720 chip with connection type <code>uss720</code>, the default value is 
+    <literal>0x1293</literal>.
+  </para></listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <command>ProductID</command> =
+    <arg choice="plain"><replaceable>PRODUCTID</replaceable></arg>
+  </term>
+  <listitem><para>
+    USB product ID to look for in certain USB connection types.  
+    When using an FTDI chip with connection type <code>ftdi</code>, the default value is 
+    <literal>0x6001</literal>.
+    When using a USS720 chip with connection type <code>uss720</code>, the default value is 
+    <literal>0x0002</literal>.
+  </para></listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <command>SerialNumber</command> =
+    <arg choice="plain"><replaceable>SERIALNO</replaceable></arg>
+  </term>
+  <listitem><para>
+    Serial number of the USB device to look for with
+    connection type <code>bwctusb</code>.
+    If not given, the first BWCT USB module found will be used.
+  </para></listitem>
+</varlistentry>
 </variablelist>
 
 </sect3>
 
 </sect2>
 
+
 <!--
 <sect2 id="hd44780-running">
 <title>Running</title>
 
 <para>
-Modify the LCDd.conf file before you run LCDd. In this config file are
+Modify the <filename>LCDd.conf</filename> file before you run LCDd. In this config file are
 detailed instructions on how to configure the HD44780 driver.
 </para>
 
@@ -2233,7 +3066,7 @@ Then as usual, start LCDd with the correct config file:
 E.g. <command>LCDd -c ./LCDd.conf</command>
 </para>
 <para>
-If you want to override the driver selection in LCDd.conf then use:
+If you want to override the driver selection in <filename>LCDd.conf</filename> then use:
 </para>
 <para>
 <command>LCDd -c ./LCDd.conf -d HD44780</command>
@@ -2245,6 +3078,7 @@ file anyway.
 
 </sect2>
 -->
+
 
 <sect2 id="hd44780-miscellania">
 <title>Miscellania</title>
@@ -2271,7 +3105,7 @@ Updated April 2002, Rene Wagner <email>reenoo@gmx.de</email>
 </para>
 
 <para>
-Updated and extended April 2006, Peter Marschall <email>peter@adpm.de</email>
+Updated and extended April 2006 to November 2007, Peter Marschall <email>peter@adpm.de</email>
 </para>
 
 </sect2>

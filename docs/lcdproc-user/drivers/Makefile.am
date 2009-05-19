@@ -21,10 +21,12 @@ EXTRA_DIST =	bayrad.docbook \
 		lcdm001.docbook \
 		lcterm.docbook \
 		lircin.docbook \
+		lis.docbook \
 		MD8800.docbook \
 		ms6931.docbook \
 		mtc_s16209x.docbook \
 		mtxorb.docbook \
+		mx5000.docbook \
 		NoritakeVFD.docbook \
 		picolcd.docbook \
 		ppttrouble.docbook \
@@ -33,6 +35,7 @@ EXTRA_DIST =	bayrad.docbook \
 		sed1520.docbook \
 		serialPOS.docbook \
 		serialVFD.docbook \
+		shuttleVFD.docbook \
 		sli.docbook \
 		stv5730.docbook \
 		svga.docbook \
@@ -40,6 +43,7 @@ EXTRA_DIST =	bayrad.docbook \
 		text.docbook \
 		tyan.docbook \
 		ula200.docbook \
-		xosd.docbook
+		xosd.docbook \
+		i2500vfd.docbook
 
 ## EOF

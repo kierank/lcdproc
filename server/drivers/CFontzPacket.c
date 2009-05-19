@@ -1,3 +1,8 @@
+/** \file server/drivers/CFontzPacket.c
+ * LCDd \c CFontzPacket driver for the CFA631, CFA633 & CFA635 display series
+ * by CrystalFontz, Inc.
+ */
+
 /*
  *  This is the LCDproc driver for CrystalFontz LCD using Packet protocol.
  *  It support the CrystalFontz 633 USB/Serial, the 631 USB and the 635 USB
@@ -116,7 +121,8 @@ typedef enum {
 } CGmode;
 
 
-typedef struct driver_private_data {
+/** private data for the \c CFontzPacket driver */
+typedef struct CFontzPacket_private_data {
 	char device[200];
 
 	int fd;
@@ -557,9 +563,10 @@ CFontzPacket_flush (Driver *drvthis)
 
 
 /**
- * Get next key from the KeyRing.
+ * Get key from the device.
  * \param drvthis  Pointer to driver structure.
- * \return  String representation of the key.
+ * \return         String representation of the key;
+ *                 \c NULL if nothing available / unmapped key.
  */
 MODULE_EXPORT const char *
 CFontzPacket_get_key (Driver *drvthis)
@@ -742,12 +749,11 @@ CFontzPacket_set_brightness(Driver *drvthis, int state, int promille)
 	/* store the software value since there is not get */
 	if (state == BACKLIGHT_ON) {
 		p->brightness = promille;
-		//CFontzPacket_backlight(drvthis, BACKLIGHT_ON);
 	}
 	else {
 		p->offbrightness = promille;
-		//CFontzPacket_backlight(drvthis, BACKLIGHT_OFF);
 	}
+	//CFontzPacket_backlight(drvthis, state);
 }
 
 
@@ -1007,7 +1013,8 @@ CFontzPacket_set_char (Driver *drvthis, int n, unsigned char *dat)
  * \param x        Horizontal character position (column).
  * \param y        Vertical character position (row).
  * \param icon     synbolic value representing the icon.
- * \return  Information whether the icon is handled here or needs to be handled by the server core.
+ * \retval 0       Icon has been successfully defined/written.
+ * \retval <0      Server core shall define/write the icon.
  */
 MODULE_EXPORT int
 CFontzPacket_icon (Driver *drvthis, int x, int y, int icon)

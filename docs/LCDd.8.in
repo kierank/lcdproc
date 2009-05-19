@@ -1,4 +1,4 @@
-.TH LCDd 8 "18 September 2006" LCDproc "LCDproc suite"
+.TH LCDd 8 "26 February 2009" LCDproc "LCDproc suite"
 
 .SH NAME
 LCDd - LCDproc server daemon
@@ -27,7 +27,7 @@ Before running \fBLCDd\fP you should carefully
 read through that file and modify everything neccessary according to your needs.
 Otherwise you might encounter \fBLCDd\fP not running properly on your system.
 .PP
-To make full use of \fBLCDd\fP, a client such as lcdproc(1), lcdexec(1), or lcdvd 
+To make full use of \fBLCDd\fP, a client such as lcdproc(1), lcdexec(1), or lcdvc 
 is required.
 
 .SH OPTIONS
@@ -152,21 +152,46 @@ Pertelian X2040 module (http://pertelian.com/)
 .B lis2
 LIS2 from VLSystem (http://www.vlsys.co.kr), connected to USB
 .TP
+.B mplay
+MPlay Blast from VLSystem (http://www.vlsys.co.kr), connected to USB
+.TP
 .B bwctusb
 USB-to-HD44780 converter by BWCT (http://www.bwct.de)
 .TP
 .B lcd2usb
 Till Harbaum's open source/open hardware LCD2USB (http://www.harbaum.org/till/lcd2usb/)
 .TP
+.B uss720
+USS-720 USB-to-IEEE 1284 Bridge (Belkin F5U002 USB Parallel Printer Adapters)
+.TP
 .B i2c
 LCD in 4-bit mode driven by PCF8574(A) / PCA9554(A), connected via I2C bus
+.TP
+.B ftdi
+USB connection via a FTDI FT2232D chip in bitbang mode
+.TP
+.B ethlcd
+TCP connection using open source/open hardware ethlcd (http://manio.skyboo.net/ethlcd/)
+.TP
+.B usblcd
+LCD device from Adams IT Services (http://www.usblcd.de/)
 .RE
+.TP
+.B i2500vfd
+140x32 pixel VFD Display of the Intra2net Intranator 2500 appliance
 .TP
 .B icp_a106
 ICP A106 alarm/LCD board in 19" rack cases by ICP
 .TP
 .B imon
 iMON IR/VFD modules in cases by Soundgraph/Ahanix/Silverstone/Uneed/Accent
+.TP
+.B imonlcd
+iMON IR/LCD modules in cases by Soundgraph/Ahanix/Silverstone/Uneed/Accent/Antec
+.TP
+.B irtrans
+IRTrans IR/VFD modules in cases by Ahanix (e.g. MCE303) and possibly others
+May require irserver (http://www.irtrans.de/en/download/linux.php) to be running for connectivity.
 .TP
 .B IOWarrior
 Code Mercenaries IOWarrior
@@ -189,6 +214,9 @@ serial LCD terminal from Helmut Neumark Elektronik (http://www.neumark.de)
 .B lirc
 Infrared (input)
 .TP
+.B lis
+L.I.S MCE 2005 20x2 VFD (http://vlsys.co.kr)
+.TP
 .B MD8800
 VFD displays in Medion MD8800 PCs
 .TP
@@ -201,11 +229,14 @@ MTC_S16209x LCD displays by Microtips Technology Inc
 .B MtxOrb
 Matrix Orbital displays (except Matrix Orbital GLK displays)
 .TP
+.B mx5000
+LCD display on the Logitech MX5000 keyboard
+.TP
 .B NoritakeVFD
 Noritake VFD Device CU20045SCPB-T28A
 .TP
 .B picolcd
-Mini-box.com USB LCD (picoLCD 20x2)
+Mini-box.com USB LCD (PicoLCD 20x4 & picoLCD 20x2)
 .TP
 .B pyramid
 LCD displays from Pyramid (http://www.pyramid.de) 
@@ -216,8 +247,14 @@ SED1330/SED1335 (aka S1D13300/S1D13305) based graphical displays
 .B sed1520
 122x32 pixel graphic displays based on SED1520 controllers
 .TP
+.B serialPOS
+Driver for Point Of Sale ("POS") devices using various protocols (currently AEDEX only)
+.TP
 .B serialVFD
-NEC (FIPC8367 based) and FUTABA VFDs
+Text VFDs of various manufacturers, see LCDproc user-documentation for further details.
+.TP
+.B shuttleVFD
+Shuttle VFD (USB-based)
 .TP
 .B sli
 Wirz SLI driver (unknown)
@@ -290,7 +327,7 @@ Remove a screen from the display.
 Initialize a screen, or reset its data.
 .TP
 .B widget_add \fI#screen #id type\fR [\fB-in \fI#frame\fR]
-Add a widget of type \fItype\fPto screen \fI#screen\fR.
+Add a widget of type \fItype\fP to screen \fI#screen\fR.
 .TP
 .B widget_del \fI#screen #id\fR
 Delete widget \fI#id\fR from screen \fI#screen\fR.
@@ -371,8 +408,8 @@ Imagine you're making an mp3 player for lcdproc.  When the
 song changes, it's nice to display the new name immediately.
 So, you could set your screen's priority to \fBforeground\fP, wait for
 the server to display (or ignore) your screen, then set the
-screen back to i\fBnormal\fP.  This would cause the mp3 screen to
-show up as soon as the one onscreen was finished, then
+screen back to \fBnormal\fP.  This would cause the mp3 screen to
+show up as soon as the one on screen was finished, then
 return to normal priority afterward.
 .PP
 Or, let's say your client monitors the health of hospital
@@ -407,6 +444,9 @@ A scrolling text display, scrolling either horizontally or vertically.
 A \fIcontainer\fR to contain other widgets, permitting them to be refered to
 as a single unit.  A widget is put inside a frame by using the -in \fI#id\fR
 parameter, where \fI#id\fR refers to the id of the frame.
+.TP
+.B num
+Displays a large decimal digit
 .PP
 Widgets are drawn on the screen in the order they are created.
 

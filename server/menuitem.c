@@ -1,17 +1,16 @@
-/*
- * menuitem.c
- * This file is part of LCDd, the lcdproc server.
+/** \file server/menuitem.c
+ * Handles a menuitem and all actions that can be performed on it.
+ */
+
+/* This file is part of LCDd, the lcdproc server.
  *
- * This file is released under the GNU General Public License. Refer to the
- * COPYING file distributed with this package.
+ * This file is released under the GNU General Public License.
+ * Refer to the COPYING file distributed with this package.
  *
  * Copyright (c) 1999, William Ferrell, Scott Scriven
  *               2002, Joris Robijn
  *               2004, F5 Networks, Inc. - IP-address input
  *               2005, Peter Marschall - error checks, ...
- *
- *
- * Handles a menuitem and all actions that can be performed on it.
  */
 
 #include <stdlib.h>
@@ -57,10 +56,10 @@ void menuitem_update_screen_numeric(MenuItem *item, Screen *s);
 void menuitem_update_screen_alpha(MenuItem *item, Screen *s);
 void menuitem_update_screen_ip(MenuItem *item, Screen *s);
 
-MenuResult menuitem_process_input_slider(MenuItem *item, MenuToken token, const char *key, bool extended);
-MenuResult menuitem_process_input_numeric(MenuItem *item, MenuToken token, const char *key, bool extended);
-MenuResult menuitem_process_input_alpha(MenuItem *item, MenuToken token, const char *key, bool extended);
-MenuResult menuitem_process_input_ip(MenuItem *item, MenuToken token, const char *key, bool extended);
+MenuResult menuitem_process_input_slider(MenuItem *item, MenuToken token, const char *key, unsigned int keymask);
+MenuResult menuitem_process_input_numeric(MenuItem *item, MenuToken token, const char *key, unsigned int keymask);
+MenuResult menuitem_process_input_alpha(MenuItem *item, MenuToken token, const char *key, unsigned int keymask);
+MenuResult menuitem_process_input_ip(MenuItem *item, MenuToken token, const char *key, unsigned int keymask);
 
 
 /* information about string representation of IP addresses */
@@ -181,7 +180,7 @@ void (*update_screen_table[NUM_ITEMTYPES]) (MenuItem *item, Screen *s) =
 	menuitem_update_screen_ip
 };
 
-MenuResult (*process_input_table[NUM_ITEMTYPES]) (MenuItem *item, MenuToken token, const char *key, bool extended) =
+MenuResult (*process_input_table[NUM_ITEMTYPES]) (MenuItem *item, MenuToken token, const char *key, unsigned int keymask) =
 {
 	menu_process_input,
 	NULL,
@@ -954,9 +953,9 @@ void menuitem_update_screen_ip(MenuItem *item, Screen *s)
 
 /******** MENU SCREEN INPUT HANDLING FUNCTIONS ********/
 
-MenuResult menuitem_process_input(MenuItem *item, MenuToken token, const char *key, bool extended)
+MenuResult menuitem_process_input(MenuItem *item, MenuToken token, const char *key, unsigned int keymask)
 {
-	MenuResult (*process_input) (MenuItem *item, MenuToken token, const char *key, bool extended);
+	MenuResult (*process_input) (MenuItem *item, MenuToken token, const char *key, unsigned int keymask);
 
 	debug(RPT_DEBUG, "%s(item=[%s], token=%d, key=\"%s\")", __FUNCTION__,
 			((item != NULL) ? item->id : "(null)"), token, key);
@@ -967,14 +966,14 @@ MenuResult menuitem_process_input(MenuItem *item, MenuToken token, const char *k
 	/* Call type specific screen building function */
 	process_input  = process_input_table [item->type];
 	if (process_input) {
-		return process_input(item, token, key, extended);
+		return process_input(item, token, key, keymask);
 	} else {
 		report(RPT_ERR, "%s: given menuitem cannot be active", __FUNCTION__);
 		return MENURESULT_ERROR;
 	}
 }
 
-MenuResult menuitem_process_input_slider(MenuItem *item, MenuToken token, const char *key, bool extended)
+MenuResult menuitem_process_input_slider(MenuItem *item, MenuToken token, const char *key, unsigned int keymask)
 {
 	debug(RPT_DEBUG, "%s(item=[%s], token=%d, key=\"%s\")", __FUNCTION__,
 			((item != NULL) ? item->id : "(null)"), token, key);
@@ -991,14 +990,27 @@ MenuResult menuitem_process_input_slider(MenuItem *item, MenuToken token, const 
 			item->successor_id, MENURESULT_CLOSE);
 	  case MENUTOKEN_UP:
 	  case MENUTOKEN_RIGHT:
-	  	item->data.slider.value = min(item->data.slider.maxvalue,
+	  	/* Wrap slider around if max value is reached.
+		 * Note: The max value is actually reached,
+		 * because of min(maxvalue, value + stepsize) below.
+		 * Wrapping then happens on the next key press.
+		 */		
+		if ((!(keymask & (MENUTOKEN_LEFT | MENUTOKEN_DOWN))) &&
+		    (item->data.slider.value == item->data.slider.maxvalue))
+			item->data.slider.value = item->data.slider.minvalue;
+		else
+		  	item->data.slider.value = min(item->data.slider.maxvalue,
 	  			item->data.slider.value + item->data.slider.stepsize);
 		if (item->event_func)
 			item->event_func(item, MENUEVENT_PLUS);
 	  	return MENURESULT_NONE;
 	  case MENUTOKEN_DOWN:
 	  case MENUTOKEN_LEFT:
-	  	item->data.slider.value = max(item->data.slider.minvalue,
+		if ((!(keymask & (MENUTOKEN_RIGHT | MENUTOKEN_UP))) &&
+		    (item->data.slider.value == item->data.slider.minvalue))
+			item->data.slider.value = item->data.slider.maxvalue;
+		else
+	  		item->data.slider.value = max(item->data.slider.minvalue,
 	  			item->data.slider.value - item->data.slider.stepsize);
 		if (item->event_func)
 			item->event_func(item, MENUEVENT_MINUS);
@@ -1011,7 +1023,7 @@ MenuResult menuitem_process_input_slider(MenuItem *item, MenuToken token, const 
 	return MENURESULT_ERROR;
 }
 
-MenuResult menuitem_process_input_numeric(MenuItem *item, MenuToken token, const char *key, bool extended)
+MenuResult menuitem_process_input_numeric(MenuItem *item, MenuToken token, const char *key, unsigned int keymask)
 {
 	char buf1[MAX_NUMERIC_LEN];
 	char buf2[MAX_NUMERIC_LEN];
@@ -1048,7 +1060,7 @@ MenuResult menuitem_process_input_numeric(MenuItem *item, MenuToken token, const
 			}
 			return MENURESULT_NONE;
 		  case MENUTOKEN_ENTER:
-			if ((extended) || (str[pos] == '\0')) {
+			if ((keymask & MENUTOKEN_RIGHT) || (str[pos] == '\0')) {
 				int value;
 				/* The user completed his input */
 
@@ -1057,8 +1069,8 @@ MenuResult menuitem_process_input_numeric(MenuItem *item, MenuToken token, const
 					return MENURESULT_ERROR;
 				}
 				/* Test the value */
-				if (value < item->data.numeric.minvalue
-				|| value > item->data.numeric.maxvalue) {
+				if ((value < item->data.numeric.minvalue) ||
+				    (value > item->data.numeric.maxvalue)) {
 					/* Out of range !
 					 * We can't exit this screen now
 					 */
@@ -1162,13 +1174,14 @@ MenuResult menuitem_process_input_numeric(MenuItem *item, MenuToken token, const
 				if (pos >= display_props->width - 2)
 					item->data.numeric.edit_offs++;
 			}
+		  default:
 			return MENURESULT_NONE;
 		}
 	}	
 	return MENURESULT_ERROR;
 }
 
-MenuResult menuitem_process_input_alpha(MenuItem *item, MenuToken token, const char *key, bool extended)
+MenuResult menuitem_process_input_alpha(MenuItem *item, MenuToken token, const char *key, unsigned int keymask)
 {
 	char *p;
 	static char *chars = NULL;
@@ -1207,7 +1220,7 @@ MenuResult menuitem_process_input_alpha(MenuItem *item, MenuToken token, const c
 			}
 			return MENURESULT_NONE;
 		  case MENUTOKEN_ENTER:
-			if ((extended) || (str[item->data.alpha.edit_pos] == '\0')) {
+			if ((keymask & MENUTOKEN_RIGHT) || (str[item->data.alpha.edit_pos] == '\0')) {
 				/* The user completed his input */
 
 				/* It's not too short ? */
@@ -1310,6 +1323,7 @@ MenuResult menuitem_process_input_alpha(MenuItem *item, MenuToken token, const c
 				if (pos >= display_props->width - 2)
 					item->data.alpha.edit_offs++;
 			}
+		  default:	
 			return MENURESULT_NONE;
 		}	
 	}
@@ -1317,7 +1331,7 @@ MenuResult menuitem_process_input_alpha(MenuItem *item, MenuToken token, const c
 }
 
 
-MenuResult menuitem_process_input_ip(MenuItem *item, MenuToken token, const char *key, bool extended)
+MenuResult menuitem_process_input_ip(MenuItem *item, MenuToken token, const char *key, unsigned int keymask)
 {
 	/* To make life easy... */
 	char *str = item->data.ip.edit_str;
@@ -1344,7 +1358,7 @@ MenuResult menuitem_process_input_ip(MenuItem *item, MenuToken token, const char
 			}
 			return MENURESULT_NONE;
 		case MENUTOKEN_ENTER:
-			if (extended || (pos >= item->data.ip.maxlength - 1)) {
+			if ((keymask & MENUTOKEN_RIGHT) || (pos >= item->data.ip.maxlength - 1)) {
 				// remove the leading spaces/zeros in each octet-representing string
 				char tmp[40];	// 40 = max. length of IPv4 & IPv6 addresses incl. '\0'
 				char *start = tmp;
@@ -1441,8 +1455,11 @@ MenuResult menuitem_process_input_ip(MenuItem *item, MenuToken token, const char
 						item->data.ip.edit_offs++;
 				}
 			}
+			/* FALLTHROUGH */
+		default:	
 			return MENURESULT_NONE;
 	}
+	/* NOTREACHED */
 	return MENURESULT_ERROR;
 }
 

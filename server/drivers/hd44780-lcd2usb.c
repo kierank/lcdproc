@@ -1,8 +1,11 @@
-/* driver module for Hitachi HD44780 based LCD displays
- * connected to using the lcd2usb interface
- * (http://www.harbaum.org/till/lcd2usb)
+/** \file server/drivers/hd44780-lcd2usb.c
+ * \c lcd2usb connection type of \c hd44780 driver for Hitachi HD44780 based LCD displays.
  *
- * Copyright (C) 2007 Peter Marschall <peter@adpm.de>
+ * See http://www.harbaum.org/till/lcd2usb.
+ */
+
+/* Copyright (C) 2007 Peter Marschall <peter@adpm.de>
+ *               2007 Markus Dolze 
  *
  * This file is released under the GNU General Public License. Refer to the
  * COPYING file distributed with this package.
@@ -22,30 +25,44 @@
 #endif
 
 
-/* USB device handle & interface index we write to */
-static usb_dev_handle *lcd2usb;
+/* connection type specific functions to be exposed using pointers in init() */
+void lcd2usb_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char flags, unsigned char ch);
+void lcd2usb_HD44780_backlight(PrivateData *p, unsigned char state);
+unsigned char lcd2usb_HD44780_scankeypad(PrivateData *p);
+void lcd2usb_HD44780_close(PrivateData *p);
+void lcd2usb_HD44780_set_contrast(PrivateData *p, unsigned char value);
 
 
-// initialize the driver
+/**
+ * Pseudo (empty) uPause function.
+ * Override the uPause function as a lcd2usb device takes care of timing itself.
+ * \param p      Pointer to PrivateData structure (unused)
+ * \param usecs  Number of micro-seconds to sleep (ignored)
+ */
+void
+lcd2usb_HD44780_uPause(PrivateData *p, int usecs)
+{
+}
+
+
+/**
+ * Initialize the driver.
+ * \param drvthis  Pointer to driver structure.
+ * \retval 0       Success.
+ * \retval -1      Error.
+ */
 int
 hd_init_lcd2usb(Driver *drvthis)
 {
   PrivateData *p = (PrivateData*) drvthis->private_data;
 
   struct usb_bus *bus;
-  //char device_manufacturer[LCD_MAX_WIDTH+1] = "";
-  int contrast = -1;	/* illegal contrast value (to detect errors) */
-  int brightness = -1;	/* illegal brightness value (to detect errors) */
 
   p->hd44780_functions->senddata = lcd2usb_HD44780_senddata;
   p->hd44780_functions->backlight = lcd2usb_HD44780_backlight;
   p->hd44780_functions->scankeypad = lcd2usb_HD44780_scankeypad;
   p->hd44780_functions->close = lcd2usb_HD44780_close;
-
-  /* Read config file's contents: contrast */
-
-  contrast = drvthis->config_get_int(drvthis->name, "Contrast", 0, DEFAULT_CONTRAST);
-  brightness = drvthis->config_get_int(drvthis->name, "Brightness", 0, DEFAULT_BRIGHTNESS);
+  p->hd44780_functions->set_contrast = lcd2usb_HD44780_set_contrast;
 
   /* try to find USB device */
 #if 0
@@ -56,7 +73,7 @@ hd_init_lcd2usb(Driver *drvthis)
   usb_find_busses();
   usb_find_devices();
 
-  lcd2usb = NULL;
+  p->usbHandle = NULL;
   for (bus = usb_get_busses(); bus != NULL; bus = bus->next) {
     struct usb_device *dev;
 
@@ -67,33 +84,24 @@ hd_init_lcd2usb(Driver *drvthis)
 	  (dev->descriptor.idProduct == LCD2USB_PRODUCTID)) {
 
         /* LCD2USB device found; try to find its description */
-        lcd2usb = usb_open(dev);
-        if (lcd2usb == NULL) {
+        p->usbHandle = usb_open(dev);
+        if (p->usbHandle == NULL) {
           report(RPT_WARNING, "hd_init_lcd2usb: unable to open device");
-          // return -1;                /* it's better to continue */
         }
         else {
-          /* get device information & check for serial number */
-          //if (usb_get_string_simple(lcd2usb, dev->descriptor.iManufacturer,
-          //                          manufacturer, LCD_MAX_WIDTH) <= 0)
-          //  *manufacturer = '\0';
-          //manufacturer[sizeof(manufacturer)-1] = '\0';
+          /* read firmware version */
+	  unsigned char buffer[2];
 
-          //if (usb_get_string_simple(lcd2usb, dev->descriptor.iProduct,
-          //                          product, LCD_MAX_WIDTH) <= 0)
-          //  *product = '\0';
-          //product[sizeof(product)-1] = '\0';
-
-          //usb_close(lcd2usb);
-          //lcd2usb = NULL;
+          if (usb_control_msg(p->usbHandle, USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_ENDPOINT_IN, 
+	                      LCD2USB_GET_FWVER, 0, 0, (char *)buffer, sizeof(buffer), 1000) == 2)
+	      report(RPT_INFO, "hd_init_lcd2usb: device with firmware version %d.%02d found", buffer[0], buffer[1]);
         }
       }
     }
   }
 
-  if (lcd2usb != NULL) {
+  if (p->usbHandle != NULL) {
     debug(RPT_DEBUG, "hd_init_lcd2usb: opening device succeeded");
-
   }
   else {
     report(RPT_ERR, "hd_init_lcd2usb: no (matching) LCD2USB device found");
@@ -102,60 +110,126 @@ hd_init_lcd2usb(Driver *drvthis)
 
   common_init(p, IF_4BIT);
 
-  /* set contrast */
-  if ((0 <= contrast) && (contrast <= 1000)) {
-    int res = usb_control_msg(lcd2usb, USB_TYPE_VENDOR, LCD2USB_SET_CONTRAST,
-                              (contrast * 255) / 1000, 0, NULL, 0, 1000);
-    if (res < 0)
-      report(RPT_WARNING, "hd_init_lcd2usb: setting contrast failed");
-  } else {
-    report(RPT_INFO, "hd_init_lcd2usb: Using default contrast value");
-  }
-
-  /* set brightness */
-  if ((0 <= brightness) && (brightness <= 1000)) {
-    int res = usb_control_msg(lcd2usb, USB_TYPE_VENDOR, LCD2USB_SET_BRIGHTNESS,
-                              (brightness * 255) / 1000, 0, NULL, 0, 1000);
-    if (res < 0)
-      report(RPT_WARNING, "hd_init_lcd2usb: setting brightness failed");
-  } else {
-    report(RPT_INFO, "hd_init_lcd2usb: Using default brightness value");
-  }
+  /* replace uPause with empty one after initialization */
+  p->hd44780_functions->uPause = lcd2usb_HD44780_uPause;
 
   return 0;
 }
 
 
-// lcd2usb_HD44780_senddata
+/**
+ * Send data or commands to the display.
+ * \param p          Pointer to driver's private data structure.
+ * \param displayID  ID of the display (or 0 for all) to send data to.
+ * \param flags      Defines whether to end a command or data.
+ * \param ch         The value to send.
+ */
 void
 lcd2usb_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char flags, unsigned char ch)
 {
-int type = (flags == RS_DATA) ? LCD2USB_DATA : LCD2USB_CMD;
-int id = (displayID == 0) ? LCD2USB_CTRL_BOTH
+  int type = (flags == RS_DATA) ? LCD2USB_DATA : LCD2USB_CMD;
+  int id = (displayID == 0) ? LCD2USB_CTRL_BOTH
                           : ((displayID == 1) ? LCD2USB_CTRL_0 : LCD2USB_CTRL_1);
 
-    usb_control_msg(lcd2usb, USB_TYPE_VENDOR, (type | id), ch, 0, NULL, 0, 1000);
+  usb_control_msg(p->usbHandle, USB_TYPE_VENDOR, (type | id), ch, 0, NULL, 0, 1000);
 }
 
 
+/**
+ * Turn display backlight on or off.
+ * Backlight is turned on or off by toggeling between the brightness and
+ * offbrightness values.
+ * \param p      Pointer to driver's private data structure.
+ * \param state  New backlight status.
+ */
 void
 lcd2usb_HD44780_backlight(PrivateData *p, unsigned char state)
 {
+  /* get backlight brightness */
+  int promille = (state == BACKLIGHT_ON) ? p->brightness : p->offbrightness;
+  
+  p->hd44780_functions->drv_debug(RPT_DEBUG, "lcd2usb_HD44780_backlight: Setting backlight to %d", promille);
+
+  /* and set it (converted from [0,1000] -> [0,255]) */
+  if (usb_control_msg(p->usbHandle, USB_TYPE_VENDOR, LCD2USB_SET_BRIGHTNESS,
+                   (promille * 255) / 1000, 0, NULL, 0, 1000) < 0)
+    p->hd44780_functions->drv_report(RPT_WARNING, "lcd2usb_HD44780_backlight: setting backlight failed");
 }
 
 
+/**
+ * Change display contrast.
+ * \param p      Pointer to driver's private data structure.
+ * \param value  New contrast value (one byte).
+ */
+void
+lcd2usb_HD44780_set_contrast(PrivateData *p, unsigned char value)
+{
+  if (usb_control_msg(p->usbHandle, USB_TYPE_VENDOR, LCD2USB_SET_CONTRAST,
+                              value, 0, NULL, 0, 1000) < 0)
+    p->hd44780_functions->drv_report(RPT_WARNING, "lcd2usb_HD44780_set_contrast: setting contrast failed");
+}
+
+
+/**
+ * Set on/off brightness.
+ * The value is not actually transmitted to the display. lcd2usb_hd44780_backlight
+ * has to be called to do this.
+ * \param drvthis   Pointer to driver structure.
+ * \param state     Brightness state (on/off) for which we want to store the value.
+ * \param promille  New brightness in promille.
+ */
+void
+lcd2usb_set_brightness(Driver *drvthis, int state, int promille)
+{
+  PrivateData *p = drvthis->private_data;
+
+  /* check if value within range */
+  if (promille < 0 || promille > 1000)
+    return;
+
+  /* store the software value */
+  if (state == BACKLIGHT_ON)
+    p->brightness = promille;
+  else
+    p->offbrightness = promille;
+}
+
+
+/**
+ * Read keypress.
+ * \param p  Pointer to driver's private data structure.
+ * \return   Scancode of the key as returned by the lcd2usb device.
+ */
 unsigned char
 lcd2usb_HD44780_scankeypad(PrivateData *p)
 {
-  return 0;
+  unsigned char       buffer[2];
+  int                 nBytes;
+
+  /* send control request and accept return value */
+  nBytes = usb_control_msg(p->usbHandle, 
+	   USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_ENDPOINT_IN, 
+	   LCD2USB_GET_KEYS, 0, 0, (char *) buffer, sizeof(buffer), 1000);
+
+  if (nBytes != -1) {
+    return buffer[0];
+  }
+
+  return '\0';
 }
 
+
+/**
+ * Close the driver (do necessary clean-up).
+ * \param p  Pointer to driver's private data structure.
+ */
 void
 lcd2usb_HD44780_close(PrivateData *p)
 {
-  if (lcd2usb != NULL) {
-    usb_close(lcd2usb);
-    lcd2usb = NULL;
+  if (p->usbHandle != NULL) {
+    usb_close(p->usbHandle);
+    p->usbHandle = NULL;
   }
 }
 
