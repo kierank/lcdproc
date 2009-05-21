@@ -1,7 +1,7 @@
 <bookinfo>
 
 <title>LCDproc Developer's Guide</title>
-<subtitle>The Hitchhiker's Guide to LCDproc 0.5</subtitle>
+<subtitle>The Hitchhiker's Guide to LCDproc 0.5.3</subtitle>
 
 <authorgroup>
 
@@ -19,13 +19,13 @@
 
 </authorgroup>
 
-<date>2006-04-14</date>
-<releaseinfo>0.0.2</releaseinfo>
+<date>2009-05-21</date>
+<releaseinfo>0.0.3</releaseinfo>
 
 <abstract>
 <para>
 This document is a guide to LCDproc written for developers.
-It covers LCDproc 0.5.x. Users should read the user guide.
+It covers LCDproc 0.5.3. Users should read the user guide.
 </para>
 </abstract>
 
@@ -52,7 +52,7 @@ Free Documentation License".
 <keywordset>
 <keyword>documentation</keyword>
 <keyword>LCDproc</keyword>
-<keyword>0.5</keyword>
+<keyword>0.5.3</keyword>
 <keyword>developer guide</keyword>
 </keywordset>
 
