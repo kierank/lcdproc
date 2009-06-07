@@ -1,7 +1,7 @@
 Known Bugs:
 --------------
 
-v0.5.2+dev (stable branch)
+v0.5.3-pre1
   - A client gets disconnected if it sends a many commands quickly. This can
     happen during initial screen setup or if vBars are used on large (40x4)
     displays.
@@ -10,6 +10,7 @@ v0.5.2+dev (stable branch)
     a non full block from the vBar.
   - On Solaris the mtc_s16209x driver fails to compile. Configure LCDproc to
     exclude this driver.
+
 
 Bugs in previous versions (not checked if the still exist):
 -----------------------------------------------------------
