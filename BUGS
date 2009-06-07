@@ -8,9 +8,8 @@ v0.5.2+dev (stable branch)
   - If vBars are used together with ICON_BLOCK_FILLED on the same screen and
     that icon is implemented as a custom char, it sometimes is replaced with
     a non full block from the vBar.
-  - Solaris support is broken. You can still compile the server by using
-    'make server' but the trying to compile the clients will fail.
-
+  - On Solaris the mtc_s16209x driver fails to compile. Configure LCDproc to
+    exclude this driver.
 
 Bugs in previous versions (not checked if the still exist):
 -----------------------------------------------------------

@@ -72,6 +72,8 @@ v.0.5.2+dev (stable branch)
  * server: Fix interpretation of named screen priorities
  + new driver imonlcd for SoundGraph iMON LCD (Dean Harding, Jonathan Kyler)
  * MtxOrb driver: Fix backlight for old firmware
+ * Add checks for null pointer / failed malloc to menu code
+ * lcdproc, lcdexec, lcdvc clients: Use our included getopt.h
 
 v.0.5.2
  * fix switching on/off the Load screen in lcdproc client using the menu
