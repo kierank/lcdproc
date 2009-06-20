@@ -1,4 +1,10 @@
 <sect1 id="glcdlib-howto">
+<sect1info>
+  <author>
+    <firstname>Lucian</firstname>
+    <surname>Muresan</surname>
+  </author>
+</sect1info>
 <title>The glcdlib Driver</title>
 
 <para>
@@ -20,12 +26,6 @@ from <ulink url="http://www.muresan.de/graphlcd/lcdproc"></ulink>
 before configuring the LCDproc build process --enable-drivers=glcdlib.
 </para>
 
-Author
-<author>
-<firstname>Lucian</firstname>
-<surname>Muresan</surname>
-</author>
-
 </sect2>
 
 <!-- ## glcdlib meta driver for graphical LCDs ## -->
@@ -35,13 +35,12 @@ Author
 <sect3 id="glcdlib-config-section">
 <title>[glcdlib]</title>
 
-## mandatory:
-
 <variablelist>
+<title>Mandatory settings</title>
 <varlistentry>
-<term>
-<command>Driver</command> =
-    <arg choice="plain"><replaceable>GRAPHLCD-DRIVER</replaceable></arg>
+  <term>
+    <property>Driver</property> =
+    <parameter><replaceable>GRAPHLCD-DRIVER</replaceable></parameter>
   </term>
   <listitem><para>
     Specify which graphical display supported by graphlcd-base to use.
@@ -58,13 +57,7 @@ Author
 
 <varlistentry>
   <term>
-    <command>UseFT2</command> =
-    <arg choice="plain">
-    <group choice="req">
-      <arg choice="plain"><literal>yes</literal></arg>
-      <arg choice="plain"><literal><emphasis>no</emphasis></literal></arg>
-    </group>
-    </arg>
+    <property>UseFT2</property> = &parameters.yesdefno;
   </term>
   <listitem><para>
     Tell whether to use FreeType2 or not.
@@ -79,12 +72,7 @@ Author
 
 <varlistentry>
   <term>
-    <command>TextResolution</command> =
-    <arg choice="plain">
-      <replaceable>WIDTH</replaceable>
-      <literal>x</literal>
-      <replaceable>HEIGHT</replaceable>
-    </arg>
+    <property>TextResolution</property> = &parameters.size;
   </term>
   <listitem><para>
     Give text resolution in fixed width characters. If it won't fit according
@@ -96,8 +84,8 @@ Author
 
 <varlistentry>
   <term>
-    <command>FontFile</command> =
-    <arg choice="plain"><replaceable>FILENAME</replaceable></arg>
+    <property>FontFile</property> =
+    <parameter><replaceable>FILENAME</replaceable></parameter>
   </term>
   <listitem><para>
     Set path to font file to use, e.g. <filename>/usr/share/fonts/corefonts/courbd.ttf</filename>.
@@ -105,14 +93,12 @@ Author
 </varlistentry>
 </variablelist>
 
-
-The following parameters only apply if <command>UseFT2</command> = <literal>yes</literal>:
-
 <variablelist>
+<title>Availalble parameters if <property>UseFT2</property> = <literal>yes</literal></title>
 <varlistentry>
   <term>
-    <command>CharEncoding</command> =
-    <arg choice="plain"><replaceable>CHARSET</replaceable></arg>
+    <property>CharEncoding</property> =
+    <parameter><replaceable>CHARSET</replaceable></parameter>
   </term>
   <listitem><para>
     Specify character encoding to use, e.g. <literal>iso8859-2</literal>.
@@ -122,24 +108,25 @@ The following parameters only apply if <command>UseFT2</command> = <literal>yes<
 
 <varlistentry>
   <term>
-    <command>MinFontFaceSize</command> =
-    <arg choice="plain">
+    <property>MinFontFaceSize</property> =
+    <parameter>
       <replaceable>COLUMNS</replaceable>
       <literal>x</literal>
       <replaceable>ROWS</replaceable>
-    </arg>
+    </parameter>
   </term>
   <listitem><para>
-    minumum size in pixels in which fonts should be rendered
+    minimum size in pixels in which fonts should be rendered
   </para></listitem>
 </varlistentry>
+</variablelist>
 
-
-## optional:
+<variablelist>
+<title>Optional settings</title>
 <varlistentry>
   <term>
-    <command>Brightness</command> =
-    <arg choice="plain"><replaceable>BRIGHTNESS</replaceable></arg>
+    <property>Brightness</property> =
+    <parameter><replaceable>BRIGHTNESS</replaceable></parameter>
   </term>
   <listitem><para>
     Brightness (in %) if applicable
@@ -150,8 +137,8 @@ The following parameters only apply if <command>UseFT2</command> = <literal>yes<
 
 <varlistentry>
   <term>
-    <command>Contrast</command> =
-    <arg choice="plain"><replaceable>CONTRAST</replaceable></arg>
+    <property>Contrast</property> =
+    <parameter><replaceable>CONTRAST</replaceable></parameter>
   </term>
   <listitem><para>
     Set the contrast (in %) if applicable.
@@ -162,13 +149,7 @@ The following parameters only apply if <command>UseFT2</command> = <literal>yes<
 
 <varlistentry>
   <term>
-    <command>Backlight</command> =
-    <arg choice="plain">
-    <group choice="req">
-      <arg choice="plain"><literal>yes</literal></arg>
-      <arg choice="plain"><literal><emphasis>no</emphasis></literal></arg>
-    </group>
-    </arg>
+    <property>Backlight</property> = &parameters.yesnodef;
   </term>
   <listitem><para>
     Backlight if applicable
@@ -177,13 +158,7 @@ The following parameters only apply if <command>UseFT2</command> = <literal>yes<
 
 <varlistentry>
   <term>
-    <command>UpsideDown</command> =
-    <arg choice="plain">
-    <group choice="req">
-      <arg choice="plain"><literal>yes</literal></arg>
-      <arg choice="plain"><literal><emphasis>no</emphasis></literal></arg>
-    </group>
-    </arg>
+    <property>UpsideDown</property> = &parameters.yesnodef;
   </term>
   <listitem><para>
     flip image upside down
@@ -192,13 +167,7 @@ The following parameters only apply if <command>UseFT2</command> = <literal>yes<
 
 <varlistentry>
   <term>
-    <command>Invert</command> =
-    <arg choice="plain">
-    <group choice="req">
-      <arg choice="plain"><literal>yes</literal></arg>
-      <arg choice="plain"><literal><emphasis>no</emphasis></literal></arg>
-    </group>
-    </arg>
+    <property>Invert</property> = &parameters.yesnodef;
   </term>
   <listitem><para>
     invert light/dark pixels
@@ -207,13 +176,7 @@ The following parameters only apply if <command>UseFT2</command> = <literal>yes<
 
 <varlistentry>
   <term>
-    <command>ShowDebugFrame</command> =
-    <arg choice="plain">
-    <group choice="req">
-      <arg choice="plain"><literal>yes</literal></arg>
-      <arg choice="plain"><literal><emphasis>no</emphasis></literal></arg>
-    </group>
-    </arg>
+    <property>ShowDebugFrame</property> = &parameters.yesnodef;
   </term>
   <listitem><para>
     turns on/off 1 pixel thick debugging
@@ -225,13 +188,7 @@ The following parameters only apply if <command>UseFT2</command> = <literal>yes<
 
 <varlistentry>
   <term>
-    <command>ShowBigBorder</command> =
-    <arg choice="plain">
-    <group choice="req">
-      <arg choice="plain"><literal>yes</literal></arg>
-      <arg choice="plain"><literal><emphasis>no</emphasis></literal></arg>
-    </group>
-    </arg>
+    <property>ShowBigBorder</property> = &parameters.yesnodef;
   </term>
   <listitem><para>
     border around the unused area
@@ -240,13 +197,7 @@ The following parameters only apply if <command>UseFT2</command> = <literal>yes<
 
 <varlistentry>
   <term>
-    <command>ShowThinBorder</command> =
-    <arg choice="plain">
-    <group choice="req">
-      <arg choice="plain"><literal>yes</literal></arg>
-      <arg choice="plain"><literal><emphasis>no</emphasis></literal></arg>
-    </group>
-    </arg>
+    <property>ShowThinBorder</property> = &parameters.yesnodef;
   </term>
   <listitem><para>
     border around the unused area
@@ -255,12 +206,17 @@ The following parameters only apply if <command>UseFT2</command> = <literal>yes<
 
 <varlistentry>
   <term>
-    <command>PixelShiftX=<replaceable>0</replaceable></command>
+    <property>PixelShiftX</property> =
+    <parameter><replaceable>SHIFTX</replaceable></parameter>
   </term>
   <term>
-    <command>PixelShiftY=<replaceable>2</replaceable></command>
+    <property>PixelShiftY</property> =
+    <parameter><replaceable>SHIFTY</replaceable></parameter>
   </term>
   <listitem><para>
+    Shifts the content of the display by <replaceable>SHIFTX</replaceable>
+    (default: <literal>0</literal>) and <replaceable>SHIFTY</replaceable>
+    (default: <literal>0</literal>) pixels.
   </para></listitem>
 </varlistentry>
 </variablelist>
