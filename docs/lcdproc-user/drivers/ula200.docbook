@@ -16,11 +16,11 @@ Additionally it provides 6 digital inputs that can be used for keys.
 The <code>ula200</code> driver controls this board supporting the features:
 
 <itemizedlist>
-  <listitem>display on a single-controller HD44780 display</listitem>
-  <listitem>standard icons (heart, checkbox)</listitem>
-  <listitem>backlight control</listitem>
-  <listitem>input buttons</listitem>
-  <listitem><emphasis>no</emphasis> horizontal or vertical bars</listitem>
+  <listitem><para>display on a single-controller HD44780 display</para></listitem>
+  <listitem><para>standard icons (heart, checkbox)</para></listitem>
+  <listitem><para>backlight control</para></listitem>
+  <listitem><para>input buttons</para></listitem>
+  <listitem><para><emphasis>no</emphasis> horizontal or vertical bars</para></listitem>
 </itemizedlist>
 </para>
 
@@ -121,12 +121,7 @@ a standard character which looks good.
 <variablelist>
 <varlistentry>
   <term>
-    <command>Size</command> =
-    <arg choice="plain">
-      <replaceable>WIDTH</replaceable>
-      <literal>x</literal>
-      <replaceable>HEIGHT</replaceable>
-    </arg>
+    <property>Size</property> = &parameters.size;
   </term>
   <listitem><para>
     Select the LCD size [default: <literal>20x4</literal>]
@@ -135,28 +130,28 @@ a standard character which looks good.
 
 <varlistentry>
   <term>
-    <command>KeyMap_A</command> =
-    <arg choice="plain"><replaceable>KEY</replaceable></arg>
+    <property>KeyMap_A</property> =
+    <parameter><replaceable>KEY</replaceable></parameter>
   </term>
   <term>
-    <command>KeyMap_B</command> =
-    <arg choice="plain"><replaceable>KEY</replaceable></arg>
+    <property>KeyMap_B</property> =
+    <parameter><replaceable>KEY</replaceable></parameter>
   </term>
   <term>
-    <command>KeyMap_C</command> =
-    <arg choice="plain"><replaceable>KEY</replaceable></arg>
+    <property>KeyMap_C</property> =
+    <parameter><replaceable>KEY</replaceable></parameter>
   </term>
   <term>
-    <command>KeyMap_D</command> =
-    <arg choice="plain"><replaceable>KEY</replaceable></arg>
+    <property>KeyMap_D</property> =
+    <parameter><replaceable>KEY</replaceable></parameter>
   </term>
   <term>
-    <command>KeyMap_E</command> =
-    <arg choice="plain"><replaceable>KEY</replaceable></arg>
+    <property>KeyMap_E</property> =
+    <parameter><replaceable>KEY</replaceable></parameter>
   </term>
   <term>
-    <command>KeyMap_F</command> =
-    <arg choice="plain"><replaceable>KEY</replaceable></arg>
+    <property>KeyMap_F</property> =
+    <parameter><replaceable>KEY</replaceable></parameter>
   </term>
   <listitem><para>
     If you have a non standard keypad you can associate any keystrings to keys.
