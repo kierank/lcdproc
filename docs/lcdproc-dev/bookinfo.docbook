@@ -22,13 +22,13 @@
 
 </authorgroup>
 
-<date>2010-11-20</date>
-<releaseinfo>0.0.3</releaseinfo>
+<date>2010-12-27</date>
+<releaseinfo>0.0.4</releaseinfo>
 
 <abstract>
 <para>
 This document is a guide to LCDproc written for developers.
-It covers LCDproc 0.5.x. Users should read the user guide.
+It covers LCDproc 0.5.4. Users should read the user guide.
 </para>
 </abstract>
 
@@ -59,7 +59,7 @@ Free Documentation License".
 <keywordset>
 <keyword>documentation</keyword>
 <keyword>LCDproc</keyword>
-<keyword>0.5</keyword>
+<keyword>0.5.4</keyword>
 <keyword>developer guide</keyword>
 </keywordset>
 

@@ -604,7 +604,7 @@ void menuscreen_create_testmenu(void) {
 	test_item = menuitem_create_numeric("", NULL, "Numeric,signed", NULL, -20, +20, 15);
 	menu_add_item(test_menu, test_item);
 
-	test_item = menuitem_create_alpha("", NULL, "Alpha", NULL, 0, 3, 12, true, true, true, ".-+@", "LCDproc-v0.5");
+	test_item = menuitem_create_alpha("", NULL, "Alpha", NULL, 0, 3, 14, true, true, true, ".-+@", "LCDproc-v0.5.4");
 	menu_add_item(test_menu, test_item);
 	test_item = menuitem_create_alpha("", NULL, "Alpha, caps only", NULL, 0, 3, 12, true, false, false, "-", "LCDPROC");
 	menu_add_item(test_menu, test_item);

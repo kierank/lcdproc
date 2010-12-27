@@ -5,7 +5,7 @@ Key:
      + Something added
      * Something changed / fixed
 
-v.0.5.3+dev (stable branch)
+v.0.5.4
  * Update driver includes and LDFLAGS (fixed glk and bayrad binding error)
  * Modify all drivers to use server/drivers/report.h instead of shared/report.h
  * Make all drivers using parallel port fail if they cannot get IO permission

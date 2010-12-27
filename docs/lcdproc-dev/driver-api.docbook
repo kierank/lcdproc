@@ -2,7 +2,7 @@
   <title>The LCDproc driver API</title>
 
 <para>
-  This chapter describes the driver API of v0.5 of LCDproc.
+  This chapter describes the driver API of v0.5.4 of LCDproc.
 </para>
 
 <sect1 id="api-overview">
