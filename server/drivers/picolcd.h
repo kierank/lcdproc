@@ -4,24 +4,26 @@
  * (c) 2007 NitroSecurity, Inc.
  * Written by Gatewood Green <woody@nitrosecurity.com> or <woody@linif.org>
  * (c) 2007-2008 Peter Marschall - adapted coding style and reporting to LCDproc
- * (c) 2007 Mini-Box.com, Nicu Pavel <npavel@ituner.com> 
+ * (c) 2007 Mini-Box.com, Nicu Pavel <npavel@ituner.com>
  *     - removed libusblcd and hid dependency
  *     - added vbar, hbar, custom char, bignum support
  * (c) 2008 Jack Cleaver - add LIRC connection
  * (c) 2008 Mini-Box.com Nicu Pavel <npavel@mini-box.com>
  *      - Added support for 4x20 picoLCD
+ * (c) 2010 Martin Jones <martin.t.jones@virgin.net>
+ *      - Use module output function to control key LEDs.
  * License: GPL (same as usblcd and lcdPROC)
  *
- * picoLCD: http://www.mini-box.com/picoLCD-20x2-OEM  
- * Can be purchased separately or preinstalled in units such as the 
+ * picoLCD: http://www.mini-box.com/picoLCD-20x2-OEM
+ * Can be purchased separately or preinstalled in units such as the
  * M300 http://www.mini-box.com/Mini-Box-M300-LCD
  * picoLCD 4x20: http://www.mini-box.com/PicoLCD-4X20-Sideshow
  *
- * The picoLCD is usb connected and is driven (currently) via userspace 
+ * The picoLCD is usb connected and is driven (currently) via userspace
  * using libusb library.
  *
- *   libusb: http://libusb.sf.net
- * 
+ *   libusb: http://www.libusb.org/
+ *
  */
 
 #ifndef PICOLCD_H
@@ -41,14 +43,13 @@
 #define IN_REPORT_KEY_STATE	0x11
 #define IN_REPORT_IR_DATA	0x21
 
-#define OUT_REPORT_CMD		0x94 
-#define OUT_REPORT_DATA		0x95 
+#define OUT_REPORT_CMD		0x94
+#define OUT_REPORT_DATA		0x95
 
 #define PICOLCD_MAX_DATA_LEN	24
 
 #define DEFAULT_LIRCPORT	8765
-#define DEFAULT_SYNC_JIFFY	64
-#define DEFAULT_LENGTH_JIFFY	2048 
+#define DEFAULT_FLUSH_THRESHOLD_JIFFY 100 /* 6.1 millisec */
 
 
 typedef struct _lcd_packet {
@@ -70,7 +71,7 @@ typedef struct _picolcd_device {
 	int width;                  /* width of lcd screen */
 	int height;                 /* height of lcd screen */
 	/* Pointer to function that writes data to the LCD format */
-	void (*write)(usb_dev_handle *lcd, const int row, const int col, const unsigned char *data); 
+	void (*write)(usb_dev_handle *lcd, const int row, const int col, const unsigned char *data);
 	/* Pointer to function that defines a custom character */
 	void (*cchar) (Driver *drvthis, int n, unsigned char *dat);
 } picolcd_device;
@@ -98,7 +99,7 @@ MODULE_EXPORT void picoLCD_set_contrast(Driver *drvthis, int promille);
 //MODULE_EXPORT int  picoLCD_get_brightness(Driver *drvthis, int state);
 MODULE_EXPORT void picoLCD_set_brightness(Driver *drvthis, int state, int promille);
 MODULE_EXPORT void picoLCD_backlight(Driver *drvthis, int state);
-//MODULE_EXPORT void picoLCD_output(Driver *drvthis, int state);
+MODULE_EXPORT void picoLCD_output(Driver *drvthis, int state);
 
 MODULE_EXPORT char *picoLCD_get_info(Driver *drvthis);
 

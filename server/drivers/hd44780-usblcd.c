@@ -8,10 +8,10 @@
 
 /*
  * Copyright (C)  2002 Adams IT Services <info@usblcd.de>
- * 
+ *
  * This driver is based on pic-an-lcd driver. See file hd44780-serial.c for
  * additional Copyrights.
- * 
+ *
  * This file is released under the GNU General Public License. Refer to the
  * COPYING file distributed with this package.
  *
@@ -19,7 +19,7 @@
  */
 
 #include "hd44780-usblcd.h"
-#include "shared/report.h"
+#include "report.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -168,7 +168,8 @@ usblcd_HD44780_backlight(PrivateData *p, unsigned char state)
 void
 usblcd_HD44780_close(PrivateData *p)
 {
-	close(p->fd);
+	if (p->fd >= 0)
+		close(p->fd);
 }
 
 /* EOF */

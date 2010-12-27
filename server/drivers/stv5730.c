@@ -28,7 +28,7 @@
 #include <termios.h>
 #include <fcntl.h>
 #include <string.h>
-#include <sys/errno.h>
+#include <errno.h>
 //#include <sys/io.h>
 #include <time.h>
 #include "port.h"
@@ -38,7 +38,6 @@
 # include "config.h"
 #endif
 
-#include "shared/str.h"
 #include "lcd.h"
 #include "stv5730.h"
 #include "report.h"
@@ -414,7 +413,7 @@ stv5730_init (Driver *drvthis)
 
     report(RPT_DEBUG, "%s: init() done", drvthis->name);
 
-    return 1;
+    return 0;
 }
 
 /////////////////////////////////////////////////////////////////

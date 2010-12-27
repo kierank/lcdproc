@@ -28,7 +28,7 @@
  * Configuration:
  * device=/dev/i2c-0   # the device file of the i2c bus
  * port=0x20   # the i2c address of the i2c port expander
- * 
+ *
  *  Attention: Bit 8 of the address given in port is special:
  *  It tells the driver to treat the device as PCA9554 or similar,
  *  a device that needs a 2-byte command, and it will be stripped
@@ -53,8 +53,7 @@
 #include "hd44780-i2c.h"
 #include "hd44780-low.h"
 
-#include "shared/str.h"
-#include "shared/report.h"
+#include "report.h"
 #include <stdio.h>
 #include <string.h>
 #include <errno.h>
@@ -75,6 +74,7 @@
 
 void i2c_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char flags, unsigned char ch);
 void i2c_HD44780_backlight(PrivateData *p, unsigned char state);
+void i2c_HD44780_close(PrivateData *p);
 
 #define RS	0x10
 #define RW	0x20
@@ -100,7 +100,7 @@ i2c_out(PrivateData *p, unsigned char val)
 		datalen=1;
 	}
 	if (write(p->fd,data,datalen) != datalen) {
-		report(no_more_errormsgs?RPT_DEBUG:RPT_ERR, "HD44780: I2C: i2c write data %u to address %u failed: %s",
+		p->hd44780_functions->drv_report(no_more_errormsgs?RPT_DEBUG:RPT_ERR, "HD44780: I2C: i2c write data %u to address %u failed: %s",
 			val, p->port & I2C_ADDR_MASK, strerror(errno));
 		no_more_errormsgs=1;
 	}
@@ -131,7 +131,7 @@ hd_init_i2c(Driver *drvthis)
 	strncpy(device, drvthis->config_get_string(drvthis->name, "Device", 0, DEFAULT_DEVICE), sizeof(device));
 	device[sizeof(device)-1] = '\0';
 	report(RPT_INFO,"HD44780: I2C: Using device '%s' and address %u for a %s",
-			device, (p->port & I2C_ADDR_MASK) ? "PCA9554(A)" : "PCF8574(A)");
+		device, p->port & I2C_ADDR_MASK, (p->port & I2C_PCAX_MASK) ? "PCA9554(A)" : "PCF8574(A)");
 
 	// Open the I2C device
 	p->fd = open(device, O_RDWR);
@@ -163,6 +163,7 @@ hd_init_i2c(Driver *drvthis)
 
 	hd44780_functions->senddata = i2c_HD44780_senddata;
 	hd44780_functions->backlight = i2c_HD44780_backlight;
+	hd44780_functions->close = i2c_HD44780_close;
 
 	// powerup the lcd now
 	/* We'll now send 0x03 a couple of times,
@@ -213,6 +214,18 @@ hd_init_i2c(Driver *drvthis)
 	common_init(p, IF_4BIT);
 
 	return 0;
+}
+
+
+/**
+ * Close the device.
+ * \param p          Pointer to driver's private data structure.
+ */
+void
+i2c_HD44780_close(PrivateData *p) {
+	if (p->fd >= 0) {
+		close(p->fd);
+	}
 }
 
 

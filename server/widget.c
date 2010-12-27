@@ -1,5 +1,8 @@
 /** \file server/widget.c
- * Does all actions on widgets
+ * This file houses code that handles the creation and destruction of widget
+ * objects for the server. These functions are called from the command parser
+ * storing the specified widget in a generic container that is parsed later
+ * by the screen renderer.
  */
 
 /* This file is part of LCDd, the lcdproc server.
@@ -223,7 +226,7 @@ widget_search_subs(Widget *w, char *id)
 /** Find a widget icon by type.
  * \param icon    Icon type.
  * \return        Pointer to constant string containing the icon name.
- */ 
+ */
 char *widget_icon_to_iconname(int icon)
 {
 	int i;

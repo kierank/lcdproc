@@ -1,15 +1,15 @@
 /** \file server/drivers/imon.c
  * LCDd \c imon driver for the Soundgraph iMON IR/VFD module.
- */
-
-/*
- * Driver for Soundgraph/Ahanix/Silverstone/Uneed/Accent iMON IR/VFD Module
  *
  * In order to be able to use it, you have to get and install one of
  * the following kernel modules:
  *  - standalone iMON VFD driver from http://venky.ws/projects/imon/
  *  - the iMON module included with LIRC ver. 0.7.1 or newer
  *    from http://www.lirc.org/
+ */
+
+/*
+ * Driver for Soundgraph/Ahanix/Silverstone/Uneed/Accent iMON IR/VFD Module
  *
  * Copyright (c) 2004, Venky Raju <dev@venky.ws>, original author of
  * the LCDproc 0.4.5 iMON driver, the standalone and the LIRC kernel
@@ -42,8 +42,6 @@
 
 #include "lcd.h"
 #include "lcd_lib.h"
-#include "shared/debug.h"
-//#define DEBUG
 #include "report.h"
 
 
@@ -111,30 +109,28 @@ typedef struct imon_private_data {
 
 
 /**
- * driver initialization
- */
-/**
  * Initialize the driver.
  * \param drvthis  Pointer to driver structure.
- * \return  Information of success (1) or failure (< 0).
+ * \retval 0       Success.
+ * \retval <0      Error.
  */
 MODULE_EXPORT int imon_init (Driver *drvthis)
 {
 	PrivateData *p = NULL;
+	char buf[256];
 
 	// Alocate, initialize and store private p
 	p = (PrivateData *) calloc(1, sizeof(PrivateData));
 	if (p == NULL) {
-		debug(RPT_ERR, "%s: failed to allocate private data", drvthis->name);
+		report(RPT_ERR, "%s: failed to allocate private data", drvthis->name);
 		return -1;
 	}
 
 	if (drvthis->store_private_ptr(drvthis, p)) {
-		debug(RPT_ERR, "%s: failed to store private data pointer", drvthis->name);
+		report(RPT_ERR, "%s: failed to store private data pointer", drvthis->name);
 		return -1;
 	}
 
-	char buf[256];
 	p->imon_fd = -1;
 	p->width = 0;
 	p->height = 0;
@@ -178,7 +174,7 @@ MODULE_EXPORT int imon_init (Driver *drvthis)
 
 	report(RPT_DEBUG, "%s: init() done", drvthis->name);
 
-	return 1;
+	return 0;
 }
 
 

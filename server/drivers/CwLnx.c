@@ -24,8 +24,8 @@
     along with this program; if not, write to the Free Software Foundation,
     Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301
 */
-   
-/*   
+
+/*
     Feedback from Tomislav Secen, who tested it with a 1602:
 
     Great, this is much better:
@@ -33,16 +33,16 @@
     - bars are OK (at least the few I've seen)
     - heartbeat icon flashes nicely in the top right corner.
 
-    Only issue I encountered was (similar came up before) - when setting some menu 
-    options, or just entering a certain menu (like Options->CwLnx->OnBrightness, 
-    lcdvc client menu), the LCD becomes garbled  (i.e. displays two blinking hearts, 
-    boxes, '%' symbols), sometimes starts displaying just '%' symbols over the whole 
-    LCD while I'm pressing Left/Right keys (is this the screen-saver?), scrolling 
-    from right to left. Even the "Thank you for using ..." message is garbled (each 
-    time in a different way) if I kill the daemon after that. Pressing 'X' when the 
-    garbled characters occur exits the menu and the other (client) screens are 
-    displayed correctly after that. So only the menus are affected by this issue - 
-    it seems that this screen-saver mode kicks in in the wrong time, and tries to 
+    Only issue I encountered was (similar came up before) - when setting some menu
+    options, or just entering a certain menu (like Options->CwLnx->OnBrightness,
+    lcdvc client menu), the LCD becomes garbled  (i.e. displays two blinking hearts,
+    boxes, '%' symbols), sometimes starts displaying just '%' symbols over the whole
+    LCD while I'm pressing Left/Right keys (is this the screen-saver?), scrolling
+    from right to left. Even the "Thank you for using ..." message is garbled (each
+    time in a different way) if I kill the daemon after that. Pressing 'X' when the
+    garbled characters occur exits the menu and the other (client) screens are
+    displayed correctly after that. So only the menus are affected by this issue -
+    it seems that this screen-saver mode kicks in in the wrong time, and tries to
     write to LCD faster than it can process chars/commands.
 */
 
@@ -179,7 +179,7 @@ static int Write_LCD(int fd, char *c, int size)
 	    break;
 	}
     } while (size > 0 && --retries > 0);
-        
+
     return wrote;
 }
 
@@ -326,15 +326,28 @@ static void Setup_Port(int fd, speed_t speed)
     struct termios portset;
 
     tcgetattr(fd, &portset);
-    cfsetospeed(&portset, speed);
-    cfsetispeed(&portset, speed);
-    portset.c_iflag = IGNBRK;
-    portset.c_lflag = 0;
-    portset.c_oflag = 0;
-    portset.c_cflag |= CLOCAL | CREAD;
-    portset.c_cflag &= ~CRTSCTS;
+
+    /* We use RAW mode */
+#ifdef HAVE_CFMAKERAW
+    /* The easy way */
+    cfmakeraw(&portset);
+#else
+    /* The hard way */
+    portset.c_iflag &= ~( IGNBRK | BRKINT | PARMRK | ISTRIP
+                          | INLCR | IGNCR | ICRNL | IXON );
+    portset.c_oflag &= ~OPOST;
+    portset.c_lflag &= ~( ECHO | ECHONL | ICANON | ISIG | IEXTEN );
+    portset.c_cflag &= ~( CSIZE | PARENB | CRTSCTS );
+    portset.c_cflag |= CS8 | CREAD | CLOCAL;
+#endif
+    /* Set timeouts */
     portset.c_cc[VMIN] = 1;
     portset.c_cc[VTIME] = 5;
+
+    /* Set speed */
+    cfsetospeed(&portset, speed);
+    cfsetispeed(&portset, speed);
+
     tcsetattr(fd, TCSANOW, &portset);
 }
 
@@ -538,7 +551,7 @@ CwLnx_init(Driver *drvthis)
 	    speed = B19200;
 	    report(RPT_WARNING, "%s: Speed must be 9600 or 19200. Using default %d",
 			    drvthis->name, default_speed);
-    }	    
+    }
 
     /* do we have a keypad? */
     if (drvthis->config_get_bool(drvthis->name , "Keypad", 0, 0)) {
@@ -608,7 +621,7 @@ CwLnx_init(Driver *drvthis)
     }
     report(RPT_INFO, "%s: opened display on %s", drvthis->name, device);
 
-    /* 
+    /*
        Since we don't know what speed the display is using when
        we first connect to it, configure the port for the speed
        we don't want to use, send a command to switch the display
@@ -618,7 +631,7 @@ CwLnx_init(Driver *drvthis)
     Init_Port(p->fd);
     if (speed == B9600) {
 	Setup_Port(p->fd, B19200);
-    Set_9600(p->fd); 
+    Set_9600(p->fd);
     } else {
 	Setup_Port(p->fd, B9600);
 	Set_19200(p->fd);
@@ -640,7 +653,7 @@ CwLnx_init(Driver *drvthis)
 
     report(RPT_DEBUG, "%s: init() done", drvthis->name);
 
-    return 1;
+    return 0;
 }
 
 
@@ -759,7 +772,7 @@ CwLnx_flush(Driver *drvthis)
 		if (firstUpdate && q - lastUpdate > MOVE_COST) {
 		    Set_Insert(p->fd, iUpdate, jUpdate);
 		    Write_LCD(p->fd, (char *) firstUpdate,
-			  lastUpdate - firstUpdate + 1);		
+			  lastUpdate - firstUpdate + 1);
 		    firstUpdate = lastUpdate = NULL;
 		}
 	    } else {
@@ -771,7 +784,7 @@ CwLnx_flush(Driver *drvthis)
 		}
 	    }
 	    q++;
-	    r++; 
+	    r++;
 	}
     }
     if (firstUpdate) {
@@ -866,7 +879,7 @@ CwLnx_backlight(Driver *drvthis, int on)
  * \param state    Brightness state (on/off) for which we want the value.
  * \return Stored brightness in promille.
  */
-MODULE_EXPORT int 
+MODULE_EXPORT int
 CwLnx_get_brightness(Driver *drvthis, int state)
 {
         PrivateData *p = drvthis->private_data;
@@ -1146,12 +1159,12 @@ CwLnx_set_char_unrestricted(Driver *drvthis, int n, unsigned char *dat)
  * \retval 0       Icon has been successfully defined/written.
  * \retval <0      Server core shall define/write the icon.
  */
-MODULE_EXPORT int 
+MODULE_EXPORT int
 CwLnx_icon(Driver *drvthis, int x, int y, int icon)
 {
     PrivateData *p = drvthis->private_data;
 
-	static unsigned char heart_open[] = 
+	static unsigned char heart_open[] =
 		{ b__XXXXX,
 		  b__X_X_X,
 		  b_______,
@@ -1160,7 +1173,7 @@ CwLnx_icon(Driver *drvthis, int x, int y, int icon)
 		  b__X___X,
 		  b__XX_XX,
 		  b__XXXXX };
-	static unsigned char heart_filled[] = 
+	static unsigned char heart_filled[] =
 		{ b__XXXXX,
 		  b__X_X_X,
 		  b___X_X_,
@@ -1169,7 +1182,7 @@ CwLnx_icon(Driver *drvthis, int x, int y, int icon)
 		  b__X_X_X,
 		  b__XX_XX,
 		  b__XXXXX };
-	static unsigned char arrow_up[] = 
+	static unsigned char arrow_up[] =
 		{ b____X__,
 		  b___XXX_,
 		  b__X_X_X,
@@ -1178,7 +1191,7 @@ CwLnx_icon(Driver *drvthis, int x, int y, int icon)
 		  b____X__,
 		  b____X__,
 		  b_______ };
-	static unsigned char arrow_down[] = 
+	static unsigned char arrow_down[] =
 		{ b____X__,
 		  b____X__,
 		  b____X__,
@@ -1188,7 +1201,7 @@ CwLnx_icon(Driver *drvthis, int x, int y, int icon)
 		  b____X__,
 		  b_______ };
 /*
-	static unsigned char arrow_left[] = 
+	static unsigned char arrow_left[] =
 		{ b_______,
 		  b____X__,
 		  b___X___,
@@ -1197,7 +1210,7 @@ CwLnx_icon(Driver *drvthis, int x, int y, int icon)
 		  b____X__,
 		  b_______,
 		  b_______ };
-	static unsigned char arrow_right[] = 
+	static unsigned char arrow_right[] =
 		{ b_______,
 		  b____X__,
 		  b_____X_,
@@ -1207,7 +1220,7 @@ CwLnx_icon(Driver *drvthis, int x, int y, int icon)
 		  b_______,
 		  b_______ };
 */
-	static unsigned char checkbox_off[] = 
+	static unsigned char checkbox_off[] =
 		{ b_______,
 		  b_______,
 		  b__XXXXX,
@@ -1216,7 +1229,7 @@ CwLnx_icon(Driver *drvthis, int x, int y, int icon)
 		  b__X___X,
 		  b__XXXXX,
 		  b_______ };
-	static unsigned char checkbox_on[] = 
+	static unsigned char checkbox_on[] =
 		{ b____X__,
 		  b____X__,
 		  b__XXX_X,
@@ -1225,7 +1238,7 @@ CwLnx_icon(Driver *drvthis, int x, int y, int icon)
 		  b__X___X,
 		  b__XXXXX,
 		  b_______ };
-	static unsigned char checkbox_gray[] = 
+	static unsigned char checkbox_gray[] =
 		{ b_______,
 		  b_______,
 		  b__XXXXX,
@@ -1235,7 +1248,7 @@ CwLnx_icon(Driver *drvthis, int x, int y, int icon)
 		  b__XXXXX,
 		  b_______ };
 /*
-	static unsigned char selector_left[] = 
+	static unsigned char selector_left[] =
 		{ b___X___,
 		  b___XX__,
 		  b___XXX_,
@@ -1244,7 +1257,7 @@ CwLnx_icon(Driver *drvthis, int x, int y, int icon)
 		  b___XX__,
 		  b___X___,
 		  b_______ };
-	static unsigned char selector_right[] = 
+	static unsigned char selector_right[] =
 		{ b_____X_,
 		  b____XX_,
 		  b___XXX_,
@@ -1253,7 +1266,7 @@ CwLnx_icon(Driver *drvthis, int x, int y, int icon)
 		  b____XX_,
 		  b_____X_,
 		  b_______ };
-	static unsigned char ellipsis[] = 
+	static unsigned char ellipsis[] =
 		{ b_______,
 		  b_______,
 		  b_______,
@@ -1262,8 +1275,8 @@ CwLnx_icon(Driver *drvthis, int x, int y, int icon)
 		  b_______,
 		  b__X_X_X,
 		  b_______ };
-*/	  
-	static unsigned char block_filled[] = 
+*/
+	static unsigned char block_filled[] =
 		{ b__XXXXX,
 		  b__XXXXX,
 		  b__XXXXX,

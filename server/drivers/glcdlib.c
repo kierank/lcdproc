@@ -7,7 +7,7 @@
  * all the drivers supported by graphlcd-base, which you can get from
  * http://graphlcd.berlios.de.
  * In order to be able to use it, you have to get and install the glcdprocdriver
- * from http://www.muresan.de/graphlcd/lcdproc.
+ * from http://www.muresan.de/graphlcd/lcdproc/.
  *
  * This file is released under the GNU General Public License. Refer to the
  * COPYING file distributed with this package.
@@ -33,9 +33,6 @@
 #endif
 
 #include "lcd.h"
-#include "lcd_lib.h"
-#include "shared/debug.h"
-//#define DEBUG
 #include "report.h"
 
 #include "glcdlib.h"
@@ -107,7 +104,7 @@ MODULE_EXPORT int glcdlib_init (Driver *drvthis)
 	    || (nCfgTextRows <= 0) || (nCfgTextRows > LCD_MAX_HEIGHT))
 	{
 		report(RPT_WARNING,
-			"%s: cannot read or invalid TextResolution: %s; using default %s", 
+			"%s: cannot read or invalid TextResolution: %s; using default %s",
 			drvthis->name, strTextRes, strTextResDefault);
 		sscanf(strTextResDefault, "%dx%d", &nCfgTextWidth, &nCfgTextRows);
 	}
@@ -147,7 +144,7 @@ MODULE_EXPORT int glcdlib_init (Driver *drvthis)
 			"%s: cannot read or invalid MinFontFaceSize: %s; using default %s",
 			drvthis->name, strMinFontFaceSize, strMinFaceSizeDef);
 		sscanf(strMinFaceSizeDef, "%dx%d", &nCfgMinFontFaceWidth, &nCfgMinFontFaceHeight);
-	}		
+	}
 
 	// show debugging frame?
 	bool bShowDbgFrame = drvthis->config_get_bool(drvthis->name, "ShowDebugFrame", 0, true);
@@ -199,7 +196,7 @@ MODULE_EXPORT int glcdlib_init (Driver *drvthis)
 
 	report(RPT_DEBUG, "%s: init() done", drvthis->name);
 
-	return 1;
+	return 0;
 }
 
 
@@ -215,7 +212,7 @@ glcdlib_close (Driver *drvthis)
 		pPD->glcdDriver = NULL;
 
 		free(pPD);
-	}	
+	}
 	drvthis->store_private_ptr(drvthis, NULL);
 }
 

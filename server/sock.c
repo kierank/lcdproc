@@ -1,5 +1,9 @@
 /** \file server/sock.c
- * LCDproc sockets code.
+ * This file contains all the sockets code used by the server. This contains
+ * the code called upon by main() to initialize the listening socket, as well
+ * as code to deal with sending messages to clients, maintaining connections,
+ * accepting new connections, closing dead connections (or connections
+ * associated with dying/exiting clients), etc.
  */
 
 /* This file is part of LCDd, the lcdproc server.
@@ -8,9 +12,9 @@
  * Refer to the COPYING file distributed with this package.
  *
  * Copyright (c) 1999, William Ferrell, Scott Scriven
- *               2003, Benjamin Tse (blt@ieee.org) - Winsock port
  *               2004, F5 Networks, Inc. - IP-address input
  *               2005, Peter Marschall - error checks, ...
+ *               2009, Markus Dolze - input ring buffer
  */
 
 #ifdef HAVE_CONFIG_H
@@ -23,15 +27,11 @@
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
-#ifdef WINSOCK2
-#include <winsock2.h>
-#else
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <arpa/inet.h>
-#endif /* WINSOCK */
 #include <sys/time.h>
 #include <sys/types.h>
 #include <fcntl.h>
@@ -43,6 +43,8 @@
 #include "screen.h"
 #include "shared/report.h"
 #include "screenlist.h"
+#include "shared/sring.h"
+#include "shared/defines.h"
 
 
 /****************************************************************************/
@@ -55,6 +57,9 @@ static int listening_fd;
  * as sockets can be arbitrary values instead of low value integers. */
 static LinkedList* openSocketList = NULL;
 static LinkedList* freeClientSocketList = NULL;
+
+/* ring buffer for incoming messages */
+static sring_buffer *messageRing;
 
 /** Mapping between socket and associated client */
 typedef struct _ClientSocketMap
@@ -89,23 +94,12 @@ sock_init(char* bind_addr, int bind_port)
 {
 	int i;
 
-#ifdef WINSOCK2
-	/* Initialize the Winsock dll */
-	WSADATA wsaData;
-	int startup = WSAStartup(MAKEWORD(2, 2), &wsaData);
-	if (startup != 0) {
-		report(RPT_ERR, "%s: Could not start Winsock library - %s", 
-			__FUNCTION__, sock_geterror());
-	}
-	/* REVISIT: call WSACleanup(); */
-#endif
-
 	debug(RPT_DEBUG, "%s(bind_addr=\"%s\", port=%d)", __FUNCTION__, bind_addr, bind_port);
 
 	/* Create the socket and set it up to accept connections. */
 	listening_fd = sock_create_inet_socket(bind_addr, bind_port);
 	if (listening_fd < 0) {
-		report(RPT_ERR, "%s: error creating socket - %s", 
+		report(RPT_ERR, "%s: error creating socket - %s",
 			__FUNCTION__, sock_geterror());
 		return -1;
 	}
@@ -113,7 +107,7 @@ sock_init(char* bind_addr, int bind_port)
 	/* Create the socket -> Client mapping pool */
 	/* How large can FD_SETSIZE be? Even if it is ~2000 this only uses a
 	   few kilobytes of memory. Let's trade size for speed! */
-	freeClientSocketPool = (ClientSocketMap *) 
+	freeClientSocketPool = (ClientSocketMap *)
 				calloc(FD_SETSIZE, sizeof(ClientSocketMap));
 	if (freeClientSocketPool == NULL) {
 		report(RPT_ERR, "%s: Error allocating client sockets.",
@@ -147,24 +141,14 @@ sock_init(char* bind_addr, int bind_port)
 		LL_AddNode(openSocketList, (void*) entry);
 	}
 
+	if ((messageRing = sring_create(MAXMSG)) == NULL) {
+		report(RPT_ERR, "%s: error allocating receive buffer.",
+			 __FUNCTION__);
+		return -1;
+	}
+
 	return 0;
 }
-
-/*
-This code gets the send and receive buffer sizes.
-  {
-     int val, len, sock;
-     sock = new;
-
-     len = sizeof(int);
-     getsockopt(sock, SOL_SOCKET, SO_SNDBUF, &val, &len);
-     debug(RPT_DEBUG, "SEND buffer: %i bytes", val);
-
-     len = sizeof(int);
-     getsockopt(sock, SOL_SOCKET, SO_RCVBUF, &val, &len);
-     debug(RPT_DEBUG, "RECV buffer: %i bytes", val);
-  }
-*/
 
 
 /** Cleanup socket management structures.
@@ -200,14 +184,7 @@ sock_shutdown(void)
 	close(listening_fd);
 	LL_Destroy(freeClientSocketList);
 	free(freeClientSocketPool);
-
-#ifdef WINSOCK2
-	if (WSACleanup() != 0) {
-		report(RPT_ERR, "%s: Error closing Winsock library - %s",
-			__FUNCTION__, sock_geterror());
-		retVal = -1;
-	}
-#endif
+	sring_destroy(messageRing);
 
 	return retVal;
 }
@@ -230,19 +207,15 @@ sock_create_inet_socket(char *addr, unsigned int port)
 
 	/* Create the socket. */
 	sock = socket(PF_INET, SOCK_STREAM, 0);
-#ifdef WINSOCK2
-	if (sock == INVALID_SOCKET)
-#else
 	if (sock < 0)
-#endif
 	{
-		report(RPT_ERR, "%s: cannot create socket - %s", 
+		report(RPT_ERR, "%s: cannot create socket - %s",
 			__FUNCTION__, sock_geterror());
 		return -1;
 	}
 	/* Set the socket so we can re-use it*/
 	if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (void *) &sockopt, sizeof(sockopt)) < 0) {
-		report(RPT_ERR, "%s: error setting socket option SO_REUSEADDR - %s", 
+		report(RPT_ERR, "%s: error setting socket option SO_REUSEADDR - %s",
 			__FUNCTION__, sock_geterror());
 		return -1;
 	}
@@ -251,22 +224,17 @@ sock_create_inet_socket(char *addr, unsigned int port)
 	memset(&name, 0, sizeof(name));
 	name.sin_family = AF_INET;
 	name.sin_port = htons(port);
-#ifndef WINSOCK2
-	/* REVISIT: can probably use the same code as under winsock */
 	inet_aton(addr, &name.sin_addr);
-#else
-	name.sin_addr.S_un.S_addr = inet_addr(addr);
-#endif
 
 	if (bind(sock, (struct sockaddr *) &name, sizeof(name)) < 0) {
-		report(RPT_ERR, "%s: cannot bind to port %d at address %s - %s", 
+		report(RPT_ERR, "%s: cannot bind to port %d at address %s - %s",
                        __FUNCTION__, port, addr, sock_geterror());
 		return -1;
 	}
 
 	if (listen(sock, 1) < 0) {
 		report(RPT_ERR, "%s: error in attempting to listen to port "
-			"%d at %s - %s", 
+			"%d at %s - %s",
 			__FUNCTION__, port, addr, sock_geterror());
 		return -1;
 	}
@@ -300,15 +268,15 @@ sock_poll_clients(void)
 	read_fd_set = active_fd_set;
 
 	if (select(FD_SETSIZE, &read_fd_set, NULL, NULL, &t) < 0) {
-		report(RPT_ERR, "%s: Select error - %s", 
+		report(RPT_ERR, "%s: Select error - %s",
 			__FUNCTION__, sock_geterror());
 		return -1;
 	}
 
 	/* Service all the sockets with input pending. */
 	LL_Rewind(openSocketList);
-	for (clientSocket = (ClientSocketMap *) LL_Get(openSocketList); 
-	     clientSocket != NULL; 
+	for (clientSocket = (ClientSocketMap *) LL_Get(openSocketList);
+	     clientSocket != NULL;
 	     clientSocket = LL_GetNext(openSocketList)) {
 
 		if (FD_ISSET(clientSocket->socket, &read_fd_set)) {
@@ -320,12 +288,8 @@ sock_poll_clients(void)
 				socklen_t size = sizeof(clientname);
 
 				new_sock = accept(listening_fd, (struct sockaddr *) &clientname, &size);
-#ifdef WINSOCK2
-				if (new_sock == INVALID_SOCKET) {
-#else
 				if (new_sock < 0) {
-#endif
-					report(RPT_ERR, "%s: Accept error - %s", 
+					report(RPT_ERR, "%s: Accept error - %s",
 						__FUNCTION__, sock_geterror());
 					return -1;
 				}
@@ -333,14 +297,7 @@ sock_poll_clients(void)
 					inet_ntoa(clientname.sin_addr), ntohs(clientname.sin_port), new_sock);
 				FD_SET(new_sock, &active_fd_set);
 
-#ifdef WINSOCK2        
-				{
-					unsigned long tmp;
-					ioctlsocket(new_sock, FIONBIO, &tmp);
-				}
-#else
 				fcntl(new_sock, F_SETFL, O_NONBLOCK);
-#endif
 
 				/* Create new client */
 				if ((c = client_create(new_sock)) == NULL) {
@@ -360,7 +317,7 @@ sock_poll_clients(void)
 						LL_Next(openSocketList);
 					}
 					else {
-						report(RPT_ERR, "%s: Error - free client socket list exhausted - %d clients.", 
+						report(RPT_ERR, "%s: Error - free client socket list exhausted - %d clients.",
 							__FUNCTION__, FD_SETSIZE);
 						return -1;
 					}
@@ -373,14 +330,11 @@ sock_poll_clients(void)
 			}
 			else {	/* Data arriving on an already-connected socket. */
 				int err = 0;
-
-				do {
-					debug(RPT_DEBUG, "%s: reading...", __FUNCTION__);
-					err = sock_read_from_client(clientSocket);
-					debug(RPT_DEBUG, "%s: ...done", __FUNCTION__);
-					if (err < 0)
-						sock_destroy_socket();
-				} while (err > 0);
+				debug(RPT_DEBUG, "%s: reading...", __FUNCTION__);
+				err = sock_read_from_client(clientSocket);
+				debug(RPT_DEBUG, "%s: ...done", __FUNCTION__);
+				if (err < 0)
+					sock_destroy_socket();
 			}
 		}
 	}
@@ -395,44 +349,52 @@ sock_poll_clients(void)
 static int
 sock_read_from_client(ClientSocketMap *clientSocketMap)
 {
-	char buffer[MAXMSG + 1];
-	int nbytes, i;
+	char buffer[MAXMSG];
+	int nbytes;
 
 	debug(RPT_DEBUG, "%s()", __FUNCTION__);
 
 	errno = 0;
-        nbytes = sock_recv(clientSocketMap->socket, buffer, MAXMSG);
-	if (nbytes < 0) {
-		if (errno != EAGAIN)
-			report(RPT_DEBUG, "%s: Error on socket %d - %s", 
-				__FUNCTION__, clientSocketMap->socket, sock_geterror());
-		return 0;
-	}
-	else if (nbytes == 0) {		/* EOF*/
-		return -1;
-	}
-	else if (nbytes > (MAXMSG - (MAXMSG / 8))) {	/* Very noisy client...*/
-		sock_send_error(clientSocketMap->socket, "Too much data received... quiet down!\n");
-		return -1;
-	}
-	else {				/* Data Read */
-		buffer[nbytes] = '\0';
-		/* Now, replace zeros with linefeeds...*/
-		for (i = 0; i < nbytes; i++)
-			if (buffer[i] == 0)
-				buffer[i] = '\n';
-		/* Enqueue a "client message" here...*/
-		if (clientSocketMap->client) {
-			client_add_message(clientSocketMap->client, buffer);
-		} else {
-			report(RPT_DEBUG, "%s:  Can't find client %d", 
-				__FUNCTION__, clientSocketMap->socket);
-		}
+	nbytes = sock_recv(clientSocketMap->socket, buffer, MAXMSG);
 
-		report(RPT_DEBUG, "%s: got message from client %d: \"%s\"", 
-			__FUNCTION__, clientSocketMap->socket, buffer);
-		return nbytes;
+	while (nbytes > 0) {		/* Data available */
+		int fr;
+		char *str;
+
+		debug(RPT_DEBUG, "%s: received %4d bytes", __FUNCTION__, nbytes);
+
+		/* Append to ring buffer */
+		sring_write(messageRing, buffer, nbytes);
+
+		/* Process all available message in ring buffer */
+		do {
+			str = sring_read_string(messageRing);
+			if (clientSocketMap->client) {
+				client_add_message(clientSocketMap->client, str);
+			} else {
+				report(RPT_DEBUG, "%s: Can't find client %d",
+					__FUNCTION__, clientSocketMap->socket);
+			}
+		} while (str != NULL);
+
+		/* Read again, but only as much as space is left */
+		fr = sring_getMaxWrite(messageRing);
+		if (fr == 0)
+			report(RPT_WARNING, "%s: Message buffer full", __FUNCTION__);
+
+		nbytes = sock_recv(clientSocketMap->socket, buffer, min(MAXMSG, fr));
 	}
+
+	if (sring_getMaxRead(messageRing) > 0) {
+		report(RPT_WARNING, "%s: left over bytes in message buffer",
+			__FUNCTION__);
+		sring_clear(messageRing);
+	}
+
+	if (nbytes < 0 && errno == EAGAIN)
+		return 0;		/* No data is not an error */
+
+	return -1;			/* EOF */
 }
 
 
@@ -495,7 +457,7 @@ sock_destroy_socket(void)
 
 
 /* return 1 if addr is valid IPv4 */
-int verify_ipv4(const char *addr) 
+int verify_ipv4(const char *addr)
 {
 	int result = -1;
 
@@ -509,7 +471,7 @@ int verify_ipv4(const char *addr)
 }
 
 /* return 1 if addr is valid IPv6 */
-int verify_ipv6(const char *addr) 
+int verify_ipv6(const char *addr)
 {
 	int result = 0;
 
@@ -520,6 +482,4 @@ int verify_ipv6(const char *addr)
 		result = inet_pton(AF_INET6, addr, &a);
 	}
 	return (result > 0) ? 1 : 0;
-} 
-
-
+}

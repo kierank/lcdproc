@@ -1,5 +1,5 @@
 /** \file server/drivers/icp_a106.c
- * LCDd \c icp_a106 for the ICP A106 alarm/LCD board used in 19" rack cases by ICP.
+ * LCDd \c icp_a106 for the ICP A106 alarm/LCD board used in 19 inch rack cases by ICP.
  */
 
 /*
@@ -47,7 +47,6 @@
 #endif
 
 #include "lcd.h"
-#include "lcd_lib.h"
 #include "icp_a106.h"
 #include "report.h"
 
@@ -145,7 +144,7 @@ icp_a106_init (Driver *drvthis)
 
   report(RPT_DEBUG, "%s: init() done", drvthis->name);
 
-  return 1;
+  return 0;
 }
 
 /////////////////////////////////////////////////////////////////
@@ -168,7 +167,7 @@ icp_a106_close (Driver *drvthis)
       close(p->fd);
     }
     free(p);
-  }	    
+  }
   drvthis->store_private_ptr(drvthis, NULL);
 
   report(RPT_INFO, "%s: closed", drvthis->name);

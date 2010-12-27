@@ -108,7 +108,7 @@ AC_CHECK_LIB(kvm, kvm_open,[
 ])
 
 dnl NetBSD, OpenBSD and FreeBSD
-AC_CHECK_HEADERS(sched.h sys/types.h machine/pio.h machine/sysarch.h sys/cpuvar.h machine/apm_bios.h sys/pcpu.h)
+AC_CHECK_HEADERS(sched.h sys/types.h machine/pio.h machine/sysarch.h sys/cpuvar.h machine/apm_bios.h)
 ETR_SYSV_IPC
 ETR_UNION_SEMUN
 
@@ -160,6 +160,12 @@ else
 	AC_MSG_WARN([Can't talk to the parallel port, disabling drivers that use it.])
 fi
 
+x_ac_have_i2c=no
+AC_CHECK_HEADERS([linux/i2c-dev.h], [x_ac_have_i2c=yes])
+if test "$x_ac_have_i2c" = yes; then
+	AC_DEFINE(HAVE_I2C,[1],[Define to 1 if you have the i2c headers])
+fi
+
 dnl Checks for header files.
 AC_HEADER_DIRENT
 AC_HEADER_STDC
@@ -173,7 +179,19 @@ AC_CHECK_HEADERS([sys/sysctl.h], [], [],
 #endif
 ]])
 
+dnl On FreeBSD >= 8 checking sys/pcpu.h fails without sys/param.h and kvm.h
+AC_CHECK_HEADERS([sys/pcpu.h], [], [],
+[[#if HAVE_SYS_PARAM_H
+# include <sys/param.h>
+#endif
+#if HAVE_KVM_H
+# include <kvm.h>
+#endif
+]])
+
+
 dnl Check for particular preprocessor macros
+LCD_SA_RESTART
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -239,14 +257,14 @@ AC_ARG_ENABLE(libusb,
 	fi ],
 	[ enable_libusb=yes ]
 )
-AC_MSG_RESULT($enable_libusb) 
+AC_MSG_RESULT($enable_libusb)
 
 if test "$enable_libusb" = "yes"; then
 	ifdef([PKG_CHECK_MODULES],
 		[PKG_CHECK_MODULES(LIBUSB, libusb,
 			[AC_DEFINE(HAVE_LIBUSB, [1], [Define to 1 if you have libusb])],
 			[ enable_libusb=no ])],
-		[AC_MSG_WARN([pkg-config not (fully) installed; drivers requiring libusb may not be built])])	
+		[AC_MSG_WARN([pkg-config not (fully) installed; drivers requiring libusb may not be built])])
 fi
 AC_SUBST(LIBUSB_LIBS)
 AC_SUBST(LIBUSB_CFLAGS)
@@ -262,17 +280,40 @@ AC_ARG_ENABLE(libftdi,
 	fi ],
 	[ enable_libftdi=yes ]
 )
-AC_MSG_RESULT($enable_libftdi) 
+AC_MSG_RESULT($enable_libftdi)
 
 if test "$enable_libftdi" = "yes"; then
 	ifdef([PKG_CHECK_MODULES],
 	 	[PKG_CHECK_MODULES(LIBFTDI, libftdi >= 0.8,
 			[AC_DEFINE(HAVE_LIBFTDI, [1], [Define to 1 if you have libftdi])],
 			[ enable_libftdi=no ])],
-		[AC_MSG_WARN([pkg-config not (fully) installed; drivers requiring libftdi may not be built])])	
+		[AC_MSG_WARN([pkg-config not (fully) installed; drivers requiring libftdi may not be built])])
 fi
 AC_SUBST(LIBFTDI_LIBS)
 AC_SUBST(LIBFTDI_CFLAGS)
+
+dnl ######################################################################
+dnl libhid support
+dnl ######################################################################
+AC_MSG_CHECKING([if libhid support has been enabled]);
+AC_ARG_ENABLE(libhid,
+	[AS_HELP_STRING([--disable-libhid],[disable HID support using libhid])],
+	[ if test "$enableval" != "no"; then
+		enable_libhid=yes
+	fi ],
+	[ enable_libhid=yes ]
+)
+AC_MSG_RESULT($enable_libhid) 
+
+if test "$enable_libhid" = "yes"; then
+	ifdef([PKG_CHECK_MODULES],
+	 	[PKG_CHECK_MODULES(LIBHID, libhid >= 0.2.16,
+			[AC_DEFINE(HAVE_LIBHID, [1], [Define to 1 if you have libhid])],
+			[ enable_libhid=no ])],
+		[AC_MSG_WARN([pkg-config not (fully) installed; drivers requiring libhid may not be built])])
+fi
+AC_SUBST(LIBHID_LIBS)
+AC_SUBST(LIBHID_CFLAGS)
 
 dnl ######################################################################
 dnl ethlcd support
@@ -285,7 +326,7 @@ AC_ARG_ENABLE(ethlcd,
 	fi ],
 	[ enable_ethlcd=yes ]
 )
-AC_MSG_RESULT($enable_ethlcd) 
+AC_MSG_RESULT($enable_ethlcd)
 
 
 # check for doxygen
@@ -305,7 +346,7 @@ if test ! -d $pidfiledir ; then
 		NONE/*) pidfiledir=`echo $pidfiledir | sed "s~NONE~$ac_default_prefix~"` ;;
 	esac
 fi
-		
+
 AC_ARG_WITH(pidfile-dir,
 	[AS_HELP_STRING([--with-pidfile-dir=PATH], [specify location of pid files [/var/run]])],
 	[ if test -n "$withval"  &&  test "x$withval" != "xno"  &&  \

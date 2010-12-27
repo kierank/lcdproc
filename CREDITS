@@ -1,5 +1,5 @@
 This is the CREDITS file that should list all people that are or have
-been involved in LCDproc. 
+been involved in LCDproc.
 
 Please help us keeping this file up to date. Developers, please insert
 your name and a short description of your activities. Other people
@@ -16,7 +16,7 @@ William Ferrell (Choadstre) <willfe@yahoo.com>:
 	  for V0.4, continued maintenance
 It's Choadstre's fault that LCDproc exists. He wanted his computer to have
 a heartbeat, like some HP workstations do. So he found a nice LCD, wrote
-some amazingly spiffy software for it, and life was good. 
+some amazingly spiffy software for it, and life was good.
 
 Scott Scriven (ToyKeeper) <http://toykeeper.net/>:
 	- wrote V0.3 and most of V0.4, and helped procrastinate the rest
@@ -27,10 +27,10 @@ Choadstre's idea and put it in its current form.
 Gareth Watts (Xeno42):
 	- Patches, mailing list, ideas, web hosting, CVS, etc.
 
-Matrix Orbital Corporation <http://www.matrix-orbital.com/>:
+Matrix Orbital Corporation <http://www.matrixorbital.com/>:
 	- Free displays for us developers, and lots of help early on
 
-Crystal Fontz <http://www.crystalfontz.com/>:
+Crystalfontz America, Inc. <http://www.crystalfontz.com/>:
 	- Sends us testing LCDs to get LCDproc going on all their models
 
 Lorand Bruhacs <bruhacs@ip23.net>:
@@ -40,7 +40,7 @@ Benjamin Tse <blt@Comports.com>, Matthias Prinke <m.prinke@trashcan.mcnet.de>:
 	- HD44780 driver and predecessors
 
 Richard Rognlie <rrognlie@gamerz.net>:
-	- Work on HD44780 driver 
+	- Work on HD44780 driver
 	- GIF driver (lost code)
 
 Tom Wheeley:
@@ -110,7 +110,7 @@ David Douthitt:
 Eddie Sheldrake:
 	- Crystal Fontz driver
 
-Rene Wagner <reenoo@gmx.de>:
+Rene Wagner:
 	- LCDM001 driver
 	- ASCII emulation of BigNum
 	- CFontz v2.0 patches merging,
@@ -134,7 +134,7 @@ Joris Robijn:
 	- SED1330 driver
 
 Guillaume Filion:
-	- Portability bug fixes on the curses, HD44780, SED1520 and 
+	- Portability bug fixes on the curses, HD44780, SED1520 and
 	  STV5730 drivers.
 	- Partially implemented Thomas Runge's BSD port of lcdproc.
 	- Ported the parallel functions in port.h to BSD.
@@ -159,15 +159,17 @@ Mike Patnode:
 	- Crystal Fontz
 	- Various 0.4.3 changes
 
-Peter Marschall: (current maintainer)
+Peter Marschall:
 	- new drivers: IOWarrior, xosdlib
 	- bwctusb connectiontype for the HD44780 driver
 	- extensions to CFontz* drivers: support CF631 & CF635
 	- various fixes in preparation of 0.5
 	- lcd2usb connectiontype for the HD44780 driver
 
-Markus Dolze:
+Markus Dolze (current maintainer):
 	- various fixes (especially for *BSD)
+	- merged and extended network interface statistics to lcdproc client
+	- new LCDd network input buffering
 
 Volker Boerchers:
 	- fixes and extensions to the menu system
@@ -265,6 +267,12 @@ Christian Leuschen,
 Jonathan Kyler:
 	- driver for SoundGraph iMON OEM LCD Modules
 
+Laurent Latil
+	- SureElec driver for devices made by SURE Electronics
+
+Christoph Rasim
+	- MDM166A driver for Futaba/Targa USB VFD
+
 
 Further developers in the sourceforge lcdproc team:
 Mindaugas Idzelis       aim4min
@@ -278,4 +286,3 @@ Ken Robertson		seadawg
 Simon Harrison		smh
 Stephen Paul		tegetana
 Luis Llorente		luisllo
-

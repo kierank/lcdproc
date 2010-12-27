@@ -1,3 +1,13 @@
+/** \file shared/sockets.c
+ * Socket functions available to server and clients.
+ */
+
+/*-
+ * This file is part of LCDproc.
+ *
+ * Feel free to use this in your own clients... :)
+ */
+
 #include <unistd.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -5,15 +15,11 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <sys/types.h>
-#ifndef WINSOCK2
-# include <sys/socket.h>
-# include <sys/un.h>
-# include <netinet/in.h>
-# include <netdb.h>
-# include <arpa/inet.h>
-#else
-# include <winsock2.h>
-#endif
+#include <sys/socket.h>
+#include <sys/un.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <arpa/inet.h>
 #include <stdarg.h>
 #include <fcntl.h>
 
@@ -24,17 +30,18 @@
 #include "report.h"
 #include "sockets.h"
 
-/**************************************************
-  LCDproc client sockets code...
-
-  Feel free to use this in your own clients... :)
-**************************************************/
-
 // Length of longest transmission allowed at once...
 #define MAXMSG 8192
 
 typedef struct sockaddr_in sockaddr_in;
 
+/**
+ * Tries to resolve a resolve a hostname.
+ * \param name      Pointer to resolves IP-address
+ * \param hostname  Hostname or IP-address (as string)
+ * \param port      Port number
+ * \return  0 on success, -1 on error.
+ */
 static int
 sock_init_sockaddr (sockaddr_in *name, const char *hostname, unsigned short int port)
 {
@@ -51,10 +58,14 @@ sock_init_sockaddr (sockaddr_in *name, const char *hostname, unsigned short int 
 	name->sin_addr = *(struct in_addr *) hostinfo->h_addr;
 
 	return 0;
-
 }
 
- // Client functions...
+/**
+ * Connect to server.
+ * \param host  Hostname or IP-address
+ * \param port  Port number
+ * \return  socket file descriptor on success, -1 on error
+ */
 int
 sock_connect (char *host, unsigned short int port)
 {
@@ -64,11 +75,7 @@ sock_connect (char *host, unsigned short int port)
 
 	report (RPT_DEBUG, "sock_connect: Creating socket");
 	sock = socket (PF_INET, SOCK_STREAM, 0);
-#ifdef WINSOCK2        
-        if (sock == INVALID_SOCKET) {
-#else
 	if (sock < 0) {
-#endif
 		report (RPT_ERR, "sock_connect: Error creating socket");
 		return sock;
 	}
@@ -78,30 +85,22 @@ sock_connect (char *host, unsigned short int port)
 		return -1;
 
 	err = connect (sock, (struct sockaddr *) &servername, sizeof (servername));
-#ifdef WINSOCK2        
-	if (err == INVALID_SOCKET) {
-#else
 	if (err < 0) {
-#endif
 		report (RPT_ERR, "sock_connect: connect failed");
 		shutdown (sock, SHUT_RDWR);
 		return -1;
 	}
 
-#ifndef WINSOCK2        
 	fcntl (sock, F_SETFL, O_NONBLOCK);
-#else
-        {
-                unsigned long tmp = 1;
-
-                if (ioctlsocket(sock, FIONBIO, &tmp) == SOCKET_ERROR)
-                        report(RPT_ERR, "sock_connect: Error setting socket to non-blocking");
-        }
-#endif
 
 	return sock;
 }
 
+/**
+ * Disconnect from server.
+ * \param fd  Socket file descriptor
+ * \return  0 on success, -1 on error.
+ */
 int
 sock_close (int fd)
 {
@@ -115,7 +114,13 @@ sock_close (int fd)
 }
 
 
-/**  send printf-like formatted output */
+/**
+ * Send printf-like formatted output.
+ * \param fd      Socket file descriptor
+ * \param format  Format string
+ * \param ...     Arguments to the format string
+ * \return  Number of bytes sent.
+ */
 int
 sock_printf(int fd, const char *format, .../*args*/ )
 {
@@ -137,14 +142,26 @@ sock_printf(int fd, const char *format, .../*args*/ )
 	return sock_send_string(fd, buf);
 }
 
-// Send/receive lines of text
+/**
+ * Send lines of text.
+ * \param fd      Socket file descriptor
+ * \param string  Pointer to the string to send.
+ * \return  Number of bytes sent.
+ */
 int
 sock_send_string (int fd, char *string)
 {
 	return sock_send(fd, string, strlen(string));
 }
 
-// Recv gives only one line per call...
+/**
+ * Receive a line of text.
+ * Recv gives only one line per call...
+ * \param fd      Socket file descriptor
+ * \param dest    Pointer to buffer to store the received data
+ * \param maxlen  Number of bytes to read at most (size of buffer)
+ * \return  Number of bytes received.
+ */
 int
 sock_recv_string (int fd, char *dest, size_t maxlen)
 {
@@ -157,11 +174,7 @@ sock_recv_string (int fd, char *dest, size_t maxlen)
 		return 0;
 
 	while (1) {
-#ifndef WINSOCK2
 		int err = read (fd, ptr, 1);
-#else
-                int err = recv(fd, ptr, 1, 0);
-#endif
 		if (err == -1) {
 			if (errno == EAGAIN) {
 				if (recvBytes) {
@@ -198,7 +211,13 @@ sock_recv_string (int fd, char *dest, size_t maxlen)
 	return recvBytes;
 }
 
-// Send/receive raw data
+/**
+ * Send raw data.
+ * \param fd    Socket file descriptor
+ * \param src   Buffer holding the data to send
+ * \param size  Number of bytes to send at most
+ * \return  Number of bytes sent.
+ */
 int
 sock_send (int fd, void *src, size_t size)
 {
@@ -210,11 +229,7 @@ sock_send (int fd, void *src, size_t size)
 	while (offset != size) {
 		// write isn't guaranteed to send the entire string at once,
 		// so we have to sent it in a loop like this
-#ifndef WINSOCK2
                 int sent = write (fd, ((char *) src) + offset, size - offset);
-#else
-                int sent = send(fd, ((char *) src) + offset, size - offset, 0);
-#endif
 		if (sent == -1) {
 			if (errno != EAGAIN) {
 				report (RPT_ERR, "sock_send: socket write error");
@@ -235,6 +250,13 @@ sock_send (int fd, void *src, size_t size)
 	return offset;
 }
 
+/**
+ * Receive raw data.
+ * \param fd      Socket file descriptor
+ * \param dest    Pointer to buffer to store the received data
+ * \param maxlen  Number of bytes to read at most (size of buffer)
+ * \return  Number of bytes received.
+ */
 int
 sock_recv (int fd, void *dest, size_t maxlen)
 {
@@ -245,11 +267,7 @@ sock_recv (int fd, void *dest, size_t maxlen)
 	if (maxlen <= 0)
 		return 0;
 
-#ifndef WINSOCK2
 	err = read (fd, dest, maxlen);
-#else
-        err = recv(fd, dest, maxlen, 0);
-#endif
 	if (err < 0) {
 		//report (RPT_DEBUG,"sock_recv: socket read error");
 		//shutdown(fd, SHUT_RDWR);
@@ -262,54 +280,32 @@ sock_recv (int fd, void *dest, size_t maxlen)
 
 /*****************************************************************************/
 
+/**
+ * Return the error message for the last error occured.
+ * \return  Error message string
+ */
 char*
 sock_geterror(void)
 {
-#ifndef WINSOCK2
     return strerror(errno);
-#else
-    static char retString[256];
-    long err;
-    char* tmp;
-
-    err = WSAGetLastError();
-
-    sprintf(retString, "Error code %ld: ", err);
-    FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | 
-                  FORMAT_MESSAGE_FROM_SYSTEM | 
-                  FORMAT_MESSAGE_IGNORE_INSERTS,
-                  NULL,
-                  err,
-                  0, /* Default language */
-                  (LPTSTR) &tmp,
-                  0,
-                  NULL);
-
-    /* append the message text after the error code and ensure a terminating
-       character ends the string */
-    strncpy(retString + strlen(retString), tmp, 
-            sizeof(retString) - strlen(retString) - 1);
-    retString[sizeof(retString) - 1] = '\0';
-
-    return retString;
-#endif
 }
 
-/** prints error to logfile and sends it to the client.
- * @param fd socket
- * @param message the message to send (without the "huh? ") */
+/**
+ * Send an already formatted error message to the client.
+ * \param fd  socket
+ * \param message  the message to send (without the "huh? ") */
 int sock_send_error(int fd, char* message)
 {
 	// simple: performance penalty isn't worth more work...
 	return sock_printf_error(fd, message);
 }
 
-/** prints printf-like formatted output to logfile and sends it to the
- * client.
- * @note don't add a the "huh? " to the message. This is done by this
+/**
+ * Print printf-like formatted output to logfile and sends it to the client.
+ * \note don't add a the "huh? " to the message. This is done by this
  *   method
- * @param fd socket
- * @param format a printf format */
+ * \param fd socket
+ * \param format a printf format */
 int
 sock_printf_error(int fd, const char *format, .../*args*/ )
 {

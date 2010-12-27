@@ -13,16 +13,13 @@
 #include <termios.h>
 #include <fcntl.h>
 #include <string.h>
-#include <sys/errno.h>
+#include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <errno.h>
 
 #define __u32 unsigned int
 #define __u8 unsigned char
-
-#include "shared/debug.h"
-#include "shared/str.h"
 
 #define NAME_LENGTH 128
 
@@ -146,7 +143,7 @@ irmanin_init (Driver *drvthis)
 
 	report(RPT_DEBUG, "%s: init() done", drvthis->name);
 
-	return 1;						  // return success
+	return 0;  // return success
 }
 
 

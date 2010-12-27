@@ -13,7 +13,7 @@
  *
  * Copyright (c)  2001 Manuel Stahl <mythos@xmythos.de>
  *
- * 
+ *
  */
 
 #include <stdlib.h>
@@ -21,8 +21,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
-//#include <asm/io.h>
-//#include <sys/perm.h>
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -32,13 +30,10 @@
 #include "t6963.h"
 #include "t6963_font.h"
 
-#include "shared/debug.h"
 #include "report.h"
 #include "lcd_lib.h"
 #include "port.h"
 
-
-//extern int debug_level;
 
 /** private data for the \c t6963 driver */
 typedef struct t6963_private_data {
@@ -124,13 +119,13 @@ t6963_init (Driver *drvthis)
 	/* -- Get permission to parallel port --------------------------------------------*/
 	debug(RPT_DEBUG, "T6963: Getting permission to parallel port %d...", p->port);
 
-        if (port_access_multiple(p->port, 3)) {   //ioperm(p->port, 3, 1)) {
+        if (port_access_multiple(p->port, 3)) {
 		report(RPT_ERR, "%s: no permission to port 0x%03X: (%s)",
 				drvthis->name, p->port, strerror(errno));
                	return -1;
         }
 
-        if (port_access(0x80)) {	//ioperm(0x80, 1, 1)) {
+        if (port_access(0x80)) {
 	       report(RPT_ERR, "%s: no permission to port 0x80: (%s)",
 			       drvthis->name, strerror(errno));
                 return -1;
@@ -210,7 +205,7 @@ t6963_init (Driver *drvthis)
 
 	report(RPT_DEBUG, "%s: init() done", drvthis->name);
 
-	return 1;						  // return success
+	return 0;  // return success
 }
 
 // Below here, you may use either lcd.framebuf or driver->framebuf..
@@ -492,7 +487,7 @@ t6963_low_dsp_ready (Driver *drvthis)
 		t6963_low_set_control(drvthis, 1, 0, 1, 0);
 		t6963_low_set_control(drvthis, 1, 1, 1, 1);
 		port_out(0x80, 0x00);  // wait 1ms
-    } 
+    }
     T6963_DATAOUT(p->port);
 }
 

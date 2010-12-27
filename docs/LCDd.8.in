@@ -5,16 +5,16 @@ LCDd - LCDproc server daemon
 
 .SH SYNOPSIS
 .B LCDd
-[\fB\-hf\fP] 
-[\fB\-c\fP \fIconfig\fP] 
-[\fB\-d\fP \fIdriver\fP] 
-[\fB\-i\fP \fIbool\fP] 
-[\fB\-a\fP \fIaddr\fP] 
-[\fB\-p\fP \fIport\fP] 
-[\fB\-u\fP \fIuser\fP] 
-[\fB\-w\fP \fItime\fP] 
-[\fB\-r\fP \fIlevel\fP] 
-[\fB\-s\fP \fIbool\fP] 
+[\fB\-hf\fP]
+[\fB\-c\fP \fIconfig\fP]
+[\fB\-d\fP \fIdriver\fP]
+[\fB\-i\fP \fIbool\fP]
+[\fB\-a\fP \fIaddr\fP]
+[\fB\-p\fP \fIport\fP]
+[\fB\-u\fP \fIuser\fP]
+[\fB\-w\fP \fItime\fP]
+[\fB\-r\fP \fIlevel\fP]
+[\fB\-s\fP \fIbool\fP]
 
 .SH DESCRIPTION
 \fBLCDd\fP is the server part of LCDproc, a deamon which listens to a certain port (normally 13666)
@@ -27,7 +27,7 @@ Before running \fBLCDd\fP you should carefully
 read through that file and modify everything neccessary according to your needs.
 Otherwise you might encounter \fBLCDd\fP not running properly on your system.
 .PP
-To make full use of \fBLCDd\fP, a client such as lcdproc(1), lcdexec(1), or lcdvc 
+To make full use of \fBLCDd\fP, a client such as lcdproc(1), lcdexec(1), or lcdvc
 is required.
 
 .SH OPTIONS
@@ -103,7 +103,7 @@ serial/USB displays by Cwlinux (http://www.cwlinux.com)
 VFD front panel display on Aopen XC Cube EA65 media barebone
 .TP
 .B EyeboxOne
-LCD display on the EyeboxOne (http://www.rightvision.com)
+LCD display on the EyeboxOne
 .TP
 .B g15
 LCD display on the Logitech G15 keyboard
@@ -175,6 +175,9 @@ TCP connection using open source/open hardware ethlcd (http://manio.skyboo.net/e
 .TP
 .B usblcd
 LCD device from Adams IT Services (http://www.usblcd.de/)
+.TP
+.B usbtiny
+Devices based on Dick Streefland's USBtiny firmware
 .RE
 .TP
 .B i2500vfd
@@ -220,6 +223,9 @@ L.I.S MCE 2005 20x2 VFD (http://vlsys.co.kr)
 .B MD8800
 VFD displays in Medion MD8800 PCs
 .TP
+.B mdm166a
+Futuba MDM166A displays
+.TP
 .B ms6931
 MSI-6931 displays in 1U rack servers by MSI
 .TP
@@ -239,7 +245,7 @@ Noritake VFD Device CU20045SCPB-T28A
 Mini-box.com USB LCD (PicoLCD 20x4 & picoLCD 20x2)
 .TP
 .B pyramid
-LCD displays from Pyramid (http://www.pyramid.de) 
+LCD displays from Pyramid (http://www.pyramid.de)
 .TP
 .B sed1330
 SED1330/SED1335 (aka S1D13300/S1D13305) based graphical displays
@@ -262,8 +268,11 @@ Wirz SLI driver (unknown)
 .B stv5730
 STV5730A on-screen display chip
 .TP
+.B SureElec
+LCD devices from SURE electronics  (http://www.sureelectronics.net)
+.TP
 .B svga
-VGA monitors using svgalib 
+VGA monitors using svgalib
 .TP
 .B t6963
 Toshiba T6963 based LCD displays
@@ -491,7 +500,7 @@ The special value 10 for \fIint\fP displays a colon.
 .SH BUGS
 If \fBLCDd\fP seems not to work as expected, try to run it in the foreground
 with reporting level set to maximum and reporting to stderr.
-This can be achieved without changes to the config file by using the 
+This can be achieved without changes to the config file by using the
 command line:
 .RS
 .I LCDd -f -r 5 -s 0

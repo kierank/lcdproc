@@ -1,3 +1,13 @@
+/** \file clients/lcdproc/machine_Linux.c
+ * Collects system information on Linux.
+ */
+
+/*-
+ * This file is part of lcdproc, the lcdproc client.
+ *
+ * This file is released under the GNU General Public License.
+ * Refer to the COPYING file distributed with this package.
+ */
 
 #ifdef linux
 
@@ -502,7 +512,7 @@ int machine_get_smpload(load_type *result, int *numcpus)
 			result[ncpu].nice	= curr_load[ncpu].nice - last_load[ncpu].nice;
 			result[ncpu].system	= curr_load[ncpu].system - last_load[ncpu].system;
 			result[ncpu].idle	= curr_load[ncpu].idle - last_load[ncpu].idle;
-			
+
 			// struct assignment is legal in C89
 			last_load[ncpu] = curr_load[ncpu];
 
@@ -536,10 +546,10 @@ int machine_get_uptime(double *up, double *idle)
 
 
 /*************************************************************************
- * Read interface statistics from system and  store in the struct 
- * passed as a pointer. If there are no errors, it returns 1. If errors, 
+ * Read interface statistics from system and  store in the struct
+ * passed as a pointer. If there are no errors, it returns 1. If errors,
  * returns 0.
- ************************************************************************* 
+ *************************************************************************
  */
 int machine_get_iface_stats (IfaceInfo *interface)
 {
@@ -554,21 +564,21 @@ int machine_get_iface_stats (IfaceInfo *interface)
 		/* Skip first 2 header lines of file */
 		fgets(buffer, sizeof(buffer), file);
 		fgets(buffer, sizeof(buffer), file);
-		
+
 		/* By default, treat interface as down */
 		interface->status = down;
-		
+
 		/* Search iface_name and scan values */
 		while ((fgets(buffer, sizeof(buffer), file) != NULL)) {
 			if (strstr(buffer, interface->name)) {
 				/* interface exists */
 				interface->status = up; /* is up */
 				interface->last_online = time(NULL); /* save actual time */
-				
+
 				/* search ':' and skip over it */
 				ch_pointer = strchr(buffer, ':');
 				ch_pointer++;
-				
+
 				/* Now ch_pointer points to values of iface_name */
 				/* Scan values from here */
 				sscanf(ch_pointer, "%lf %lf %*s %*s %*s %*s %*s %*s %lf %lf",
@@ -577,8 +587,8 @@ int machine_get_iface_stats (IfaceInfo *interface)
 					&interface->tr_byte,
 					&interface->tr_pkt);
 
-				/* if is the first time we call this function, 
-				 * old values are the same as new so we don't 
+				/* if is the first time we call this function,
+				 * old values are the same as new so we don't
 				 * get big speeds when calculating
 				 */
 				if (first_time) {

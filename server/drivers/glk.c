@@ -17,7 +17,7 @@
 #include <termios.h>
 #include <fcntl.h>
 #include <string.h>
-#include <sys/errno.h>
+#include <errno.h>
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -35,7 +35,6 @@
 
 #define DEBUG 1
 #include "lcd.h"
-#include "shared/str.h"
 #include "glk.h"
 #include "glkproto.h"
 #include "report.h"
@@ -267,11 +266,11 @@ glk_close(Driver *drvthis)
 
 		if (p->framebuf != NULL)
 			free(p->framebuf);
-		p->framebuf = NULL;  
+		p->framebuf = NULL;
 
 		if (p->backingstore != NULL)
 			free(p->backingstore);
-		p->backingstore = NULL;  
+		p->backingstore = NULL;
 
 		free(p);
 	}
@@ -614,7 +613,7 @@ glk_num(Driver *drvthis, int x, int num)
 
 	if ((x > 0) && (x <= p->width))
 		p->framebuf[x-1] = (num >= 10) ? ':' : (num + '0');
-	*/	
+	*/
 }
 
 

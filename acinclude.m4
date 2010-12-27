@@ -8,20 +8,24 @@ AC_ARG_ENABLE(drivers,
 	[  --enable-drivers=<list> compile drivers for LCDs in <list>,]
 	[                  which is a comma-separated list of drivers.]
 	[                  Possible drivers are:]
-	[                    bayrad,CFontz,CFontz633,CFontzPacket,curses,CwLnx,ea65,]
-	[                    EyeboxOne,g15,glcdlib,glk,hd44780,i2500vfd,icp_a106,imon,imonlcd,]
-	[                    IOWarrior,irman,irtrans,joy,lb216,lcdm001,lcterm,lirc,lis,]
-	[                    MD8800,ms6931,mtc_s16209x,MtxOrb,mx5000,NoritakeVFD,picolcd,]
-	[                    pyramid,sed1330,sed1520,serialPOS,serialVFD,shuttleVFD,sli,]
-	[                    stv5730,svga,t6963,text,tyan,ula200,xosd]
+	[                    bayrad,CFontz,CFontz633,CFontzPacket,curses,CwLnx,]
+	[                    ea65,EyeboxOne,g15,glcdlib,glk,hd44780,i2500vfd,]
+	[                    icp_a106,imon,imonlcd,IOWarrior,irman,irtrans,]
+	[                    joy,lb216,lcdm001,lcterm,lirc,lis,MD8800,mdm166a,]
+	[                    ms6931,mtc_s16209x,MtxOrb,mx5000,NoritakeVFD,]
+	[                    picolcd,pyramid,sed1330,sed1520,serialPOS,]
+	[                    serialVFD,shuttleVFD,sli,stv5730,SureElec,svga,]
+	[                    t6963,text,tyan,ula200,xosd]
+	[                    ]
 	[                  'all' compiles all drivers;]
 	[                  'all,!xxx,!yyy' de-selects previously selected drivers],
 	drivers="$enableval",
 	drivers=[bayrad,CFontz,CFontz633,curses,CwLnx,glk,lb216,lcdm001,MtxOrb,pyramid,text])
 
-allDrivers=[bayrad,CFontz,CFontz633,CFontzPacket,curses,CwLnx,ea65,EyeboxOne,g15,glcdlib,glk,hd44780,i2500vfd,icp_a106,imon,imonlcd,IOWarrior,irman,irtrans,joy,lb216,lcdm001,lcterm,lirc,lis,MD8800,ms6931,mtc_s16209x,MtxOrb,mx5000,NoritakeVFD,picolcd,pyramid,sed1330,sed1520,serialPOS,serialVFD,shuttleVFD,sli,stv5730,svga,t6963,text,tyan,ula200,xosd]
-
-drivers=`echo $drivers | sed -e 's/,/ /g'`
+allDrivers=[bayrad,CFontz,CFontz633,CFontzPacket,curses,CwLnx,ea65,EyeboxOne,g15,glcdlib,glk,hd44780,i2500vfd,icp_a106,imon,imonlcd,IOWarrior,irman,irtrans,joy,lb216,lcdm001,lcterm,lirc,lis,MD8800,mdm166a,ms6931,mtc_s16209x,MtxOrb,mx5000,NoritakeVFD,picolcd,pyramid,sed1330,sed1520,serialPOS,serialVFD,shuttleVFD,sli,stv5730,SureElec,svga,t6963,text,tyan,ula200,xosd]
+if test "$debug" = yes; then
+	allDrivers=["${allDrivers},debug"]
+fi
 
 dnl replace special keyword "all" in a secure manner
 drivers=[" $drivers "]
@@ -35,12 +39,12 @@ for driver in $drivers ; do
 	case $driver in
 		!*)
 			driver=`echo "$driver" | sed -e 's/^.//'`
-			selectdrivers=[`echo " $selectdrivers " | sed -r -e "s/ $driver / /g"`]
+			selectdrivers=[`echo " $selectdrivers " | sed -e "s/ $driver / /g"`]
 			;;
 		*)
 			selectdrivers=["$selectdrivers $driver "]
 			;;
-	esac		
+	esac
 done
 
 dnl check for wanted drivers and their dependencies
@@ -128,6 +132,10 @@ dnl				else
 			DRIVERS="$DRIVERS CwLnx${SO}"
 			actdrivers=["$actdrivers CwLnx"]
 			;;
+		debug)
+			DRIVERS="$DRIVERS debug${SO}"
+			actdrivers=["$actdrivers debug"]
+			;;
 		ea65)
 			DRIVERS="$DRIVERS ea65${SO}"
 			actdrivers=["$actdrivers ea65"]
@@ -193,18 +201,18 @@ dnl			else
 				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-4bit.o hd44780-hd44780-ext8bit.o hd44780-lcd_sem.o hd44780-hd44780-winamp.o hd44780-hd44780-serialLpt.o"
 			fi
 			if test "$enable_libusb" = yes ; then
-				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-bwct-usb.o hd44780-hd44780-lcd2usb.o hd44780-hd44780-uss720.o"
+				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-bwct-usb.o hd44780-hd44780-lcd2usb.o hd44780-hd44780-uss720.o hd44780-hd44780-usbtiny.o"
 			fi
 			if test "$enable_libftdi" = yes ; then
 				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-ftdi.o"
 			fi
 			if test "$enable_ethlcd" = yes ; then
 				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-ethlcd.o"
+				AC_DEFINE(WITH_ETHLCD,[1],[Define to 1 if you want to build hd44780 driver with ethlcd support])
 			fi
-			AC_CHECK_HEADER(linux/i2c-dev.h,
+			if test "$x_ac_have_i2c" = yes; then
 				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-i2c.o"
-				AC_DEFINE(HAVE_I2C,[1],[Define to 1 if you have the i2c headers])
-			)
+			fi
 			DRIVERS="$DRIVERS hd44780${SO}"
 			actdrivers=["$actdrivers hd44780"]
 			;;
@@ -249,7 +257,7 @@ dnl				else
 		irtrans)
 			DRIVERS="$DRIVERS irtrans${SO}"
 			actdrivers=["$actdrivers irtrans"]
-			;;	
+			;;
 		joy)
 			AC_CHECK_HEADER(linux/joystick.h, [
 				DRIVERS="$DRIVERS joy${SO}"
@@ -315,6 +323,14 @@ dnl			else
 			DRIVERS="$DRIVERS MD8800${SO}"
 			actdrivers=["$actdrivers MD8800"]
 			;;
+		mdm166a)
+			if test "$enable_libhid" = yes ; then
+				DRIVERS="$DRIVERS mdm166a${SO}"
+				actdrivers=["$actdrivers mdm166a"]
+			else
+				AC_MSG_WARN([The mdm166a driver needs the hid library])
+			fi
+			;;
 		ms6931)
 			DRIVERS="$DRIVERS ms6931${SO}"
 			actdrivers=["$actdrivers ms6931"]
@@ -353,7 +369,7 @@ dnl			else
 			else
 				AC_MSG_WARN([The picolcd driver needs the libusb library.])
 			fi
-			;;       
+			;;
 		pyramid)
 			DRIVERS="$DRIVERS pyramid${SO}"
 			actdrivers=["$actdrivers pyramid"]
@@ -404,6 +420,10 @@ dnl			else
 			else
 				AC_MSG_WARN([The stv5730 driver needs a parallel port.])
 			fi
+			;;
+		SureElec)
+			DRIVERS="$DRIVERS SureElec${SO}"
+			actdrivers=["$actdrivers SureElec"]
 			;;
 		svga)
 			AC_CHECK_HEADERS([vga.h vgagl.h],[
@@ -470,7 +490,7 @@ AC_MSG_RESULT([---------------------------------------])
 AC_MSG_RESULT([LCDd will be compiled with the drivers:])
 for driver in $actdrivers; do
 	AC_MSG_RESULT([    -  $driver])
-done	
+done
 AC_MSG_RESULT([---------------------------------------])
 
 AC_SUBST(LIBCURSES)
@@ -550,7 +570,7 @@ AC_DEFUN([AC_GET_FS_INFO], [
     AC_CHECK_HEADERS(fcntl.h sys/dustat.h sys/param.h sys/statfs.h sys/fstyp.h)
     AC_CHECK_HEADERS(mnttab.h mntent.h utime.h sys/statvfs.h sys/vfs.h)
     AC_CHECK_HEADERS(sys/filsys.h sys/fs_types.h)
-    AC_CHECK_HEADERS(sys/mount.h, [], [], 
+    AC_CHECK_HEADERS(sys/mount.h, [], [],
         [#if HAVE_SYS_PARAM_H
          #include <sys/param.h>
         #endif
@@ -883,6 +903,7 @@ AC_SUBST(enable_latex_dox)
 ])
 
 
+dnl Check if a given flag is understood and add it to CFLAGS.
 dnl From: http://autoconf-archive.cryp.to/ax_cflags_gcc_option.html
 dnl Author: Guido Draheim <guidod@gmx.de>
 dnl Last Modified: 2003-11-04
@@ -1028,3 +1049,17 @@ AC_DEFUN([AX_CFLAGS_GCC_OPTION],[ifelse(m4_bregexp([$2],[-]),-1,
 AC_DEFUN([AX_CXXFLAGS_GCC_OPTION],[ifelse(m4_bregexp([$2],[-]),-1,
 [AX_CXXFLAGS_GCC_OPTION_NEW($@)],[AX_CXXFLAGS_GCC_OPTION_OLD($@)])])
 
+dnl
+dnl Check if system has SA_RESTART defined. Copied from GNU's make configure.
+dnl
+AC_DEFUN([LCD_SA_RESTART], [
+AC_CACHE_CHECK([for SA_RESTART], lcd_cv_sa_restart, [
+  AC_TRY_COMPILE([#include <signal.h>],
+      [return SA_RESTART;],
+      lcd_cv_sa_restart=yes,
+      lcd_cv_sa_restart=no)])
+if test "$lcd_cv_sa_restart" != no; then
+  AC_DEFINE([HAVE_SA_RESTART], [1],
+     [Define to 1 if <signal.h> defines the SA_RESTART constant.])
+fi
+])

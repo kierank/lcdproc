@@ -16,7 +16,6 @@
 #include <string.h>
 #include <strings.h>
 
-#include "shared/str.h"
 #include "shared/report.h"
 #include "shared/configfile.h"
 #include "shared/sockets.h"
@@ -29,7 +28,7 @@ static char *boolValueName[] = { "false", "true" };
 static char *triGrayValueName[] = { "off", "on", "gray" };
 
 
-/* recursively read the menu hierarchy */
+/** recursively read the menu hierarchy */
 MenuEntry *menu_read(MenuEntry *parent, const char *name)
 {
 	static int id = 0;
@@ -244,7 +243,7 @@ MenuEntry *menu_read(MenuEntry *parent, const char *name)
 }
 
 
-/* create LCDproc commands for the menu entry hierarchy and send it to the server */
+/** create LCDproc commands for the menu entry hierarchy and send it to the server */
 int menu_sock_send(MenuEntry *me, MenuEntry *parent, int sock)
 {
 	if ((me != NULL) && (sock > 0)) {
@@ -282,7 +281,7 @@ int menu_sock_send(MenuEntry *me, MenuEntry *parent, int sock)
 					if (sock_printf(sock, "menu_set_item \"%s\" \"%d\" -menu_result quit\n",
 							parent_id, me->id) < 0)
 						return -1;
-				}		
+				}
 				else {
 					if ((parent != NULL) && (me->id != 0)) {
 						if (sock_printf(sock, "menu_add_item \"%s\" \"%d\" menu \"%s\"\n",
@@ -294,14 +293,14 @@ int menu_sock_send(MenuEntry *me, MenuEntry *parent, int sock)
 					for (entry = me->children; entry != NULL; entry = entry->next) {
 						if (menu_sock_send(entry, me, sock) < 0)
 							return -1;
-					}		
-				}	
+					}
+				}
 				break;
 			case MT_ARG_SLIDER:
 				if (sock_printf(sock, "menu_add_item \"%s\" \"%d\" slider -text \"%s\""
 						      " -value %d -minvalue %d -maxvalue %d"
 						      " -mintext \"%s\" -maxtext \"%s\" -stepsize %d\n",
-						      parent_id, me->id, me->displayname, 
+						      parent_id, me->id, me->displayname,
 						      me->data.slider.value,
 						      me->data.slider.minval,
 						      me->data.slider.maxval,
@@ -314,7 +313,7 @@ int menu_sock_send(MenuEntry *me, MenuEntry *parent, int sock)
 					if (sock_printf(sock, "menu_set_item \"%s\" \"%d\" -next _quit_\n",
 							parent_id, me->id) < 0)
 						return -1;
-				}		
+				}
 				break;
 			case MT_ARG_RING:
 				{
@@ -332,7 +331,7 @@ int menu_sock_send(MenuEntry *me, MenuEntry *parent, int sock)
 
 					if (sock_printf(sock, "menu_add_item \"%s\" \"%d\" ring -text \"%s\""
 							      " -value %d -strings \"%s\"\n",
-							      parent_id, me->id, me->displayname, 
+							      parent_id, me->id, me->displayname,
 							      me->data.ring.value,
 							      tmp) < 0)
 						return -1;
@@ -342,12 +341,12 @@ int menu_sock_send(MenuEntry *me, MenuEntry *parent, int sock)
 					if (sock_printf(sock, "menu_set_item \"%s\" \"%d\" -next _quit_\n",
 							parent_id, me->id) < 0)
 						return -1;
-				}		
+				}
 				break;
 			case MT_ARG_NUMERIC:
 				if (sock_printf(sock, "menu_add_item \"%s\" \"%d\" numeric -text \"%s\""
 						      " -value %d -minvalue %d -maxvalue %d\n",
-						      parent_id, me->id, me->displayname, 
+						      parent_id, me->id, me->displayname,
 						      me->data.numeric.value,
 						      me->data.numeric.minval,
 						      me->data.numeric.maxval) < 0)
@@ -357,14 +356,14 @@ int menu_sock_send(MenuEntry *me, MenuEntry *parent, int sock)
 					if (sock_printf(sock, "menu_set_item \"%s\" \"%d\" -next _quit_\n",
 							parent_id, me->id) < 0)
 						return -1;
-				}		
+				}
 				break;
 			case MT_ARG_ALPHA:
 				if (sock_printf(sock, "menu_add_item \"%s\" \"%d\" alpha -text \"%s\""
 						      " -value \"%s\" -minlength %d -maxlength %d"
 						      " -allow_caps false -allow_noncaps false"
 						      " -allow_numbers false -allowed_extra \"%s\"\n",
-						      parent_id, me->id, me->displayname, 
+						      parent_id, me->id, me->displayname,
 						      me->data.alpha.value,
 						      me->data.alpha.minlen,
 						      me->data.alpha.maxlen,
@@ -375,12 +374,12 @@ int menu_sock_send(MenuEntry *me, MenuEntry *parent, int sock)
 					if (sock_printf(sock, "menu_set_item \"%s\" \"%d\" -next _quit_\n",
 							parent_id, me->id) < 0)
 						return -1;
-				}		
+				}
 				break;
 			case MT_ARG_IP:
 				if (sock_printf(sock, "menu_add_item \"%s\" \"%d\" ip -text \"%s\""
 						      " -value \"%s\" -v6 %s\n",
-						      parent_id, me->id, me->displayname, 
+						      parent_id, me->id, me->displayname,
 						      me->data.ip.value,
 						      boolValueName[me->data.ip.v6]) < 0)
 					return -1;
@@ -389,12 +388,12 @@ int menu_sock_send(MenuEntry *me, MenuEntry *parent, int sock)
 					if (sock_printf(sock, "menu_set_item \"%s\" \"%d\" -next _quit_\n",
 							parent_id, me->id) < 0)
 						return -1;
-				}		
+				}
 				break;
 			case MT_ARG_CHECKBOX:
 				if (sock_printf(sock, "menu_add_item \"%s\" \"%d\" checkbox -text \"%s\""
 						      " -value %s -allow_gray %s\n",
-						      parent_id, me->id, me->displayname, 
+						      parent_id, me->id, me->displayname,
 						      triGrayValueName[me->data.checkbox.value],
 						      boolValueName[me->data.checkbox.allow_gray]) < 0)
 					return -1;
@@ -403,7 +402,7 @@ int menu_sock_send(MenuEntry *me, MenuEntry *parent, int sock)
 					if (sock_printf(sock, "menu_set_item \"%s\" \"%d\" -next _quit_\n",
 							parent_id, me->id) < 0)
 						return -1;
-				}		
+				}
 				break;
 			case MT_ARG_ACTION | MT_AUTOMATIC:
 				if (sock_printf(sock, "menu_add_item \"%s\" \"%d\" action \"%s\"\n",
@@ -423,7 +422,7 @@ int menu_sock_send(MenuEntry *me, MenuEntry *parent, int sock)
 }
 
 
-/* find menu entry by its id */
+/** find menu entry by its id */
 MenuEntry *menu_find_by_id(MenuEntry *me, int id)
 {
 	if (me != NULL) {
@@ -445,7 +444,7 @@ MenuEntry *menu_find_by_id(MenuEntry *me, int id)
 }
 
 
-/* return command of a menu entry */
+/** return command of a menu entry */
 const char *menu_command(MenuEntry *me)
 {
 	if ((me != NULL) && (me->type == MT_EXEC))
@@ -455,7 +454,7 @@ const char *menu_command(MenuEntry *me)
 }
 
 
-/* free menu entry hierarchy */
+/** free menu entry hierarchy */
 void menu_free(MenuEntry *me)
 {
 	if (me != NULL) {
@@ -516,7 +515,7 @@ void menu_free(MenuEntry *me)
 						free(me->data.checkbox.map[i]);
 						me->data.checkbox.map[i] = NULL;
 					}
-				}	
+				}
 			default:
 				break;
 		}
@@ -537,7 +536,7 @@ void menu_free(MenuEntry *me)
 
 
 #if defined(DEBUG)
-/* dump menu entry hierarchy to screen */
+/** dump menu entry hierarchy to screen */
 void menu_dump(MenuEntry *me)
 {
 	if (me != NULL) {

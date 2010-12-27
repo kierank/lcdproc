@@ -28,7 +28,7 @@ Different implementations of (n)curses available on:
 	http://www.openbsd.org/cgi-bin/cvsweb/src/lib/libcurses/
 	ncurses
   - NetBSD:
-	http://cvsweb.netbsd.org/bsdweb.cgi/basesrc/lib/libcurses/
+	http://cvsweb.netbsd.org/bsdweb.cgi/src/lib/libcurses/
 	curses : does not define ACS_S3, ACS_S7, wcolor_set() or redrawwin().
 	it is possible to make a:
 		#define ACS_S3 (_acs_char['p'])
@@ -56,7 +56,7 @@ Different implementations of (n)curses available on:
 #include <fcntl.h>
 #include <string.h>
 #include <strings.h>
-#include <sys/errno.h>
+#include <errno.h>
 #include <ctype.h>
 #ifdef HAVE_NCURSES_H
 #include <ncurses.h>
@@ -367,7 +367,7 @@ curses_clear (Driver *drvthis)
 
 /**
  * Turn the LCD backlight on or off.
- * This is simulated by changing the background 
+ * This is simulated by changing the background
  * colour of the characters displayed.
  * \param drvthis  Pointer to driver structure.
  * \param on       New backlight status.
@@ -461,7 +461,7 @@ MODULE_EXPORT void
 curses_vbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 {
 	PrivateData *p = drvthis->private_data;
-	// map 
+	// map
 	char ACS_map[] = { ACS_S9, ACS_S9, ACS_S7, ACS_S7, ACS_S3, ACS_S3, ACS_S1, ACS_S1 };
 	char ascii_map[] = { ' ', ' ', '-', '-', '=', '=', '#', '#' };
 	char *map = (p->useACS) ? ACS_map : ascii_map;

@@ -1,5 +1,5 @@
-/* \file clients/lcdexec/lcdexec.c
- * Main file for \lcdexec, the program starter in the LCDproc suite.
+/** \file clients/lcdexec/lcdexec.c
+ * Main file for \c lcdexec, the program starter in the LCDproc suite.
  */
 
 /* This file is part of lcdexec, an LCDproc client.
@@ -157,7 +157,9 @@ int main(int argc, char **argv)
 
 	/* setup signal handlers for common signals */
 	sigemptyset(&sa.sa_mask);
+#ifdef HAVE_SA_RESTART
 	sa.sa_flags = SA_RESTART;
+#endif
 	sa.sa_handler = exit_program;
 	sigaction(SIGINT, &sa, NULL);	// Ctrl-C
 	sigaction(SIGTERM, &sa, NULL);	// "regular" kill
@@ -174,6 +176,9 @@ int main(int argc, char **argv)
 	main_loop();
 
 	exit_program(EXIT_SUCCESS);
+
+	/* NOTREACHED */
+	return EXIT_SUCCESS;
 }
 
 
@@ -262,6 +267,7 @@ static int process_command_line(int argc, char **argv)
 		  case 'h':
 			fprintf(stderr, "%s", help_text);
 			exit(EXIT_SUCCESS);
+			/* NOTREACHED */
 		  case ':':
 			report(RPT_ERR, "Missing option argument for %c", optopt);
 			error = -1;

@@ -25,6 +25,7 @@ EXTRA_DIST =	bayrad.docbook \
 		lircin.docbook \
 		lis.docbook \
 		MD8800.docbook \
+		mdm166a.docbook \
 		ms6931.docbook \
 		mtc_s16209x.docbook \
 		mtxorb.docbook \
@@ -40,6 +41,7 @@ EXTRA_DIST =	bayrad.docbook \
 		shuttleVFD.docbook \
 		sli.docbook \
 		stv5730.docbook \
+		SureElec.docbook \
 		svga.docbook \
 		t6963.docbook \
 		text.docbook \

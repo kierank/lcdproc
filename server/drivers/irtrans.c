@@ -45,7 +45,6 @@
 #include <arpa/inet.h>
 
 #include "lcd.h"
-#include "shared/str.h"
 #include "irtrans.h"
 #include "irtrans_remote.h"
 #include "irtrans_network.h"
@@ -157,7 +156,7 @@ MODULE_EXPORT int irtrans_init(Driver *drvthis)
 
     report(RPT_DEBUG, "%s: init() done", drvthis->name);
 
-    return 1;
+    return 0;
 }
 
 /////////////////////////////////////////////////////////////////

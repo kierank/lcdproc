@@ -30,7 +30,7 @@
 #include <termios.h>
 #include <fcntl.h>
 #include <string.h>
-#include <sys/errno.h>
+#include <errno.h>
 #include <time.h>
 
 #include "i2500vfdfm.h"
@@ -39,7 +39,6 @@
 # include "config.h"
 #endif
 
-#include "shared/str.h"
 #include "lcd.h"
 #include "i2500vfd.h"
 #include "report.h"
@@ -170,7 +169,7 @@ i2500vfd_init (Driver *drvthis)
     ftdi_write_data (&p->ftdi, &c, 1);
 
     report(RPT_DEBUG, "%s: init() done", drvthis->name);
-    return 1;
+    return 0;
 }
 
 /////////////////////////////////////////////////////////////////

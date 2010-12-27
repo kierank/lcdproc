@@ -12,7 +12,7 @@ rest of the file. 8)
 
 First read the README if you haven't already.
 
-Please take a few minutes to read the user guide located at 
+Please take a few minutes to read the user guide located at
 http://lcdproc.sourceforge.net/docs/
 
 For the details on supported platforms, see the PLATFORM SPECIFIC section
@@ -20,8 +20,8 @@ of this file.
 
 In order to compile LCDproc, you'll need the following programs:
 
-* An ANSI C compiler, we recommend GCC. Most Linux or BSD systems come 
-  with GCC.
+* A C compiler which supports C99, we recommend GCC. Most Linux or BSD systems
+  come with GCC.
 
 * GNU Make. It is available for all major distributions. If you want to
   compile it yourself, see http://www.gnu.org/software/make/make.html .
@@ -38,13 +38,13 @@ need some additional programs or libraries installed:
 
 * DocBook XML converter "xmlto" if you want to create the documentation
   or Doxygen when used with --enable-doxygen, also see
-  http://cyberelk.net/tim/xmlto/ and
+  http://cyberelk.net/tim/software/xmlto/ and
   http://www.stack.nl/~dimitri/doxygen/
 
 * libusb if you --enable-libusb, see http://libusb.sourceforge.net/
 
 * G15daemon, libg15 and libg15render (>= 1.1.1) for use with the 'g15' driver,
-  see http://g15daemon.sourceforge.net/ and http://g15tools.sourceforge.net/
+  see http://www.g15tools.com/
 
 * GraphLCD and GLCDprocDriver for use with the 'glcdlib' driver, see
   http://graphlcd.berlios.de/ and http://www.muresan.de/graphlcd/lcdproc/
@@ -60,11 +60,11 @@ need some additional programs or libraries installed:
 
 * svgalib for use with the 'svga' driver, see http://www.svgalib.org/
 
-* libftdi and libusb for use with the 'ula200' driver, see
-  http://www.intra2net.com/de/produkte/opensource/ftdi/ and
+* libftdi and libusb for use with the 'ula200', 'lis', and 'i2500vfd' driver,
+  see http://www.intra2net.com/en/developer/libftdi/ and
   http://libusb.sourceforge.net/
 
-* XOSD for use with the 'xosd' driver, see http://sourceforge.net/projects/libxosd ,
+* XOSD for use with the 'xosd' driver, see http://sourceforge.net/projects/libxosd/ ,
   as well as an x11 implementation, more precisely libX11 and libXext.
 
 
@@ -91,8 +91,6 @@ information:
 HD44780 and compatible:
   read the HD44780 section in the LCDproc User's Guide (docs/lcdproc-user)
   or alternatively see http://www.robijn.net/lcdproc/
-STV5730: http://www.usblcd.de/lcdproc/
-SED1520: http://www.usblcd.de/lcdproc/
 
 If you still have problems you could take a look at the comments in the
 driver source code in server/drivers/. You may have some good indications
@@ -120,29 +118,23 @@ And read the available options, especially --enable-drivers
 Run make to build the server and all clients
     make
 
-If you only want to compile the clients, you can omit to compile the 
+If you only want to compile the clients, you can omit to compile the
 server:
-    cd shared
-    make
-    cd ../clients
-    make
+    make clients
 
-Similarly, if you only want to compile the server, you can omit to 
+Similarly, if you only want to compile the server, you can omit to
 compile the clients:
-    cd shared
-    make
-    cd ../server
-    make
+    make server
 
-Depending on your system, LCDproc will build in a few seconds to a 
-few minutes. It's not very big. 
+Depending on your system, LCDproc will build in a few seconds to a
+few minutes. It's not very big.
 
 If you want to, you can install it (if you're root) by typing:
     make install
 
 This will install the binaries and the man pages in the directory you
 specified in configure.
-You may have to copy the configuration file (LCDd.conf) to /etc   
+You may have to copy the configuration file (LCDd.conf) to /etc
 (or /usr/local/etc) manually.
 
 
@@ -153,14 +145,14 @@ may use the support files in the LCDproc source tree to create an
 installation package specific to your distribution
 
 Debian:
-      -	Rename the .tgz file with the sources to lcdproc_VERSION.orig.tar.gz
-          cp lcdproc-VERSION.tgz lcdproc_VERSION.orig.tar.gz
-      -	Extract the source tar ball
-      	  tar xvzf lcdproc_VERSION.orig.tar.gz
-      -	Copy the debian/ directory below scripts/ to the root of the
-        source tree
+      - Rename the .tgz file with the sources to lcdproc_VERSION.orig.tar.gz
+	  cp lcdproc-VERSION.tgz lcdproc_VERSION.orig.tar.gz
+      - Extract the source tar ball
+	  tar xvzf lcdproc_VERSION.orig.tar.gz
+      - Copy the debian/ directory below scripts/ to the root of the
+	source tree
 	  cp -a lcdproc-VERSION/scripts/debian lcdproc-VERSION/
-      -	Generate .deb debian package
+      - Generate .deb debian package
 	  cd lcdproc-VERSION/
 	  dpkg-buildpackage -rfakeroot -sd
 	  cd ..
@@ -179,16 +171,15 @@ difficulties in porting. Here's are the prerequisites for both:
 --- Client ---
 The client should run on any POSIX compliant system.
 It has been successfully tested on:
-Linux 2.2.x - 2.6.x, FreeBSD 4.x & 5.x, NetBSD 1.5 & 3.x, OpenBSD 3.0,
-Darwin and Solaris.
-In the future, we want it to run on Windows, MacOS and others.
+Linux 2.2.x - 2.6.x, FreeBSD 6.x - 8.1, NetBSD 1.5 & 3.x, OpenBSD 3.0,
+Darwin, Solaris and MacOS.
 
 --- Server ---
 The server needs to talk to the LCD display. At this time, it works
 on very little more than on the Intel i386 (PC Compatible)
 architecture. It has been successfully tested on:
-Linux 2.2.x - 2.6.x, FreeBSD 4.x & 5.x, NetBSD 1.5 & 3.x, OpenBSD 3.0,
-Darwin and Solaris.
+Linux 2.2.x - 2.6.x, FreeBSD 6.x - 8.1, NetBSD 1.5 & 3.x, OpenBSD 3.0,
+Darwin, Solaris and MacOS.
 
 Here are some comments specific to each platform that LCDproc has been
 tested on.
@@ -198,26 +189,27 @@ Nothing special to say, everything should go well.
 
 You may not be able to compile all drivers on something else than i386
 if your linux installation does not have ioperm, inb and outb commands.
-./configure should leave all drivers that need those functions out   
+./configure should leave all drivers that need those functions out
 (drivers for parallel port displays), so that LCDd should compile anyway.
 
 --- NetBSD ---
-You need to use GNU Make instead of NetBSD's make. 
+You need to use GNU Make instead of NetBSD's make.
 Remember to type gmake instead of make to compile LCDproc.
 The server will probably only compile on NetBSD/i386.
 
 If you try to run LCDd and you get this error:
 Bus error (core dumped)
-It is likely that you did not have the right permission to access the ports. 
+It is likely that you did not have the right permission to access the ports.
 Try starting the program as root.
 
 --- OpenBSD ---
-You need to use GNU Make instead of OpenBSD's make. 
+You need to use GNU Make instead of OpenBSD's make.
 Remember to type gmake instead of make to compile LCDproc.
 The server will probably only compile on OpenBSD/i386.
 
 --- FreeBSD ---
-It should compile fine on i386.
+It should compile fine on i386. Must be started as root to be able to use
+parallel and USB ports.
 
 --- Other platforms ---
 If the build process fails, but you do know how to link a loadable
@@ -241,12 +233,9 @@ to do.
 If you're in the LCDproc source directory, and have just built it, run:
     server/LCDd -c path/to/config/file
 
-You can find out which drivers were compiled by running "LCDd -h".
-Note that you cannot use more than one display driver at the same time.
-
 For security reasons, LCDd by default only accepts connections from
 localhost (127.0.0.1), it will not accept connections from other computers on
-your network / the Internet. You can change this behaviour in the 
+your network / the Internet. You can change this behaviour in the
 configuration file.
 
 --- Starting the client(s) ---
@@ -295,7 +284,7 @@ Debian: (the hard way)
 
 Debian: (the easy way)
       - Install the previously created .deb package (as root)
-	  dpkg -i lcdproc_VERSION-RELEASE_ARCH.deb        
+	  dpkg -i lcdproc_VERSION-RELEASE_ARCH.deb
 
 Redhat / Mandrake:
       - Copy the scripts:
@@ -303,6 +292,8 @@ Redhat / Mandrake:
 	cp scripts/init-lcdproc.rpm /etc/rc.d/init.d/lcdproc)
       - enable the scripts with e.g. linuxconf or create the symlinks manually
 
+FreeBSD:
+      - If you install from the ports collection startup script are
+	installed by default.
 
 That's all the OS's we've actually done this with so far.
-

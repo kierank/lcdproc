@@ -23,7 +23,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
-#include <sys/errno.h>
+#include <errno.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 
@@ -39,7 +39,6 @@
 #include "lcd.h"
 #include "joy.h"
 #include "report.h"
-#include "shared/str.h"
 
 #define JOY_NAMELENGTH		128
 #define JOY_DEFAULT_DEVICE	"/dev/js0"
@@ -110,7 +109,7 @@ joy_init (Driver *drvthis)
 	/* End of config file parsing (1st part) */
 
 	if ((p->fd = open(p->device, O_RDONLY)) < 0) {
-		report(RPT_ERR, "%s: open(%s) failed (%s)", 
+		report(RPT_ERR, "%s: open(%s) failed (%s)",
 				drvthis->name, p->device, strerror(errno));
 		return -1;
 	}
@@ -148,7 +147,7 @@ joy_init (Driver *drvthis)
 			p->axismap[2*i] = strdup(mapval);
 			report(RPT_DEBUG, "%s: map Axis%dneg to %s",
 					drvthis->name, i+1, p->axismap[2*i]);
-		}	
+		}
 
 		snprintf(mapkey, sizeof(mapkey), "Map_Axis%dpos", i+1);
 		mapval = drvthis->config_get_string(drvthis->name, mapkey, 0, NULL);
@@ -156,7 +155,7 @@ joy_init (Driver *drvthis)
 			p->axismap[2*i + 1] = strdup(mapval);
 			report(RPT_DEBUG, "%s: map Axis%dpos to %s",
 					drvthis->name, i+1, p->axismap[2*i + 1]);
-		}	
+		}
 	}
 
 	for (i = 0; i < p->buttons; i++) {
@@ -169,7 +168,7 @@ joy_init (Driver *drvthis)
 			p->buttonmap[i] = strdup(mapval);
 			report(RPT_DEBUG, "%s: map Button%d to %s",
 					drvthis->name, i+1, p->buttonmap[i]);
-		}	
+		}
 	}
 
 	/* End of config file parsing (2nd part) */

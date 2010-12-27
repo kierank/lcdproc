@@ -48,6 +48,7 @@ extern unsigned int **bitrate_conversion;
 extern int convert_bitrate(unsigned int conf_bitrate, size_t *bitrate);
 
 void lis2_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char flags, unsigned char ch);
+void lis2_HD44780_close(PrivateData *p);
 
 static void clearScreen(int fd);
 static void gotoXY(int fd, unsigned char x, unsigned char y);
@@ -91,12 +92,18 @@ int hd_init_lis2(Driver *drvthis)
 	/* Get serial device parameters */
 	tcgetattr(p->fd, &portset);
 
+#ifdef HAVE_CFMAKERAW
+	/* The easy way */
+	cfmakeraw(&portset);
+#else
 	portset.c_iflag &= ~( IGNBRK | BRKINT | PARMRK | ISTRIP
 	                      | INLCR | IGNCR | ICRNL | IXON );
 	portset.c_oflag &= ~OPOST;
 	portset.c_lflag &= ~( ECHO | ECHONL | ICANON | ISIG | IEXTEN );
 	portset.c_cflag &= ~( CSIZE | PARENB | CRTSCTS );
 	portset.c_cflag |= CS8 | CREAD | CLOCAL ;
+#endif
+	/* Set timeouts */
 	portset.c_cc[VMIN] = 1;
 	portset.c_cc[VTIME] = 3;
 
@@ -125,10 +132,23 @@ int hd_init_lis2(Driver *drvthis)
 	tcsetattr(p->fd, TCSANOW, &portset);
 
 	p->hd44780_functions->senddata = lis2_HD44780_senddata;
+	p->hd44780_functions->close = lis2_HD44780_close;
 
 	common_init(p, IF_8BIT);
 
 	return 0;
+}
+
+
+/**
+ * Close the device.
+ * \param p          Pointer to driver's private data structure.
+ */
+void
+lis2_HD44780_close(PrivateData *p) {
+	if (p->fd >= 0) {
+		close(p->fd);
+	}
 }
 
 
@@ -206,7 +226,7 @@ static unsigned char rowNum = 0;
 				// extract character to set from given info
 				charNum = (ch & ~SETCHAR) / 8;
 
-				// offset it by one to avoid collisions with command prefix 
+				// offset it by one to avoid collisions with command prefix
 				// TODO: check if this is correct
 				charNum++;
 
@@ -214,7 +234,7 @@ static unsigned char rowNum = 0;
 				// TODO: check if this is correct
 				if (charNum == 8)
 					charNum = 7;
-			}		
+			}
 			// MPlay devices don't need the char num;
 			// they always set all custom characters
 
@@ -260,7 +280,7 @@ static void gotoXY(int fd, unsigned char x, unsigned char y)
 /**
  * Set a custom character, valid on MPlay devices only.
  * \param fd     File handle to write to.
- * \param chars  Pixel definition of all custom chars. 
+ * \param chars  Pixel definition of all custom chars.
  */
 static void setMPlayCustomChars(int fd, CGram *chars)
 {
@@ -381,8 +401,8 @@ static void setLIS2Fans(int fd, int fan1, int fan2, int fan3, int fan4)
 
 /**
  * Write a character.
- * \param fd  File handle to write to.
- * \param ch  Character to write.
+ * \param fd    File handle to write to.
+ * \param code  Character to write.
  */
 static void writeChar(int fd, unsigned char code)
 {

@@ -2,17 +2,17 @@
  * ShuttleVFD driver
  *
  * Copyright (C) 2007 Thien Vu
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301
@@ -56,7 +56,8 @@ MODULE_EXPORT int shuttleVFD_cellheight(Driver *drvthis);
 #define SHUTTLE_VFD_CELLHEIGHT    8
 
 // VFD USB properties
-#define SHUTTLE_VFD_VENDOR_ID       0x051c
+#define SHUTTLE_VFD_VENDOR_ID1      0x1308
+#define SHUTTLE_VFD_VENDOR_ID2      0x051c
 #define SHUTTLE_VFD_PRODUCT_ID1     0x0003
 // IR-receiver included in this model
 #define SHUTTLE_VFD_PRODUCT_ID2     0x0005

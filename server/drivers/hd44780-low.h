@@ -50,6 +50,7 @@
 #define HD44780_CT_ETHLCD		17
 #define HD44780_CT_USS720		18
 #define HD44780_CT_USBLCD		19
+#define HD44780_CT_USBTINY		20
 
 // symbolic names for interface types
 #define IF_TYPE_UNKNOWN		0
@@ -97,6 +98,19 @@ typedef struct ConnectionMapping {
 } ConnectionMapping;
 
 
+/**
+ * Transmit buffer. This structure provides a generic transmit buffer for
+ * collecting command or data bytes before sending them to the display. The
+ * connection driver is responsible for allocating memory and resetting
+ * \c use_count. \c type may also be driver dependent.
+ */
+typedef struct tx_buffer_t {
+	unsigned char *buffer;		/**< Pointer to buffer */
+	int type;			/**< data or command */
+	int use_count;			/**< currently used byte */
+} tx_buffer;
+
+
 /** private data for the \c hd44780 driver */
 typedef struct hd44780_private_data {
 	// parallel connection typeS
@@ -104,9 +118,9 @@ typedef struct hd44780_private_data {
 
 	// serial connection types
 	int fd;				/* file handle to serial device */
-	int serial_type;	
+	int serial_type;
 
-#if defined(HAVE_LIBUSB)	
+#if defined(HAVE_LIBUSB)
 	// USB connection types
 	usb_dev_handle *usbHandle;	/* USB device handle */
 	int usbIndex;			/* USB interface index */
@@ -168,7 +182,7 @@ typedef struct hd44780_private_data {
 				 // its bus to LPT port
         char lastline;   // lastline controls the use of the last line, if pixel addressable (true, default) or
                          // underline effect (false). To avoid the underline effect, last line is always zeroed
-                         // for whatever redefined character 
+                         // for whatever redefined character
 
 	// keyMapDirect contains an array of the ascii-codes that should be generated
 	// when a directly connected key is pressed (not in matrix).
@@ -193,11 +207,13 @@ typedef struct hd44780_private_data {
 	int keepalivedisplay;   // When >0 refresh upper left char every <keepalivedisplay> seconds to keep display alive
 
 	int output_state;	// what was most recently output to the output port
-	
+
 	int contrast;		// Contrast setting (range 0 - 1000)
 	int brightness;		// Brightness when backlight is "on" (range 0 - 1000)
 	int offbrightness;	// Brightness when backlight is "off" (range 0 - 1000)
 	int backlightstate;	// Saves the last backlight state
+
+	tx_buffer tx_buf;	// Output buffer
 } PrivateData;
 
 
@@ -215,6 +231,10 @@ typedef struct hwDependentFns {
 	// flags      - data or instruction command (RS_DATA | RS_INSTR)
 	// ch	      - character to display or instruction value
 	void (*senddata)(PrivateData *p, unsigned char dispID, unsigned char flags, unsigned char ch);
+
+	// Flush data to the display. To be used by subdrivers that
+	// queue from senddata internally.
+	void (*flush)(PrivateData *p);
 
 	// Switch the backlight on or off
 	// state      - to be or not to be on
@@ -241,6 +261,7 @@ typedef struct hwDependentFns {
 
         // Close the interface on shutdown
         void (*close)(PrivateData *p);
+
 
 } HD44780_functions;				  /* for want of a better name :-) */
 

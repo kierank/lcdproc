@@ -196,11 +196,11 @@
  * type=G191D
  * type=G2446
  * type=SP14Q002
- * 
+ *
  * You can also change the wiring scheme by using the ConnectionType= option:
  * ConnectionType=<classic|bitshaker>
  * If not set, classic wiring is used.
- * 
+ *
  * The port= value should be set to the LPT port address that the LCD is
  * connected to. Examples:
  * port=0x378
@@ -224,9 +224,6 @@
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
-
-#define min(a,b) (((a) < (b)) ? (a) : (b))
-#define max(a,b) (((a) > (b)) ? (a) : (b))
 
 // Autorepeat values
 #define KEYPAD_AUTOREPEAT_DELAY 500
@@ -431,7 +428,7 @@ sed1330_init( Driver * drvthis )
 		// Use classic wiring
 		p->A0     = SEL;  // port 17
 		p->nRESET = STRB; // port 1
-		p->nWR    = INIT; // port 16 
+		p->nWR    = INIT; // port 16
 	} else if(strcmp(s, "bitshaker") == 0) {
 		// Use bitshaker wiring
 		p->A0     = nLF;  // port 14
@@ -440,7 +437,7 @@ sed1330_init( Driver * drvthis )
 	} else {
 		report(RPT_ERR, "%s: Unknown ConnectionType %s", drvthis->name, s);
 		return -1;
-	}		
+	}
 	report(RPT_INFO, "%s: Using ConnectionType %s", drvthis->name, s);
 
 	// Keypad ?
@@ -505,14 +502,14 @@ sed1330_init( Driver * drvthis )
 	if (p->framebuf_text == NULL) {
 		report(RPT_ERR, "%s: error allocating text framebuffer", drvthis->name);
 		return -1;
-	}	
+	}
 	memset(p->framebuf_text, ' ', p->bytesperline * p->textlines_in_memory);
 
 	p->lcd_contents_text = (unsigned char *) malloc(p->bytesperline * p->textlines_in_memory);
 	if (p->lcd_contents_text == NULL) {
 		report(RPT_ERR, "%s: error allocating lcd_contents_text", drvthis->name);
 		return -1;
-	}	
+	}
 	memset(p->lcd_contents_text, 0, p->bytesperline * p->textlines_in_memory);
 
 	p->framebuf_graph = (unsigned char *) malloc(p->bytesperline * p->graph_height);
@@ -526,20 +523,22 @@ sed1330_init( Driver * drvthis )
 	if (p->lcd_contents_graph == NULL) {
 		report(RPT_ERR, "%s: error allocating lcd_contents_graph", drvthis->name);
 		return -1;
-	}	
+	}
 	memset(p->lcd_contents_graph, 0xFF, p->bytesperline * p->graph_height);
 
 	// Arrange for access to port
 	debug(RPT_DEBUG, "%s: getting port access", __FUNCTION__);
-	port_access(p->port);
-	port_access(p->port+1);
-	port_access(p->port+2);
+	if (port_access_multiple(p->port,3)) {
+		report(RPT_ERR, "%s: cannot get IO-permission for 0x%03X: %s",
+				drvthis->name, p->port, strerror(errno));
+		return -1;
+	}
 
 	if (timing_init() == -1) {
 		report(RPT_ERR, "%s: timing_init() failed (%s)",
 				drvthis->name, strerror(errno));
 		return -1;
-	}	
+	}
 
 	// INITIALIZE THE LCD
 	// End reset-state
@@ -651,7 +650,7 @@ sed1330_close( Driver * drvthis )
 				if (p->keyMapMatrix[i][j] != NULL)
 					free(p->keyMapMatrix[i][j]);
 			}
-		}	
+		}
 
 		if (p->framebuf_text != NULL)
 			free(p->framebuf_text);
@@ -701,7 +700,7 @@ sed1330_height( Driver * drvthis )
  * \param drvthis  Pointer to driver structure.
  * \return  Number of pixel columns a character cell is wide.
  */
-MODULE_EXPORT int 
+MODULE_EXPORT int
 sed1330_cellwidth(Driver *drvthis)
 {
 PrivateData *p = drvthis->private_data;
@@ -717,7 +716,7 @@ PrivateData *p = drvthis->private_data;
  * \param drvthis  Pointer to driver structure.
  * \return  Number of pixel lines a character cell is high.
  */
-MODULE_EXPORT int 
+MODULE_EXPORT int
 sed1330_cellheight(Driver *drvthis)
 {
 PrivateData *p = drvthis->private_data;

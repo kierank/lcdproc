@@ -6,6 +6,32 @@ Key:
      * Something changed / fixed
 
 v.0.5.3+dev (stable branch)
+ * Update driver includes and LDFLAGS (fixed glk and bayrad binding error)
+ * Modify all drivers to use server/drivers/report.h instead of shared/report.h
+ * Make all drivers using parallel port fail if they cannot get IO permission
+ * Include <errno.h> instead of <sys/errno.h> everywhere (found by S. Klauer)
+ * configure: Fix de-selecting of drivers
+ * Build system: Add a check testing if SA_RESTART flag is available.
+ * picolcd driver: Fix RC-5 for picoLCD 20x2 (A. van Schie)
+ * Introduce shared/defines.h to collect commonly used macros
+ + new driver: SureElec for devices made by SURE Electronics (Laurent Latil)
+ * hd44780-4bit: Fix bug not checking for keypad rows 7-10 correctly
+ * Modify serial drivers to use cfmakeraw
+ + hd44780: Add a 'none' charmap which does not replace any character
+ * hd44780: Change mapping for spanish 'n with tilde' characters
+ * hd44780: Exclude pin for switchable backlight from keypad scanning
+ * server core: New network input buffering
+ * hd44780: Extended subdriver API and performance improvement for lcd2usb
+ * hd44780: Add KOI8-R character mapping (Yura Scheglyuk)
+ * shuttleVFD: Add support for devices with USB VID 0x1308 again
+ * CFontzPacket: Add CFA-533. Use HD44780 character mapping for CFA533/633.
+ * CFontzPacket: Report cell size correctly, use block character for icon.
+ * CFontz633: Deprecate this driver. Use CFontzPacket with Model=633 instead!
+ - Remove native win32 support.
+ * picolcd: Use module output function to control key LEDs (Martin Jones)
+ + hd44780: Added 'usbtiny' connection type (Siarhei Herasimchuk)
+ * SureElec: Fix stall on startup
+ + new driver: MDM166A for Futaba/Targa USB VFD (Christoph Rasim)
 
 v0.5.3
  + lcdexec: notification when called program finishes

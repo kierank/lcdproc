@@ -1,5 +1,8 @@
-/*
- * lcdvc.c
+/** \file clients/lcdvc/lcdvc.c
+ * Main file for \c lcdvc, the LCDproc virtual console.
+ */
+
+/*-
  * This file is part of lcdvc, an LCDproc client.
  *
  * This file is released under the GNU General Public License. Refer to the
@@ -20,7 +23,6 @@
 
 #include "getopt.h"
 
-#include "shared/str.h"
 #include "shared/report.h"
 #include "shared/configfile.h"
 #include "shared/sockets.h"
@@ -120,7 +122,9 @@ int main(int argc, char **argv)
 
 	/* setup signal handlers for common signals */
 	sigemptyset(&sa.sa_mask);
+#ifdef HAVE_SA_RESTART
 	sa.sa_flags = SA_RESTART;
+#endif
 	sa.sa_handler = exit_program;
 	sigaction(SIGINT, &sa, NULL);	// Ctrl-C
 	sigaction(SIGTERM, &sa, NULL);	// "regular" kill
@@ -131,6 +135,9 @@ int main(int argc, char **argv)
 	main_loop();
 
 	exit_program(EXIT_SUCCESS);
+
+	/* NOTREACHED */
+	return EXIT_SUCCESS;
 }
 
 
@@ -161,6 +168,7 @@ static int process_command_line(int argc, char **argv)
 		  case 'h':
 			fprintf(stderr, "%s", help_text);
 			exit(EXIT_SUCCESS);
+			/* NOTREACHED */
 		  case 'c':
 			configfile = strdup(optarg);
 			break;

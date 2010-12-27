@@ -1,5 +1,8 @@
 /** \file server/render.c
- * Draws screens on the LCD.
+ * This file contains code that actually generates the full screen data to
+ * send to the LCD. render_screen() takes a screen definition and calls
+ * render_frame() which in turn builds the screen according to the definition.
+ * It may recursively call itself (for nested frames).
  *
  * This needs to be greatly expanded and redone for greater flexibility.
  * For example, it should support multiple screen sizes, more flexible
@@ -30,6 +33,7 @@
 
 #include "shared/report.h"
 #include "shared/LL.h"
+#include "shared/defines.h"
 
 #include "drivers.h"
 
@@ -39,7 +43,6 @@
 #include "render.h"
 
 #define BUFSIZE 1024	/* larger than display width => large enough */
-
 
 int heartbeat = HEARTBEAT_OPEN;
 static int heartbeat_fallback = HEARTBEAT_ON; /* If no heartbeat setting has been set at all */
@@ -228,7 +231,7 @@ render_frame(LinkedList *list,
 			case WID_VBAR:			  /* FIXME:  Vbars don't work in frames! */
 				render_vbar(w, left, top, right, bottom);
 				break;
-			case WID_ICON:
+			case WID_ICON:			  /* FIXME:  Vbars don't work in frames! */
 				drivers_icon(w->x, w->y, w->length);
 				break;
 			case WID_TITLE:			  /* FIXME:  Doesn't work quite right in frames... */
@@ -260,6 +263,7 @@ render_frame(LinkedList *list,
 				}
 				break;
 			case WID_NONE:
+				/* FALLTHROUGH */
 			default:
 				break;
 		}
@@ -281,7 +285,7 @@ render_string(Widget *w, int left, int top, int right, int bottom, int fy)
 		char str[BUFSIZE];
 
 		w->x = min(w->x, right - left);
-		length = min(right - left - w->x + 1, sizeof(str));
+		length = min(right - left - w->x + 1, sizeof(str)-1);
 		strncpy(str, w->text, length);
 		str[length] = '\0';
 		drivers_string(w->x + left, w->y + top, str);
@@ -347,10 +351,10 @@ render_vbar(Widget *w, int left, int top, int right, int bottom)
 static int
 render_title(Widget *w, int left, int top, int right, int bottom, long timer)
 {
+	int vis_width = right - left;
+
 	debug(RPT_DEBUG, "%s(w=%p, left=%d, top=%d, right=%d, bottom=%d, timer=%ld)",
 			  __FUNCTION__, w, left, top, right, bottom, timer);
-
-	int vis_width = right - left;
 
 	if ((w != NULL) && (w->text != NULL) && (vis_width >= 8)) {
 		char str[BUFSIZE];
@@ -366,7 +370,7 @@ render_title(Widget *w, int left, int top, int right, int bottom, long timer)
 		drivers_icon(w->x + left, w->y + top, ICON_BLOCK_FILLED);
 		drivers_icon(w->x + left + 1, w->y + top, ICON_BLOCK_FILLED);
 
-		length = min(length, sizeof(str));
+		length = min(length, sizeof(str)-1);
 		if ((length <= width) || (delay == 0)) {
 
 			/* copy test starting from the beginning */
@@ -404,7 +408,7 @@ render_title(Widget *w, int left, int top, int right, int bottom, long timer)
 				offset = (length - width) - offset;
 
 			/* copy test starting from offset */
-			length = min(width, sizeof(str));
+			length = min(width, sizeof(str)-1);
 			strncpy(str, w->text + offset, length);
 			str[length] = '\0';
 
@@ -438,7 +442,7 @@ render_scroller(Widget *w, int left, int top, int right, int bottom, long timer)
 
 		/*debug(RPT_DEBUG, "%s: %s %d",__FUNCTION__,w->text,timer);*/
 		screen_width = abs(w->right - w->left + 1);
-		screen_width = min(screen_width, sizeof(str));
+		screen_width = min(screen_width, sizeof(str)-1);
 
 		switch (w->length) {	/* actually, direction... */
 			case 'm': // Marquee

@@ -30,7 +30,7 @@
 #include <termios.h>
 #include <fcntl.h>
 #include <string.h>
-#include <sys/errno.h>
+#include <errno.h>
 #include <time.h>
 #include "port.h"
 #include "timing.h"
@@ -62,7 +62,6 @@
 #define WR 0x01
 #define IODELAY 500
 
-#include "shared/str.h"
 #include "lcd.h"
 #include "sed1520.h"
 #include "report.h"
@@ -207,7 +206,7 @@ sed1520_init (Driver *drvthis)
 
     report(RPT_DEBUG, "%s: init() done", drvthis->name);
 
-    return 1;
+    return 0;
 }
 
 /////////////////////////////////////////////////////////////////
