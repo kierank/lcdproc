@@ -500,6 +500,16 @@ MODULE_EXPORT void picoLCD_chr(Driver *drvthis, int x, int y, unsigned char c)
 		return;
 
 	x--; y--; /* Convert 1-based to 0-based */
+
+	/*
+	 * Map NUL to character 8 to avoid problems with string handling
+	 * functions used elsewhere. The custom characters stored in pos. 0-7
+	 * are repeated in pos. 8-15 (this is a feature of the controller
+	 * used).
+	 */
+	if (c == 0)
+		c = 8;
+
 	dest = p->framebuf + (y * p->width + x);
 	memcpy(dest, &c, sizeof(unsigned char));
 
