@@ -426,18 +426,23 @@ dnl			else
 			actdrivers=["$actdrivers SureElec"]
 			;;
 		svga)
-			AC_CHECK_HEADERS([vga.h vgagl.h],[
-				AC_CHECK_LIB(vga, main,[
-					LIBSVGA="-lvga -lvgagl"
-					DRIVERS="$DRIVERS svga${SO}"
-					actdrivers=["$actdrivers svga"]
+			AC_CHECK_HEADER([vga.h], [
+				AC_CHECK_HEADER([vgagl.h],[
+					AC_CHECK_LIB(vga, main,[
+						LIBSVGA="-lvga -lvgagl"
+						DRIVERS="$DRIVERS svga${SO}"
+						actdrivers=["$actdrivers svga"]
+					],[
+dnl					else
+						AC_MSG_WARN([The svga driver needs the vga library])
+					])
 				],[
 dnl				else
-					AC_MSG_WARN([The svga driver needs the vga library])
+					AC_MSG_WARN([The svga driver needs vgagl.h])
 				])
 			],[
 dnl			else
-				AC_MSG_WARN([The svga driver needs vga.h and vgagl.h])
+				AC_MSG_WARN([The svga driver needs vga.h])
 			])
 			;;
 		t6963)
@@ -466,19 +471,17 @@ dnl			else
 			fi
 			;;
 		xosd)
-			AC_CHECK_HEADERS([xosd.h],[
-				AC_CHECK_LIB(xosd, main,[
-					LIBXOSD=`xosd-config --libs`
-					DRIVERS="$DRIVERS xosd${SO}"
-					actdrivers=["$actdrivers xosd"]
-				],[
-dnl				else
-					AC_MSG_WARN([The xosd driver needs the xosd library])
-				])
-			],[
-dnl			else
-				AC_MSG_WARN([The xosd driver needs xosd.h])
-			])
+			AC_PATH_PROG([LIBXOSD_CONFIG], [xosd-config], [no])
+			if test "$LIBXOSD_CONFIG" = "no"; then
+				AC_MSG_WARN([The xosd driver needs the xosd library])
+			else
+				LIBXOSD_CFLAGS=`$LIBXOSD_CONFIG --cflags`
+				LIBXOSD_LIBS=`$LIBXOSD_CONFIG --libs`
+				AC_SUBST(LIBXOSD_CFLAGS)
+				AC_SUBST(LIBXOSD_LIBS)
+				DRIVERS="$DRIVERS xosd${SO}"
+				actdrivers=["$actdrivers xosd"]
+			fi
 			;;
 		*)
 			AC_MSG_ERROR([Unknown driver $driver])

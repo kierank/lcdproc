@@ -27,9 +27,6 @@
 #ifndef IOWARRIOR_H
 #define IOWARRIOR_H
 
-#include <usb.h>
-#include "lcd.h"
-
 #define DEFAULT_SERIALNO	""
 #define DEFAULT_SIZE		"20x4"
 #define DEFAULT_BACKLIGHT	1
@@ -64,15 +61,6 @@
 /* Constants for userdefchar_mode */
 #define NUM_CCs		8 /* max. number of custom characters */
 
-typedef enum {
-  standard,	/* only char 0 is used for heartbeat */
-  vbar,		/* vertical bars */
-  hbar,		/* horizontal bars */
-  bignum,	/* big numbers */
-  bigchar,	/* big characters */
-  custom	/* custom icons */
-} CGmode;
-
 
 typedef struct cgram_cache {
   unsigned char cache[LCD_DEFAULT_CELLHEIGHT];
@@ -98,7 +86,7 @@ typedef struct IOWarrior_private_data {
   /* last LCD contents (for incremental updates) */
   unsigned char *backingstore;
 
-  /* defineable characters */
+  /* definable characters */
   CGram cc[NUM_CCs];
   CGmode ccmode;
 

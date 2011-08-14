@@ -177,11 +177,11 @@ HD44780 driver.
 <title>Connections</title>
 
 <sect3 id="hd44780-connections-common">
-<title>Common connections for all connectiontypes</title>
+<title>Common connections for all connection types</title>
 
 <para>
 No matter what connection type you choose, you will always need some
-connections. They are explaned here.
+connections. They are explained here.
 </para>
 
 <sect4 id="hd44780-connections-power">
@@ -239,7 +239,7 @@ There are several ways to get 5V:
 
 <itemizedlist>
   <listitem><para>
-    Connect to a 5V line intented for disk drives (the red wire is 5V,
+    Connect to a 5V line intended for disk drives (the red wire is 5V,
     black is GND).
   </para></listitem>
   <listitem><para>
@@ -250,7 +250,7 @@ There are several ways to get 5V:
   <listitem><para>
     Get it from a joystick port (pin 1 and 9 are 5V, 4, 5 and 12 are GND).
     It seems that some soundcards can use these lines for communication,
-    so if you want to use this first check wether it really gives a 'clean' 5V.
+    so if you want to use this first check whether it really gives a 'clean' 5V.
   </para></listitem>
   <listitem><para>
     If you don't have a backlight, you can sometimes get the needed mA's
@@ -435,7 +435,7 @@ Y4 o---|<---@--@--@            O 5V
 
 <para>
 As you can see, you need 1 resistor per X line, and 1 diode per Y line.
-By default, Lcdproc will presume that you have a keypad with a layout
+By default, lcdproc will presume that you have a keypad with a layout
 like a telephone connected, with X and Y lines connected as show.
 To be more precise, it assumes this mapping:
 </para>
@@ -1079,7 +1079,7 @@ you need it otherwise, then connect it to GND. This certainly applies if you hav
 
 <para>
 If you want the display to work with the Winamp plugin, wire nLF (pin 14)
-to RW of your LCD. You can then use the plugin in bidirectional mode (wich
+to RW of your LCD. You can then use the plugin in bidirectional mode (which
 is much faster). With 3 connected LCDs this is not possible.
 Note from Benjamin: I haven't tried using winamp while having the third LCD
 connected to this line.
@@ -1720,7 +1720,7 @@ buffers from the 74HCT14:
 <title>Serial LPT Backlight</title>
 
 <para>
-Also a backlight is suported. You will also need a port from the 74HCT14 for
+Also a backlight is supported. You will also need a port from the 74HCT14 for
 that. The BL output below should be connected to the BL input in the
 <link linkend="hd44780-connections-backlight">backlight section</link>
 </para>
@@ -2102,7 +2102,7 @@ You have all the tools and the code to build it yourself and to customize the be
 <listitem><para>Some electronic knowledge and familiarity with the soldering iron</para></listitem>
 <listitem><para>A PIC16F84 (I used PIC16F84A) or PIC16C54</para></listitem>
 <listitem><para><ulink url="http://jdm.homepage.dk/newpic.htm">JDM PIC programmer</ulink></para></listitem>
-<listitem><para><ulink url="http://gputils.sourceforge.net/">gputils</ulink> and <ulink url="hyvatti.iki.fi/~jaakko/pic/picprog.html">picprog</ulink> installed on your GNU/Linux box</para></listitem>
+<listitem><para><ulink url="http://gputils.sourceforge.net/">gputils</ulink> and <ulink url="http://hyvatti.iki.fi/~jaakko/pic/picprog.html">picprog</ulink> installed on your GNU/Linux box</para></listitem>
 </itemizedlist>
 </para>
 </sect4>
@@ -2853,10 +2853,14 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
       <parameter><literal>ea_ks0073</literal></parameter> |
       <parameter><literal>sed12780f_0b</literal></parameter> |
       <parameter><literal>hd44780_koi8_r</literal></parameter> |
+      <parameter><literal>hd44780_cp1251</literal></parameter> |
+      <parameter><literal>hd44780_8859_5</literal></parameter> |
+      <parameter><literal>upd16314</literal></parameter> |
       <parameter><literal>none</literal></parameter>
     }
   </term>
-  <listitem><para>
+  <listitem>
+    <para>
       Set the character mapping depending on the display you have:
       <itemizedlist>
         <listitem><para>
@@ -2877,11 +2881,6 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
           <literal>sed12780f_0b</literal> is for some SED 1278 displays.
         </para></listitem>
         <listitem><para>
-          <literal>hd44780_koi8_r</literal> maps input from a client in
-          Russian KOI8-R to displays with a ROM mask supporting the european
-          charset (ROM code A02).
-        </para></listitem>
-        <listitem><para>
           The <literal>none</literal> charmap does not translate any characters.
           It displays the characters the display controllers actually has
           stored in its CGROM for that position instead. This setting is
@@ -2890,15 +2889,42 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
       </itemizedlist>
       You only need to set this parameter if you have a non-standard
       HD44780 display or charmap.
-
-      <tip>
-        <para>
-        See <filename>server/drivers/hd44780-charset.h</filename>
-        in <package>LCDproc</package>'s source directory for the actual
-        mappings.
-        </para>
-      </tip>
-  </para></listitem>
+    </para>
+    <para>
+      If LCDproc was configured with '--enable-extra-charmaps' option the
+      following character mappings are available, too:
+      <itemizedlist>
+        <listitem><para>
+          <literal>hd44780_koi8_r</literal> maps input from a client in
+          Russian KOI8-R to displays with a ROM mask supporting the european
+          charset (ROM code A02).
+        </para></listitem>
+        <listitem><para>
+          <literal>hd44780_cp1251</literal> maps input from a client in
+          Russian CP1251 (Windows-1251) to displays with a ROM mask supporting
+          the european charset (ROM code A02).
+        </para></listitem>
+        <listitem><para>
+          <literal>hd44780_8859_5</literal>  maps input from a client in
+          Russian ISO 8859-5 to displays with a ROM mask supporting the european
+          charset (ROM code A02).
+        </para></listitem>
+        <listitem><para>
+          <literal>upd16314</literal> is for displays with a Nec uPD16314
+          vacuum fluorescent display (VFD) controller with ROM code 002
+          character set. If your display has ROM code 001 character set you
+          may use the <literal>hd44780_euro</literal> charmap instead.
+        </para></listitem>
+      </itemizedlist>
+    </para>
+    <tip>
+      <para>
+      See <filename>server/drivers/hd44780-charset.h</filename>
+      in <package>LCDproc</package>'s source directory for the actual
+      mappings.
+      </para>
+    </tip>
+  </listitem>
 </varlistentry>
 
 <varlistentry>
@@ -2959,7 +2985,7 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
     <property>Backlight</property> = &parameters.yesnodef;
   </term>
   <listitem><para>
-    Specifiy if you have a switchable backlight.
+    Specify if you have a switchable backlight.
   </para></listitem>
 </varlistentry>
 
@@ -3166,7 +3192,7 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
 
 
 <sect2 id="hd44780-miscellania">
-<title>Miscellania</title>
+<title>Miscellanea</title>
 
 <para>
 This text has originally been taken from a message by Bill Farrow
@@ -3182,7 +3208,7 @@ Updated October 2001, Joris Robijn <email>joris@robijn.net</email>
 </para>
 
 <para>
-Converted to docbook March 2002, Rene Wagner <email>reenoo@gmx.de</email>
+Converted to Docbook March 2002, Rene Wagner <email>reenoo@gmx.de</email>
 </para>
 
 <para>

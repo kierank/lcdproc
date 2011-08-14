@@ -7,8 +7,6 @@
 #ifndef SLI_H
 #define SLI_H
 
-#include "lcd.h"
-
 MODULE_EXPORT int  sli_init (Driver *drvthis);
 MODULE_EXPORT void sli_close (Driver *drvthis);
 MODULE_EXPORT int  sli_width (Driver *drvthis);
@@ -24,6 +22,6 @@ MODULE_EXPORT void sli_vbar (Driver *drvthis, int x, int y, int len, int promill
 MODULE_EXPORT void sli_hbar (Driver *drvthis, int x, int y, int len, int promille, int options);
 MODULE_EXPORT int  sli_icon (Driver *drvthis, int x, int y, int icon);
 
-MODULE_EXPORT void sli_set_char (Driver *drvthis, int n, char *dat);
+MODULE_EXPORT void sli_set_char (Driver *drvthis, int n, unsigned char *dat);
 
 #endif

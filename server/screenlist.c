@@ -8,7 +8,7 @@
  * This file is released under the GNU General Public License.
  * Refer to the COPYING file distributed with this package.
  *
- * Copyright (c) 1999, William Ferrell, Scott Scriven
+ * Copyright (c) 1999, William Ferrell, Selene Scriven
  *		 2003, Joris Robijn
  */
 
@@ -26,7 +26,7 @@
 /* Local functions */
 int compare_priority(void *one, void *two);
 
-bool autorotate = 1;			/* If on, INFO and FOREGROUND screens will rotate */
+bool autorotate = UNSET_INT;	/* If on, INFO and FOREGROUND screens will rotate */
 LinkedList *screenlist = NULL;
 Screen *current_screen = NULL;
 long int current_screen_start_time = 0;
@@ -103,8 +103,7 @@ screenlist_process(void)
 
 	if (!screenlist)
 		return;
-
-	/* Sort the list acfording to priority class */
+	/* Sort the list according to priority class */
 	LL_Sort(screenlist, compare_priority);
 	f = LL_GetFirst(screenlist);
 
@@ -147,6 +146,7 @@ screenlist_process(void)
 	 * current one ? */
 	if (f->priority > s->priority) {
 		/* Yes, switch to that screen, job done */
+		report(RPT_DEBUG, "%s: High priority screen [%.40s] selected", __FUNCTION__, f->id);
 		screenlist_switch(f);
 		return;
 	}

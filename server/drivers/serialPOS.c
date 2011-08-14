@@ -66,9 +66,7 @@ get_info	Implemented.
 #include <string.h>
 #include <strings.h>
 #include <errno.h>
-#include <syslog.h>
 #include <ctype.h>
-#include <sys/poll.h>
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -132,17 +130,6 @@ typedef enum {
 } AEDEXCommands;
 
 
-typedef enum {
-	standard,	/* only char 0 is used for heartbeat */
-	vbar,		/* vertical bars */
-	hbar,		/* horizontal bars */
-	custom,		/* custom settings */
-	bignum,		/* big numbers */
-	bigchar		/* big characters */
-} CGmode;
-
-
-
 /** private data for the \c serialPOS driver */
 typedef struct serialPOS_private_data {
 	int fd;			/**< LCD file descriptor */
@@ -154,9 +141,6 @@ typedef struct serialPOS_private_data {
 	/* framebuffer and buffer for old LCD contents */
 	unsigned char *framebuf;
 	unsigned char *backingstore;
-
-	/* defineable characters */
-	CGmode ccmode;
 
 	/* feature enable */
 	int hardwrap;

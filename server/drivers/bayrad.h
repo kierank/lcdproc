@@ -8,8 +8,6 @@
 #ifndef _BAYRAD_H
 #define _BAYRAD_H
 
-#include "lcd.h"
-
 MODULE_EXPORT int  bayrad_init(Driver *drvthis);
 MODULE_EXPORT void bayrad_close(Driver *drvthis);
 MODULE_EXPORT int  bayrad_width(Driver *drvthis);
@@ -25,7 +23,7 @@ MODULE_EXPORT void bayrad_vbar(Driver *drvthis, int x, int y, int len, int promi
 MODULE_EXPORT void bayrad_hbar(Driver *drvthis, int x, int y, int len, int promille, int options);
 MODULE_EXPORT int  bayrad_icon(Driver *drvthis, int x, int y, int icon);
 
-MODULE_EXPORT void bayrad_set_char(Driver *drvthis, int n, char *dat);
+MODULE_EXPORT void bayrad_set_char(Driver *drvthis, int n, unsigned char *dat);
 
 MODULE_EXPORT void bayrad_backlight(Driver *drvthis, int promille);
 

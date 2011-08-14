@@ -46,9 +46,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <termios.h>
-#include <fcntl.h>
 #include <string.h>
-#include <errno.h>
 
 #include "lcd.h"
 #include "report.h"
@@ -110,7 +108,7 @@ serialVFD_init (Driver *drvthis)
 	/* Initialize the PrivateData structure */
 	p->cellwidth = DEFAULT_CELL_WIDTH;
 	p->cellheight = DEFAULT_CELL_HEIGHT;
-	p->ccmode = CCMODE_STANDARD;
+	p->ccmode = standard;
 	p->ISO_8859_1 = 1;
 	p->refresh_timer = 480;
 	p->hw_brightness = 0;
@@ -422,7 +420,7 @@ serialVFD_flush (Driver *drvthis)
 		}
 	}
 	/* line mode Display (partitially borrowed from serialPOS.c) */
-	else { 
+	else {
 		for (j = 0; j < p->height; j++) {
 			/* set pointers to start of the line in frame buffer
 			 * & backing store */
@@ -562,11 +560,11 @@ serialVFD_num(Driver * drvthis, int x, int num)
 	PrivateData *p = drvthis->private_data;
 	int do_init = 0;
 
-	if (p->ccmode != CCMODE_BIGNUM) {
+	if (p->ccmode != bignum) {
 		/* If custom characters are not yet set up Lib_adv_bignum has
 		 * to do it. */
 		do_init = 1;
-		p->ccmode = CCMODE_BIGNUM;
+		p->ccmode = bignum;
 	}
 	lib_adv_bignum(drvthis, x, num, 0, do_init);
 }
@@ -610,7 +608,7 @@ serialVFD_icon (Driver *drvthis, int x, int y, int icon)
 			break;
 		case ICON_HEART_FILLED:
 			if (p->customchars > 0) {
-		        	p->ccmode = CCMODE_STANDARD;
+		        	p->ccmode = standard;
 				serialVFD_set_char(drvthis, 0, heart_filled);
 				serialVFD_chr(drvthis, x, y, 0);
 			}
@@ -619,7 +617,7 @@ serialVFD_icon (Driver *drvthis, int x, int y, int icon)
 			break;
 		case ICON_HEART_OPEN:
 			if (p->customchars > 0) {
-				p->ccmode = CCMODE_STANDARD;
+				p->ccmode = standard;
 				serialVFD_set_char(drvthis, 0, heart_open);
 				serialVFD_chr(drvthis, x, y, 0);
 			}
@@ -652,7 +650,7 @@ serialVFD_get_free_chars (Driver *drvthis)
  *
  * Converts the 5x7 matrix of bits stored in 7 bytes into a VFD specific
  * byte sequence.
- * 
+ *
  * \param drvthis  Pointer to driver structure.
  * \param n        Custom character to define [0 - (p->customchars)].
  * \param dat      Array of 7(=cellheight) bytes, each representing a pixel row
@@ -778,7 +776,7 @@ serialVFD_get_info (Driver *drvthis)
  * Set up vertical bars.
  * \param drvthis  Pointer to driver structure.
  *
- * \note
+ * \todo
  * Called only by vbar(). Can possibly be included there.
  * This should also make CCMODE independent of the implementation of the bars.
  */
@@ -787,11 +785,11 @@ serialVFD_init_vbar (Driver *drvthis)
 {
 	PrivateData *p = drvthis->private_data;
 
-	if (p->ccmode != CCMODE_VBAR) {
+	if (p->ccmode != vbar) {
 		unsigned char vBar[p->cellheight];
 		int i;
 
-		p->ccmode = CCMODE_VBAR;
+		p->ccmode = vbar;
 
 		memset(vBar, 0x00, sizeof(vBar));
 
@@ -808,7 +806,7 @@ serialVFD_init_vbar (Driver *drvthis)
  * Set up horizontal bars.
  * \param drvthis  Pointer to driver structure.
  *
- * \note
+ * \todo
  * Called only by hbar(). Can possibly be included there.
  * This should also make CCMODE independent of the implementation of the bars.
  */
@@ -817,11 +815,11 @@ serialVFD_init_hbar (Driver *drvthis)
 {
 	PrivateData *p = drvthis->private_data;
 
-	if (p->ccmode != CCMODE_HBAR) {
+	if (p->ccmode != hbar) {
 		unsigned char hBar[p->cellheight];
 		int i;
 
-		p->ccmode = CCMODE_HBAR;
+		p->ccmode = hbar;
 
 		for (i = 1; i < p->cellwidth; i++) {
 			/* fill pixel columns from left to right. */
@@ -856,7 +854,7 @@ serialVFD_put_char (Driver *drvthis, int n)
  * ISO_8859_1 is enabled.
  * \param  drvthis  Pointer to driver
  * \param  i        Index of character in framebuffer to write
- * 
+ *
  */
 static void
 serialVFD_hw_write (Driver *drvthis, int i)

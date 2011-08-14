@@ -75,15 +75,6 @@
 #define NUM_CCs 8 /* number of custom characters */
 
 
-typedef enum {
-	standard,	/* only char 0 is used for heartbeat */
-	vbar,		/* vertical bars */
-	hbar,		/* horizontal bars */
-	bignum,		/* big numbers */
-	bigchar		/* big characters */
-} CGmode;
-
-
 typedef struct cgram_cache {
 	unsigned char cache[LCD_DEFAULT_CELLHEIGHT];
 	int clean;
@@ -118,7 +109,7 @@ typedef struct hd44780_private_data {
 
 	// serial connection types
 	int fd;				/* file handle to serial device */
-	int serial_type;
+	int serial_type;		/* type of device for hd44780-serial */
 
 #if defined(HAVE_LIBUSB)
 	// USB connection types
@@ -150,7 +141,7 @@ typedef struct hd44780_private_data {
 	// For incremental updates store last lcd contents
 	unsigned char *backingstore;
 
-	// The defineable characters
+	// The definable characters
 	CGram cc[NUM_CCs];
 	CGmode ccmode;
 
@@ -322,5 +313,7 @@ void common_init(PrivateData *p, unsigned char if_bit);
 #define POSITION	0x80	/* Only reachable with EXTREG clear */
 
 #define HSCROLLAMOUNT	0x80	/* Only reachable with EXTREG set */
+
+#define LADDR		0x20	/* Default Lineaddress in ext_mode */
 
 #endif

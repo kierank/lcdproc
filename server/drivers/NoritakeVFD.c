@@ -54,7 +54,6 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
-#include <syslog.h>
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -69,14 +68,6 @@
 /* Constants for userdefchar_mode */
 #define NUM_CCs		2 /* max. number of custom characters */
 
-typedef enum {
-	standard,	/* only char 0 is used for heartbeat */
-	vbar,		/* vertical bars */
-	hbar,		/* horizontal bars */
-	custom,		/* custom settings */
-	bignum,		/* big numbers */
-} CGmode;
-
 /** private data for the \c NoritakeVFD driver */
 typedef struct NoritakeVFD_private_data {
 	char device[200];
@@ -89,7 +80,7 @@ typedef struct NoritakeVFD_private_data {
 	/* framebuffer and buffer for old LCD contents */
 	unsigned char *framebuf;
 	unsigned char *backingstore;
-	/* defineable characters */
+	/* definable characters */
 	CGmode ccmode;
 	int brightness;
 	int offbrightness;
@@ -387,6 +378,7 @@ NoritakeVFD_clear (Driver *drvthis)
 	PrivateData *p = drvthis->private_data;
 
 	memset(p->framebuf, ' ', p->width * p->height);
+	p->ccmode = standard;
 }
 
 

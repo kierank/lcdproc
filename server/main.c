@@ -15,7 +15,7 @@
  * This file is released under the GNU General Public License.
  * Refer to the COPYING file distributed with this package.
  *
- * Copyright (c) 1999, William Ferrell, Scott Scriven
+ * Copyright (c) 1999, William Ferrell, Selene Scriven
  *		 2001, Joris Robijn
  *               2001, Rene Wagner
  *               2002, Mike Patnode
@@ -88,10 +88,7 @@
 #define DEFAULT_BACKLIGHT		BACKLIGHT_OPEN
 #define DEFAULT_HEARTBEAT		HEARTBEAT_OPEN
 #define DEFAULT_TITLESPEED		TITLESPEED_MAX
-
-/* All variables are set to 'unset' values*/
-#define UNSET_INT -1
-#define UNSET_STR "\01"
+#define DEFAULT_AUTOROTATE		AUTOROTATE_ON
 
 /* Socket to bind to...
 
@@ -442,6 +439,10 @@ process_configfile(char *configfile)
 
 	if (heartbeat == UNSET_INT) {
 		heartbeat = config_get_tristate("Server", "Heartbeat", 0, "open", UNSET_INT);
+	}
+
+	if (autorotate == UNSET_INT) {
+		autorotate = config_get_bool("Server", "AutoRotate", 0, DEFAULT_AUTOROTATE);
 	}
 
 	if (titlespeed == UNSET_INT) {
@@ -915,7 +916,7 @@ output_GPL_notice(void)
 	 */
 	fprintf(stderr, "LCDd %s, LCDproc Protocol %s\n", VERSION, PROTOCOL_VERSION);
 	fprintf(stderr, "Part of the LCDproc suite\n");
-	fprintf(stderr, "Copyright (C) 1998-2010 William Ferrell, Scott Scriven\n"
+	fprintf(stderr, "Copyright (C) 1998-2010 William Ferrell, Selene Scriven\n"
 	                "                        and many other contributors\n\n");
 
 	fprintf(stderr, "This program is free software; you can redistribute it and/or\n"
@@ -943,7 +944,7 @@ output_help_screen(void)
 	debug(RPT_DEBUG, "%s()", __FUNCTION__);
 
 	fprintf(stdout, "LCDd - LCDproc Server Daemon, %s\n\n", version);
-	fprintf(stdout, "Copyright (c) 1998-2010 Scott Scriven, William Ferrell, and misc. contributors.\n");
+	fprintf(stdout, "Copyright (c) 1998-2010 Selene Scriven, William Ferrell, and misc. contributors.\n");
 	fprintf(stdout, "This program is released under the terms of the GNU General Public License.\n\n");
 	fprintf(stdout, "Usage: LCDd [<options>]\n");
 	fprintf(stdout, "  where <options> are:\n");

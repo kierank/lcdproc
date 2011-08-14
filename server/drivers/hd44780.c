@@ -53,8 +53,10 @@
 
 /*
  * Uncomment one of the lines below to select your desired delay generation
- * mechanism. If both defines are commented, the original I/O read timing
- * loop is used. Using DELAY_NANOSLEEP  seems to provide the best performance.
+ * mechanism. Using DELAY_NANOSLEEP  seems to provide the best performance.
+ *
+ * Setting this here, overrides the set or selected algorithm in timing.h.
+ * FIXME: Is this on purpose?
  */
 //#define DELAY_GETTIMEOFDAY
 #define DELAY_NANOSLEEP
@@ -62,9 +64,6 @@
 
 /* Default parallel port address */
 #define LPTPORT	 0x378
-
-/* Default Lineaddress in ext_mode */
-#define LADDR 0x20
 
 /* Autorepeat values */
 #define KEYPAD_AUTOREPEAT_DELAY 500
@@ -74,7 +73,6 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <fcntl.h>
 #include <string.h>
 #include <strings.h>
 #include <errno.h>
@@ -93,15 +91,6 @@
 #include "hd44780-low.h"
 #include "hd44780-drivers.h"
 #include "hd44780-charmap.h"
-
-/* Only one alternate delay method at a time, please ;-) */
-#if defined DELAY_GETTIMEOFDAY
-# undef DELAY_NANOSLEEP
-#elif defined DELAY_NANOSLEEP
-# include <sched.h>
-# include <time.h>
-#endif
-
 
 static char *defaultKeyMapDirect[KEYPAD_MAXX] = { "A", "B", "C", "D", "E" };
 
@@ -279,24 +268,11 @@ HD44780_init(Driver *drvthis)
 			report(RPT_ERR, "%s: error mallocing", drvthis->name);
 	}
 
+	/* Set up timing */
 	if (timing_init() == -1) {
 		report(RPT_ERR, "%s: timing_init() failed (%s)", drvthis->name, strerror(errno));
 		return -1;
 	}
-
-#if defined DELAY_NANOSLEEP
-	/* Change to Round-Robin scheduling for nanosleep */
-	{
-		/* Set priority to 1 */
-		struct sched_param param;
-		param.sched_priority = 1;
-		if ((sched_setscheduler(0, SCHED_RR, &param)) == -1) {
-			report(RPT_ERR, "%s: sched_setscheduler() failed (%s)",
-					drvthis->name, strerror(errno));
-			return -1;
-		}
-	}
-#endif
 
 	/* Allocate framebuffer */
 	p->framebuf = (unsigned char *) calloc(p->width * p->height, sizeof(char));
@@ -358,14 +334,8 @@ HD44780_init(Driver *drvthis)
 	/* Get configured charmap */
 	strncpy(conf_charmap, drvthis->config_get_string(drvthis->name, "charmap", 0, "hd44780_default"), MAX_CHARMAP_NAME_LENGTH);
 	conf_charmap[MAX_CHARMAP_NAME_LENGTH-1] = '\0';
-	p->charmap = 0;
-	for (i = 0; i < (sizeof(available_charmaps)/sizeof(struct charmap)); i++) {
-		if (strcasecmp(conf_charmap, available_charmaps[i].name) == 0) {
-			p->charmap = i;
-			break;
-		}
-	}
-	if (p->charmap != i) {
+	p->charmap = charmap_get_index(conf_charmap);
+	if (p->charmap == -1) {
 		report(RPT_ERR, "%s: Charmap %s is unknown", drvthis->name, conf_charmap);
 		report(RPT_ERR, "%s: Available charmaps:", drvthis->name);
 		for (i = 0; i < (sizeof(available_charmaps)/sizeof(struct charmap)); i++) {
@@ -627,7 +597,7 @@ HD44780_position(Driver *drvthis, int x, int y)
 		DDaddr = x + relY * p->line_address;
 	} else {
 		/*
-		 * 16x1 is a special case: char 0 starts at 0x00, but char 8 
+		 * 16x1 is a special case: char 0 starts at 0x00, but char 8
 		 * starts at 0x40.
 		 */
 		if (p->dispSizes[dispID - 1] == 1 && p->width == 16) {
@@ -661,7 +631,6 @@ HD44780_flush(Driver *drvthis)
 {
 	PrivateData *p = (PrivateData *) drvthis->private_data;
 	int x, y;
-	int wid = p->width;
 	int i;
 	int count;
 	char refreshNow = 0;
@@ -679,34 +648,57 @@ HD44780_flush(Driver *drvthis)
 		p->nextkeepalive = now + p->keepalivedisplay;
 	}
 
-
-	/* Update LCD incrementally by comparing with last contents */
+	/*
+	 * LCD update algorithm: For each line skip over leading and trailing
+	 * identical portions of the line. Then send everything in between.
+	 * This will also update unchanged parts in the middle but is still
+	 * faster than the old algorithm, especially with devices using the
+	 * transmit buffer.
+	 */
 	count = 0;
 	for (y = 0; y < p->height; y++) {
-		int drawing = 0;
+		int drawing;
+		int dispID = p->spanList[y];
 
-		for (x = 0 ; x < wid; x++) {
-			unsigned char ch = p->framebuf[(y * wid) + x];
+		/* set pointers to start of the line */
+		unsigned char *sp = p->framebuf + (y * p->width);
+		unsigned char *sq = p->backingstore + (y * p->width);
 
-			if (refreshNow || (x + y == 0 && keepaliveNow) || ch != p->backingstore[(y*wid)+x]) {
-				if (!drawing || x % 8 == 0) { /* x%8 is for 16x1 displays ! */
+		/* set pointers to end of the line */
+		unsigned char *ep = sp + (p->width - 1);
+		unsigned char *eq = sq + (p->width - 1);
+
+		/* On forced refresh update everything */
+		if (refreshNow || keepaliveNow) {
+			x = 0;
+		}
+		else {
+			/* find begin and end of differences */
+			for (x = 0; (sp <= ep) && (*sp == *sq); sp++, sq++, x++)
+			  ;
+			for (; (ep >= sp) && (*ep == *eq); ep--, eq--)
+			  ;
+		}
+
+		/* there are differences, ... */
+		if (sp <= ep) {
+			for (drawing = 0; sp <= ep; x++, sp++, sq++) {
+				 /* x%8 is for 16x1 displays only ! */
+				if (!drawing || (p->dispSizes[dispID-1] == 1 && p->width == 16 && (x % 8 == 0))) {
 					drawing = 1;
 					HD44780_position(drvthis,x,y);
 				}
-				p->hd44780_functions->senddata(p, p->spanList[y], RS_DATA,
-								available_charmaps[p->charmap].charmap[ch]);
+				p->hd44780_functions->senddata(p, dispID, RS_DATA,
+							       available_charmaps[p->charmap].charmap[*sp]);
 				p->hd44780_functions->uPause(p, 40);  /* Minimum exec time for all commands */
-				p->backingstore[(y*wid)+x] = ch;
+				*sq = *sp;	/* Update backing store */
 				count++;
-			} 
-			else {
-				drawing = 0;
 			}
 		}
 	}
 	debug(RPT_DEBUG, "HD44780: flushed %d chars", count);
 
-	/* Check which defineable chars we need to update */
+	/* Check which definable chars we need to update */
 	count = 0;
 	for (i = 0; i < NUM_CCs; i++) {
 		if (!p->cc[i].clean) {
@@ -1379,7 +1371,7 @@ unsigned char HD44780_scankeypad(PrivateData *p)
 		if (p->hd44780_functions->readkeypad(p, Ypattern)) {
 			/*
 			 * Yes, a key on the matrix is pressed
-			 * 
+			 *
 			 * Step 3: Determine the row
 			 * Do a 'binary search' to minimize I/O
 			 * Requires 4 I/O reads

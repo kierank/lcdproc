@@ -54,7 +54,6 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
-#include <syslog.h>
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -76,16 +75,6 @@
 static char *defaultKeyMap[MaxKeyMap] = { "Up", "Down", "Left", "Right", "Enter", "Escape" };
 
 
-typedef enum {
-	standard,	/* only char 0 is used for heartbeat */
-	vbar,		/* vertical bars */
-	hbar,		/* horizontal bars */
-	custom,		/* custom settings */
-	bignum,		/* big numbers */
-	bigchar		/* big characters */
-} CGmode;
-
-
 /** private data for the \c CwLnx driver */
 typedef struct CwLnx_private_data {
 	int fd;
@@ -104,7 +93,7 @@ typedef struct CwLnx_private_data {
 	unsigned char *framebuf;
 	unsigned char *backingstore;
 
-	/* defineable characters */
+	/* definable characters */
 	CGmode ccmode;
 
 	char saved_backlight;	/* current state of the backlight */

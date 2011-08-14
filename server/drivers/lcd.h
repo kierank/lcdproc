@@ -22,7 +22,7 @@
  * This file is released under the GNU General Public License. Refer to the
  * COPYING file distributed with this package.
  *
- * Copyright (c) 1999, William Ferrell, Scott Scriven
+ * Copyright (c) 1999, William Ferrell, Selene Scriven
  *		 2001, Joris Robijn
  */
 
@@ -104,6 +104,16 @@
 #define CURSOR_DEFAULT_ON 1
 #define CURSOR_BLOCK 4
 #define CURSOR_UNDER 5
+
+/* Type of characters currently stored in CGRAM. */
+typedef enum {
+	standard,		/* only char 0 is used for heartbeat */
+	vbar,			/* vertical bars */
+	hbar,			/* horizontal bars */
+	custom,			/* custom settings */
+	bignum,			/* big numbers */
+	bigchar			/* big characters */
+} CGmode;
 
 /* What does the shared module handle look like on the current platform? */
 #define MODULE_HANDLE void*

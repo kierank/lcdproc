@@ -6,7 +6,7 @@
  * This file is released under the GNU General Public License.
  * Refer to the COPYING file distributed with this package.
  *
- * Copyright (c) 1999, William Ferrell, Scott Scriven
+ * Copyright (c) 1999, William Ferrell, Selene Scriven
  *		 2003, Joris Robijn
  */
 
@@ -15,15 +15,10 @@
 
 #include "screen.h"
 
-#define SCR_HOLD 1
-#define SCR_SKIP 2
-#define SCR_BACK 3
-#define RENDER_HOLD 11
-#define RENDER_SKIP 12
-#define RENDER_BACK 13
+#define AUTOROTATE_OFF		0
+#define AUTOROTATE_ON		1
 
-/*extern int screenlist_action;*/
-extern bool autorotate;
+extern bool autorotate;		/**< If enabled, screens will rotate */
 
 int screenlist_init(void);
 	/* Initializes the screenlist. */

@@ -38,8 +38,6 @@
 #ifndef MTC_S16209X_H
 #define MTC_S16209X_H
 
-#include "lcd.h"
-
 MODULE_EXPORT int  MTC_S16209X_init(Driver *drvthis);
 MODULE_EXPORT void MTC_S16209X_close(Driver *drvthis);
 MODULE_EXPORT int  MTC_S16209X_width (Driver *drvthis);
@@ -55,7 +53,7 @@ MODULE_EXPORT void MTC_S16209X_vbar(Driver *drvthis, int x, int y, int len, int 
 MODULE_EXPORT void MTC_S16209X_hbar(Driver *drvthis, int x, int y, int len, int promille, int options);
 MODULE_EXPORT int  MTC_S16209X_icon(Driver *drvthis, int x, int y, int icon);
 
-MODULE_EXPORT void MTC_S16209X_set_char(Driver *drvthis, int n, char *dat);
+MODULE_EXPORT void MTC_S16209X_set_char(Driver *drvthis, int n, unsigned char *dat);
 
 MODULE_EXPORT void MTC_S16209X_backlight(Driver *drvthis, int on);
 

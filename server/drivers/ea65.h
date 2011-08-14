@@ -1,8 +1,6 @@
 #ifndef EA65_H
 #define EA65_H
 
-#include "lcd.h"
-
 #define DEFAULT_BRIGHTNESS 500
 #define DEFAULT_OFFBRIGHTNESS 0
 
@@ -15,7 +13,7 @@ MODULE_EXPORT void EA65_flush (Driver *drvthis);
 MODULE_EXPORT void EA65_string (Driver *drvthis, int x, int y, const char string[]);
 MODULE_EXPORT void EA65_chr (Driver *drvthis, int x, int y, char c);
 
-MODULE_EXPORT void EA65_brightness (Driver *drvthis, int promille);
+MODULE_EXPORT void EA65_backlight (Driver *drvthis, int on);
 MODULE_EXPORT void EA65_output (Driver *drvthis, int on);
 
 #endif

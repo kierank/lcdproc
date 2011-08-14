@@ -27,14 +27,6 @@
 
 #define SLI_DEFAULT_DEVICE	"/dev/lcd"
 
-typedef enum {
-	normal = 0,
-	hbar = 1,
-	vbar = 2,
-	bign = 4,
-	beat = 8
-} custom_type;
-
 /** private data for the \c sli driver */
 typedef struct sli_private_data {
 	char device[256];
@@ -45,7 +37,7 @@ typedef struct sli_private_data {
 	int height;
 	int cellwidth;
 	int cellheight;
-	int custom;
+	CGmode custom;
 } PrivateData;
 
 
@@ -74,7 +66,7 @@ sli_init (Driver *drvthis)
 		return -1;
 
 	/* initialize private data */
-	p->custom = normal;
+	p->custom = standard;
 	p->fd = -1;
 	p->framebuf = NULL;
 	p->width = 16;
@@ -312,85 +304,20 @@ static void
 sli_init_vbar (Driver *drvthis)
 {
 	PrivateData *p = drvthis->private_data;
-	char a[] = {
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		1, 1, 1, 1, 1,
-	};
-	char b[] = {
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-	};
-	char c[] = {
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-	};
-	char d[] = {
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-	};
-	char e[] = {
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-	};
-	char f[] = {
-		0, 0, 0, 0, 0,
-		0, 0, 0, 0, 0,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-	};
-	char g[] = {
-		0, 0, 0, 0, 0,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
+	static unsigned char vbar_char[7][8] = {
+		{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F},
+		{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x1F, 0x1F},
+		{0x00, 0x00, 0x00, 0x00, 0x00, 0x1F, 0x1F, 0x1F},
+		{0x00, 0x00, 0x00, 0x00, 0x1F, 0x1F, 0x1F, 0x1F},
+		{0x00, 0x00, 0x00, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F},
+		{0x00, 0x00, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F},
+		{0x00, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F, 0x1F}
 	};
 
 	if (p->custom != vbar) {
-		sli_set_char(drvthis, 1, a);
-		sli_set_char(drvthis, 2, b);
-		sli_set_char(drvthis, 3, c);
-		sli_set_char(drvthis, 4, d);
-		sli_set_char(drvthis, 5, e);
-		sli_set_char(drvthis, 6, f);
-		sli_set_char(drvthis, 7, g);
+		int i;
+		for (i = 0; i < 7; i++)
+			sli_set_char(drvthis, i + 1, vbar_char[i]);
 		p->custom = vbar;
 	}
 }
@@ -402,63 +329,17 @@ static void
 sli_init_hbar (Driver *drvthis)
 {
 	PrivateData *p = drvthis->private_data;
-	char a[] = {
-		1, 0, 0, 0, 0,
-		1, 0, 0, 0, 0,
-		1, 0, 0, 0, 0,
-		1, 0, 0, 0, 0,
-		1, 0, 0, 0, 0,
-		1, 0, 0, 0, 0,
-		1, 0, 0, 0, 0,
-		1, 0, 0, 0, 0,
-	};
-	char b[] = {
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-		1, 1, 0, 0, 0,
-	};
-	char c[] = {
-		1, 1, 1, 0, 0,
-		1, 1, 1, 0, 0,
-		1, 1, 1, 0, 0,
-		1, 1, 1, 0, 0,
-		1, 1, 1, 0, 0,
-		1, 1, 1, 0, 0,
-		1, 1, 1, 0, 0,
-		1, 1, 1, 0, 0,
-	};
-	char d[] = {
-		1, 1, 1, 1, 0,
-		1, 1, 1, 1, 0,
-		1, 1, 1, 1, 0,
-		1, 1, 1, 1, 0,
-		1, 1, 1, 1, 0,
-		1, 1, 1, 1, 0,
-		1, 1, 1, 1, 0,
-		1, 1, 1, 1, 0,
-	};
-	char e[] = {
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
-		1, 1, 1, 1, 1,
+	static unsigned char hbar_char[4][8] = {
+		{0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10, 0x10},
+		{0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18, 0x18},
+		{0x1C, 0x1C, 0x1C, 0x1C, 0x1C, 0x1C, 0x1C, 0x1C},
+		{0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E, 0x1E},
 	};
 
 	if (p->custom != hbar) {
-		sli_set_char(drvthis, 1, a);
-		sli_set_char(drvthis, 2, b);
-		sli_set_char(drvthis, 3, c);
-		sli_set_char(drvthis, 4, d);
-		sli_set_char(drvthis, 5, e);
+		int i;
+		for (i = 0; i < 4; i++)
+			sli_set_char(drvthis, i + 1, hbar_char[i]);
 		p->custom = hbar;
 	}
 }
@@ -503,16 +384,15 @@ sli_hbar (Driver *drvthis, int x, int y, int len, int promille, int options)
 // The input is just an array of characters...
 //
 MODULE_EXPORT void
-sli_set_char (Driver *drvthis, int n, char *dat)
+sli_set_char (Driver *drvthis, int n, unsigned char *dat)
 {
 	PrivateData *p = drvthis->private_data;
 	char out[2];
-	int row, col;
+	int row;
+	unsigned char mask = (1 << p->cellwidth) - 1;
 
 	/* SLI also has 8 user definable characters */
-	if ((n < 0) || (n > 7))
-		return;
-	if (!dat)
+	if ((n < 0) || (n > 7) || (!dat))
 		return;
 
 	/* Move cursor to CGRAM */
@@ -521,12 +401,8 @@ sli_set_char (Driver *drvthis, int n, char *dat)
 	write(p->fd, out, 2);
 
 	for (row = 0; row < p->cellheight; row++) {
-		int letter = 0;
+		int letter = dat[row] & mask;
 
-		for (col = 0; col < p->cellwidth; col++) {
-			letter <<= 1;
-			letter |= (dat[(row * p->cellwidth) + col] > 0);
-		}
 		letter |= 0x020;	  /* SLI can't accept CR, LF, etc in this character! */
 		write(p->fd, &letter, 1);
 	}
@@ -540,45 +416,11 @@ sli_set_char (Driver *drvthis, int n, char *dat)
 MODULE_EXPORT int
 sli_icon (Driver *drvthis, int x, int y, int icon)
 {
-	PrivateData *p = drvthis->private_data;
-	static char icons[3][5 * 8] = {
-		{
-		 1, 1, 1, 1, 1,			  // Empty Heart
-		 1, 0, 1, 0, 1,
-		 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0,
-		 1, 0, 0, 0, 1,
-		 1, 1, 0, 1, 1,
-		 1, 1, 1, 1, 1,
-		 },
-
-		{
-		 1, 1, 1, 1, 1,			  // Filled Heart
-		 1, 0, 1, 0, 1,
-		 0, 1, 0, 1, 0,
-		 0, 1, 1, 1, 0,
-		 0, 1, 1, 1, 0,
-		 1, 0, 1, 0, 1,
-		 1, 1, 0, 1, 1,
-		 1, 1, 1, 1, 1,
-		 },
-
-		{
-		 0, 0, 0, 0, 0,			  // Ellipsis
-		 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0,
-		 0, 0, 0, 0, 0,
-		 1, 0, 1, 0, 1,
-		 },
-
+	static unsigned char icons[2][8] = {
+		{0x1F, 0x15, 0x00, 0x00, 0x00, 0x11, 0x1B, 0x1F},	/* Empty Heart */
+		{0x1F, 0x15, 0x0A, 0x0E, 0x0E, 0x15, 0x1B, 0x1F}	/* Filled Heart */
 	};
 
-	if (p->custom == bign)
-		p->custom = beat;
 	switch (icon) {
 		case ICON_BLOCK_FILLED:
 			sli_chr(drvthis, x, y, 255);

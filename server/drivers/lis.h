@@ -19,8 +19,6 @@
 #ifndef LIS_H
 #define LIS_H
 
-#include "lcd.h"
-
 #ifndef bool
 # define bool short
 # define true 1
@@ -44,15 +42,6 @@
 ///////////////////////////////////////////////////////////////////////////////
 // private data types
 //
-typedef enum {
-  standard,	/* only char 0 is used for heartbeat */
-  vbar,		/* vertical bars */
-  hbar,		/* horizontal bars */
-  bignum,	/* big numbers */
-  bigchar,	/* big characters */
-  custom	/* custom icons */
-} CGmode;
-
 typedef struct cgram_cache {
   unsigned char cache[CELLHEIGHT];
   int clean;

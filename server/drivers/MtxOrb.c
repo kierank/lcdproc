@@ -8,10 +8,12 @@
  * http://www.matrixorbital.ca/manuals/
  *
  * \note The GLK series of graphical displays is supported by the \c glk driver.
+ *
+ * \todo Recover the code for I2C connectivity to MtxOrb.
  */
 
 /*-
-    Copyright (C) 1999, William Ferrell and Scott Scriven
+    Copyright (C) 1999, William Ferrell and Selene Scriven
 		  2001, Andre Breiler
 		  2001, Philip Pokorny
 		  2001, David Douthitt
@@ -46,9 +48,8 @@
 #include <string.h>
 #include <strings.h>
 #include <errno.h>
-#include <syslog.h>
 #include <ctype.h>
-#include <sys/poll.h>
+#include <poll.h>
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -103,15 +104,6 @@ typedef enum {
 /* Constants for userdefchar_mode */
 #define NUM_CCs		8 /* max. number of custom characters */
 
-typedef enum {
-	standard,	/* only char 0 is used for heartbeat */
-	vbar,		/* vertical bars */
-	hbar,		/* horizontal bars */
-	custom,		/* custom settings */
-	bignum,		/* big numbers */
-	bigchar		/* big characters */
-} CGmode;
-
 
 /** private data for the \c MtxOrb driver */
 typedef struct MtxOrb_private_data {
@@ -125,7 +117,7 @@ typedef struct MtxOrb_private_data {
 	unsigned char *framebuf;
 	unsigned char *backingstore;
 
-	/* defineable characters */
+	/* definable characters */
 	CGmode ccmode;
 
 	int output_state;	/**< current output state */

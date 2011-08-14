@@ -20,8 +20,6 @@
 #ifndef TYAN_LCDM_H
 #define TYAN_LCDM_H
 
-#include "lcd.h"
-
 #define DEFAULT_CELL_WIDTH	5
 #define DEFAULT_CELL_HEIGHT	8
 #define DEFAULT_DEVICE		"/dev/lcd"
@@ -42,15 +40,6 @@
 /* Constants for userdefchar_mode */
 #define NUM_CCs	8	 /* max. number of custom characters */
 
-typedef enum {
-	standard,	/* only char 0 is used for heartbeat */
-	vbar,		/* vertical bars */
-	hbar,		/* horizontal bars */
-	bignum,		/* big numbers */
-	bigchar,	/* big characters */
-	custom		/* custom icons */
-} CGmode;
-
 
 typedef struct cgram_cache {
 	unsigned char cache[LCD_DEFAULT_CELLHEIGHT];
@@ -63,19 +52,19 @@ typedef struct tyan_lcdm_private_data {
 	char device[200];
 	int speed;
 	int fd;
-	
+
 	unsigned char *framebuf;
 	unsigned char *backingstore;
-	
+
 	int width;
 	int height;
 	int cellwidth;
 	int cellheight;
 
-	/* defineable characters */
+	/* definable characters */
 	CGram cc[NUM_CCs];
 	CGmode ccmode;
-} PrivateData;	
+} PrivateData;
 
 
 /* API: variables for the server core */

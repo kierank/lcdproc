@@ -33,7 +33,6 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
-#include <syslog.h>
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -49,15 +48,6 @@
 
 /* Constants for userdefchar_mode */
 #define NUM_CCs		8 /* max. number of custom characters */
-
-typedef enum {
-	standard,	/* only char 0 is used for heartbeat */
-	vbar,		/* vertical bars */
-	hbar,		/* horizontal bars */
-	custom,		/* custom settings */
-	bignum,		/* big numbers */
-	bigchar		/* big characters */
-} CGmode;
 
 /** private data for the \c CFontz driver */
 typedef struct CFontz_private_data {
@@ -76,7 +66,7 @@ typedef struct CFontz_private_data {
 	unsigned char *framebuf;
 	unsigned char *backingstore;
 
-	/* defineable characters */
+	/* definable characters */
 	CGmode ccmode;
 
 	int contrast;

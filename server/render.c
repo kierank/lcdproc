@@ -15,6 +15,8 @@
  * NOTE: (from David Douthitt) Multiple screen sizes?  Multiple simultaneous
  * screens?  Horrors of horrors... next thing you know it'll be making coffee...
  * Better believe it'll take a while to do...
+ *
+ * \todo Review render_string for correctness.
  */
 
 /* This file is part of LCDd, the lcdproc server.
@@ -22,7 +24,7 @@
  * This file is released under the GNU General Public License.
  * Refer to the COPYING file distributed with this package.
  *
- * Copyright (c) 1999, William Ferrell, Scott Scriven
+ * Copyright (c) 1999, William Ferrell, Selene Scriven
  *		 2001, Joris Robijn
  *		 2007, Peter Marschall
  */
@@ -66,6 +68,22 @@ static int render_scroller(Widget *w, int left, int top, int right, int bottom, 
 static int render_num(Widget *w, int left, int top, int right, int bottom);
 
 
+/**
+ * Renders a screen. The following actions are taken in order:
+ *
+ * \li  Clear the screen.
+ * \li  Set the backlight.
+ * \li  Set out-of-band data (output).
+ * \li  Render the frame contents.
+ * \li  Set the cursor.
+ * \li  Draw the heartbeat.
+ * \li  Show any server message.
+ * \li  Flush all output to screen.
+ *
+ * \param s      The screen to render.
+ * \param timer  A value increased with every call.
+ * \return  -1 on error, 0 on success.
+ */
 int
 render_screen(Screen *s, long timer)
 {
@@ -76,15 +94,18 @@ render_screen(Screen *s, long timer)
 	if (s == NULL)
 		return -1;
 
-	/* Clear the LCD screen... */
+	/* 1. Clear the LCD screen... */
 	drivers_clear();
 
-	/* FIXME drivers_backlight --
-	 *
-	 * If the screen's backlight isn't set (default) then we
-	 * inherit the backlight state from the parent client. This allows
-	 * the client to override it's childrens settings.
-	 * The server can also override the clients and screens settings.
+	/* 2. Set up the backlight */
+	/*-
+	 * 2.1:
+	 * First we find out who has set the backlight:
+	 *   a) the screen,
+	 *   b) the client, or
+	 *   c) the server core
+	 * with the latter taking precedence over the earlier. If the
+	 * backlight is not set on/off then use the fallback (set it ON).
 	 */
 	if (backlight != BACKLIGHT_OPEN) {
 		tmp_state = backlight;
@@ -99,7 +120,11 @@ render_screen(Screen *s, long timer)
 		tmp_state = backlight_fallback;
 	}
 
-	/* Set up backlight to the correct state... */
+	/*-
+	 * 2.2:
+	 * If one of the backlight options (FLASH or BLINK) has been set turn
+	 * it on/off based on a timed algorithm.
+	 */
 	/* NOTE: dirty stripping of other options... */
 	/* Backlight flash: check timer and flip backlight as appropriate */
 	if (tmp_state & BACKLIGHT_FLASH) {
@@ -122,17 +147,18 @@ render_screen(Screen *s, long timer)
 		drivers_backlight(tmp_state & BACKLIGHT_ON);
 	}
 
-	/* Output ports from LCD - outputs depend on the current screen */
+	/* 3. Output ports from LCD - outputs depend on the current screen */
 	drivers_output(output_state);
 
-	/* Draw a frame... */
+	/* 4. Draw a frame... */
 	render_frame(s->widgetlist, 0, 0,
 			display_props->width, display_props->height,
 			s->width, s->height, 'v', max(s->duration / s->height, 1), timer);
 
-	/* Set the cursor */
+	/* 5. Set the cursor */
 	drivers_cursor(s->cursor_x, s->cursor_y, s->cursor);
 
+	/* 6. Set the heartbeat */
 	if (heartbeat != HEARTBEAT_OPEN) {
 		tmp_state = heartbeat;
 	}
@@ -147,7 +173,7 @@ render_screen(Screen *s, long timer)
 	}
 	drivers_heartbeat(tmp_state);
 
-	/* If there is an server message that is not expired, display it */
+	/* 7. If there is an server message that is not expired, display it */
 	if (server_msg_expire > 0) {
 		drivers_string(display_props->width - strlen(server_msg_text) + 1,
 				display_props->height, server_msg_text);
@@ -157,7 +183,7 @@ render_screen(Screen *s, long timer)
 		}
 	}
 
-	/* flush display out, frame and all... */
+	/* 8. Flush display out, frame and all... */
 	drivers_flush();
 
 	debug(RPT_DEBUG, "==== END RENDERING ====");
@@ -204,7 +230,7 @@ render_frame(LinkedList *list,
 			fy = max(fy, 0);	// safeguard against negative values
 
 			debug(RPT_DEBUG, "%s: fy=%d", __FUNCTION__, fy);
-		}	
+		}
 	}
 	else if (fscroll == 'h') {	/* horizontal scrolling */
 		/* TODO:  Frames don't scroll horizontally yet! */
@@ -284,6 +310,12 @@ render_string(Widget *w, int left, int top, int right, int bottom, int fy)
 		int length;
 		char str[BUFSIZE];
 
+		/*
+		 * FIXME: Could be a bug here? w->x is recalculated (On first
+		 * call only? Is it preserved between calls?) and first
+		 * character of w->text shows up on the rightmost column for
+		 * strings totally off-screen. Is this on purpose? (M. Dolze)
+		 */
 		w->x = min(w->x, right - left);
 		length = min(right - left - w->x + 1, sizeof(str)-1);
 		strncpy(str, w->text, length);

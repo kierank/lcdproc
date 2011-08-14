@@ -1,22 +1,20 @@
 /** \file server/drivers/CFontzPacket.c
  * LCDd \c CFontzPacket driver for the CFA533, CFA631, CFA633 & CFA635 display
- * series by CrystalFontz, Inc.
+ * series by CrystalFontz, Inc which use a packet based protocol.
+ *
+ * Applicable Data Sheets:
+ *  \li http://www.crystalfontz.com/products/533/data_sheet/data_sheet.html
+ *  \li http://www.crystalfontz.com/products/631/data_sheet/data_sheet.html
+ *  \li http://www.crystalfontz.com/products/633/data_sheet/data_sheet.html
+ *  \li http://www.crystalfontz.com/products/635/data_sheet/data_sheet.html
+ *
+ * \todo Add a cache for the custom characters.
  */
 
-/*
- *  This is the LCDproc driver for CrystalFontz LCD using Packet protocol.
- *  It support the CrystalFontz 533/633 USB/Serial, the 631 USB and the 635 USB
- *  (get yours from http://www.crystalfontz.com)
- *
- *  Applicable Data Sheets:
- *  - http://www.crystalfontz.com/products/533/data_sheet/data_sheet.html
- *  - http://www.crystalfontz.com/products/631/data_sheet/data_sheet.html
- *  - http://www.crystalfontz.com/products/633/data_sheet/data_sheet.html
- *  - http://www.crystalfontz.com/products/635/data_sheet/data_sheet.html
- *
- *  Copyright (C) 2002 David GLAUDE
- *  Portions Copyright (C) 2005 Peter Marschall
- *  Portions Copyright (C) 2005 Nicolas Croiset <ncroiset@vdldiffusion.com>
+/*-
+ *  Copyright (c) 2002 David GLAUDE
+ *                2005 Peter Marschall
+ *                2005 Nicolas Croiset <ncroiset@vdldiffusion.com>
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -33,21 +31,9 @@
  *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301
  */
 
-/*
- * Driver history
- * 04/04/2002: Working driver
- * 05/06/2002: Reading of return value
- * 02/09/2002: KeyPad handling and return string
- * 03/09/2002: New icon incorporated
- * 27/01/2003: Adapted for CFontz 631
- * 16/05/2005: Adapted for CFontz 635
- * 24/01/2010: Add CFontz 533, add model description
- *
- * THINGS TO DO:
- * + Make the caching at least for heartbeat icon
- *
- */
-
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -56,11 +42,6 @@
 #include <fcntl.h>
 #include <string.h>
 #include <errno.h>
-#include <syslog.h>
-
-#ifdef HAVE_CONFIG_H
-# include "config.h"
-#endif
 
 #include "lcd.h"
 #include "CFontzPacket.h"
@@ -70,43 +51,11 @@
 #include "CFontz-charmap.h"
 #include "adv_bignum.h"
 
-
-#define CFP_KEY_UP		1
-#define CFP_KEY_DOWN		2
-#define CFP_KEY_LEFT		3
-#define CFP_KEY_RIGHT		4
-#define CFP_KEY_ENTER		5
-#define CFP_KEY_ESCAPE		6
-#define CFP_KEY_UP_RELEASE	7
-#define CFP_KEY_DOWN_RELEASE	8
-#define CFP_KEY_LEFT_RELEASE	9
-#define CFP_KEY_RIGHT_RELEASE	10
-#define CFP_KEY_ENTER_RELEASE	11
-#define CFP_KEY_ESCAPE_RELEASE	12
-#define CFP_KEY_UL_PRESS	13
-#define CFP_KEY_UR_PRESS	14
-#define CFP_KEY_LL_PRESS	15
-#define CFP_KEY_LR_PRESS 	16
-#define CFP_KEY_UL_RELEASE	17
-#define CFP_KEY_UR_RELEASE	18
-#define CFP_KEY_LL_RELEASE	19
-#define CFP_KEY_LR_RELEASE	20
-
-
 /* LEDs dispatch */
 #define CF635_NUM_LEDs	8
 
 /* Constants for userdefchar_mode */
 #define NUM_CCs		8 /* max. number of custom characters */
-
-typedef enum {
-	standard,	/* only char 0 is used for heartbeat */
-	vbar,		/* vertical bars */
-	hbar,		/* horizontal bars */
-	custom,		/* custom settings */
-	bignum,		/* big numbers */
-	bigchar		/* big characters */
-} CGmode;
 
 
 /** private data for the \c CFontzPacket driver */
@@ -130,7 +79,7 @@ typedef struct CFontzPacket_private_data {
 	unsigned char *framebuf;
 	unsigned char *backingstore;
 
-	/* defineable characters */
+	/* definable characters */
 	CGmode ccmode;
 
 	int contrast;
@@ -144,10 +93,10 @@ typedef struct CFontzPacket_private_data {
 /** List of known models and their default settings and features */
 static CFA_Model CFA_ModelList[] = {
 	{533, "16x2", 5, 19200 , HD44780_charmap, CFA_HAS_TEMP | CFA_HAS_4_TEMP_SLOTS},
-	{631, "20x2", 6, 115200, CFontz_charmap , CFA_HAS_FAN | CFA_HAS_TEMP |
+	{631, "20x2", 5, 115200, CFontz_charmap , CFA_HAS_FAN | CFA_HAS_TEMP |
 						CFA_HAS_KS0073 | CFA_HAS_4_TEMP_SLOTS},
 	{633, "16x2", 5, 19200 , HD44780_charmap, CFA_HAS_FAN | CFA_HAS_TEMP},
-	{635, "20x4", 6, 115200, CFontz_charmap , CFA_HAS_KS0073},
+	{635, "20x4", 5, 115200, CFontz_charmap , CFA_HAS_KS0073},
 	{0, NULL, 0, 0, NULL, 0}
 };
 
@@ -293,7 +242,7 @@ CFontzPacket_init (Driver *drvthis)
 		report(RPT_INFO, "%s: USB is indicated (in config)", drvthis->name);
 
 	/* Set up io port correctly, and open it... */
-	debug(RPT_DEBUG, "%s: Opening device: %s", __FUNCTION__, p->device);
+	debug(RPT_INFO, "%s: Opening device: %s", __FUNCTION__, p->device);
 	p->fd = open(p->device, (p->usb) ? (O_RDWR | O_NOCTTY) : (O_RDWR | O_NOCTTY | O_NDELAY));
 	if (p->fd == -1) {
 		report(RPT_ERR, "%s: open(%s) failed (%s)", drvthis->name, p->device, strerror(errno));
@@ -561,34 +510,26 @@ CFontzPacket_get_key (Driver *drvthis)
 	unsigned char key = GetKeyFromKeyRing(&keyring);
 
 	switch (key) {
-		case CFP_KEY_LEFT:
-			return "Left";
-			break;
+		case CFP_KEY_UL_PRESS:
 		case CFP_KEY_UP:
 			return "Up";
 			break;
+		case CFP_KEY_LL_PRESS:
 		case CFP_KEY_DOWN:
 			return "Down";
+			break;
+		case CFP_KEY_LEFT:
+			return "Left";
 			break;
 		case CFP_KEY_RIGHT:
 			return "Right";
 			break;
+		case CFP_KEY_UR_PRESS:
 		case CFP_KEY_ENTER:
 			return "Enter";
 			break;
-		case CFP_KEY_ESCAPE:
-			return "Escape";
-			break;
-		case CFP_KEY_UL_PRESS:
-			return "Up";
-			break;
-		case CFP_KEY_UR_PRESS:
-			return "Enter";
-			break;
-		case CFP_KEY_LL_PRESS:
-			return "Down";
-			break;
 		case CFP_KEY_LR_PRESS:
+		case CFP_KEY_ESCAPE:
 			return "Escape";
 			break;
 		case CFP_KEY_UP_RELEASE:
@@ -601,7 +542,7 @@ CFontzPacket_get_key (Driver *drvthis)
 		case CFP_KEY_UR_RELEASE:
 		case CFP_KEY_LL_RELEASE:
 		case CFP_KEY_LR_RELEASE:
-			// report(RPT_INFO, "%s: Ignoring key release 0x%02X", drvthis->name, key);
+			/* Key release events are ignored */
 			return NULL;
 			break;
 		default:
@@ -628,7 +569,7 @@ CFontzPacket_chr (Driver *drvthis, int x, int y, char c)
 {
 	PrivateData *p = drvthis->private_data;
 
-	debug(RPT_INFO, "%s: x=%d, y=%d, ch=0x%02X", __FUNCTION__, x, y, c);
+	debug(RPT_DEBUG, "%s: x=%d, y=%d, ch=0x%02X", __FUNCTION__, x, y, c);
 
 	y--;
 	x--;
@@ -639,7 +580,8 @@ CFontzPacket_chr (Driver *drvthis, int x, int y, char c)
 
 
 /**
- * Print a raw character on the screen at position (x,y).
+ * Print a character on the screen at position (x,y) bypassing the character
+ * mapping table.
  * The upper-left corner is (1,1), the lower-right corner is (p->width, p->height).
  * \param drvthis  Pointer to driver structure.
  * \param x        Horizontal character position (column).
@@ -651,7 +593,7 @@ CFontzPacket_raw_chr (Driver *drvthis, int x, int y, unsigned char c)
 {
 	PrivateData *p = drvthis->private_data;
 
-	debug(RPT_INFO, "%s: x=%d, y=%d, ch=0x%02X", __FUNCTION__, x, y, c);
+	debug(RPT_DEBUG, "%s: x=%d, y=%d, ch=0x%02X", __FUNCTION__, x, y, c);
 
 	y--;
 	x--;
@@ -742,7 +684,6 @@ CFontzPacket_set_brightness(Driver *drvthis, int state, int promille)
 	else {
 		p->offbrightness = promille;
 	}
-	//CFontzPacket_backlight(drvthis, state);
 }
 
 
@@ -987,22 +928,20 @@ CFontzPacket_set_char (Driver *drvthis, int n, unsigned char *dat)
 	unsigned char mask = (1 << p->cellwidth) - 1;
 	int row;
 
-	if ((n < 0) || (n >= NUM_CCs))
+	if ((n < 0) || (n >= NUM_CCs) || (!dat))
 		return;
-	if (!dat)
-		return;
-
-	out[0] = n;	/* Custom char to define. */
 
 	/*
 	 * Models with a KS0073 (631, 635) have a seamless display. Clear the
 	 * last line on those to avoid the custom characters banging together
-	 * with other characters. This actually makes vBars not seamless. This
-	 * is supposed to be a feature, not a bug.
+	 * with other characters (except if big numbers are to be shown). This
+	 * actually makes vBars not seamless. This is supposed to be a feature,
+	 * not a bug.
 	 */
-	if (p->model_desc->flags & CFA_HAS_KS0073)
+	if ((p->model_desc->flags & CFA_HAS_KS0073) && (p->ccmode != bignum))
 		dat[p->cellheight-1] = 0;
 
+	out[0] = n;	/* Custom char to define. */
 	for (row = 0; row < p->cellheight; row++) {
 		out[row+1] = dat[row] & mask;
 	}
@@ -1024,7 +963,7 @@ CFontzPacket_icon (Driver *drvthis, int x, int y, int icon)
 {
 	PrivateData *p = drvthis->private_data;
 
-	debug(RPT_INFO, "%s: x=%d, y=%d, icon=0x%02X", __FUNCTION__, x, y, icon);
+	debug(RPT_DEBUG, "%s: x=%d, y=%d, icon=0x%02X", __FUNCTION__, x, y, icon);
 
 	static unsigned char heart_open[] =
 		{ b__XXXXX,
@@ -1062,26 +1001,6 @@ CFontzPacket_icon (Driver *drvthis, int x, int y, int icon)
 		  b___XXX_,
 		  b____X__,
 		  b_______ };
-	/*
-	static unsigned char arrow_left[] =
-		{ b_______,
-		  b____X__,
-		  b___X___,
-		  b__XXXXX,
-		  b___X___,
-		  b____X__,
-		  b_______,
-		  b_______ };
-	static unsigned char arrow_right[] =
-		{ b_______,
-		  b____X__,
-		  b_____X_,
-		  b__XXXXX,
-		  b_____X_,
-		  b____X__,
-		  b_______,
-		  b_______ };
-	*/
 	static unsigned char checkbox_off[] =
 		{ b_______,
 		  b_______,
@@ -1109,49 +1028,11 @@ CFontzPacket_icon (Driver *drvthis, int x, int y, int icon)
 		  b__X_X_X,
 		  b__XXXXX,
 		  b_______ };
-	/*
-	static unsigned char selector_left[] =
-		{ b___X___,
-		  b___XX__,
-		  b___XXX_,
-		  b___XXXX,
-		  b___XXX_,
-		  b___XX__,
-		  b___X___,
-		  b_______ };
-	static unsigned char selector_right[] =
-		{ b_____X_,
-		  b____XX_,
-		  b___XXX_,
-		  b__XXXX_,
-		  b___XXX_,
-		  b____XX_,
-		  b_____X_,
-		  b_______ };
-	static unsigned char ellipsis[] =
-		{ b_______,
-		  b_______,
-		  b_______,
-		  b_______,
-		  b_______,
-		  b_______,
-		  b__X_X_X,
-		  b_______ };
-	static unsigned char block_filled[] =
-		{ b__XXXXX,
-		  b__XXXXX,
-		  b__XXXXX,
-		  b__XXXXX,
-		  b__XXXXX,
-		  b__XXXXX,
-		  b__XXXXX,
-		  b__XXXXX };
-	*/
 
 	switch (icon) {
 		case ICON_BLOCK_FILLED:
 			if (p->model_desc->flags & CFA_HAS_KS0073) {
-				CFontzPacket_raw_chr(drvthis, x, y, 31);
+				CFontzPacket_raw_chr(drvthis, x, y, 214);
 			}
 			else
 				CFontzPacket_raw_chr(drvthis, x, y, 255);

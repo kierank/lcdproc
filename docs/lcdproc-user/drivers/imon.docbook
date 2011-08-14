@@ -60,9 +60,9 @@ For further details, please consult the page and the forum at
   </term>
   <listitem><para>
     Set the display size. The default <literal>16x2</literal> should be safe
-    for most if not all users, since the device seeems to be made only with
+    for most if not all users, since the device seems to be made only with
     this one size.
-    But who knowns &hellip;
+    But who knows &hellip;
   </para></listitem>
 </varlistentry>
 
@@ -76,6 +76,70 @@ For further details, please consult the page and the forum at
     <filename>/dev/lcd</filename> to the device file that gets created
     when the kernel module (<link linkend="imon-kernelmodules">see above</link>) is loaded.
   </para></listitem>
+</varlistentry>
+
+<varlistentry>
+  <term>
+    <property>CharMap</property> =
+    {
+      <emphasis><parameter><literal>hd44780_euro</literal></parameter></emphasis> |
+      <parameter><literal>hd44780_koi8_r</literal></parameter> |
+      <parameter><literal>hd44780_cp1251</literal></parameter> |
+      <parameter><literal>hd44780_8859_5</literal></parameter> |
+      <parameter><literal>upd16314</literal></parameter> |
+      <parameter><literal>none</literal></parameter>
+    }
+  </term>
+  <listitem>
+    <para>
+      Set the character mapping depending on the display you have:
+      <itemizedlist>
+        <listitem><para>
+          The default, <literal>hd44780_euro</literal> is for displays with
+          a ROM mask supporting the european charset (ROM code A02).
+        </para></listitem>
+        <listitem><para>
+          The <literal>none</literal> charmap does not translate any characters
+          and is only useful for debugging.
+        </para></listitem>
+      </itemizedlist>
+      You only need to set this parameter if you have a non-standard charmap.
+    </para>
+    <para>
+      If LCDproc was configured with '--enable-extra-charmaps' option the
+      following character mappings are available, too:
+      <itemizedlist>
+        <listitem><para>
+          <literal>hd44780_koi8_r</literal> maps input from a client in
+          Russian KOI8-R to displays with a ROM mask supporting the european
+          charset (ROM code A02).
+        </para></listitem>
+        <listitem><para>
+          <literal>hd44780_cp1251</literal> maps input from a client in
+          Russian CP1251 (Windows-1251) to displays with a ROM mask supporting
+          the european charset (ROM code A02).
+        </para></listitem>
+        <listitem><para>
+          <literal>hd44780_8859_5</literal>  maps input from a client in
+          Russian ISO 8859-5 to displays with a ROM mask supporting the european
+          charset (ROM code A02).
+        </para></listitem>
+        <listitem><para>
+          <literal>upd16314</literal> is for displays with a Nec uPD16314
+          vacuum fluorescent display (VFD) controller with ROM code 002
+          character set. If your display has ROM code 001 character set you
+          may use the <literal>hd44780_euro</literal> charmap instead.
+        </para></listitem>
+      </itemizedlist>
+    </para>
+    <tip>
+      <para>
+      See <filename>server/drivers/hd44780-charset.h</filename>
+      in <package>LCDproc</package>'s source directory for the actual
+      mappings.
+      </para>
+    </tip>
+  </listitem>
 </varlistentry>
 </variablelist>
 

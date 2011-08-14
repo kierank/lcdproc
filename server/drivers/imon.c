@@ -8,7 +8,7 @@
  *    from http://www.lirc.org/
  */
 
-/*
+/*-
  * Driver for Soundgraph/Ahanix/Silverstone/Uneed/Accent iMON IR/VFD Module
  *
  * Copyright (c) 2004, Venky Raju <dev@venky.ws>, original author of
@@ -30,11 +30,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <termios.h>
 #include <fcntl.h>
 #include <string.h>
+#include <strings.h>
 #include <errno.h>
-
 
 #ifdef HAVE_CONFIG_H
 # include "config.h"
@@ -43,9 +42,9 @@
 #include "lcd.h"
 #include "lcd_lib.h"
 #include "report.h"
-
-
 #include "imon.h"
+#include "hd44780-charmap.h"
+#include "adv_bignum.h"
 
 // iMon reserves the first 8 locations for the
 // special bargraph characters
@@ -95,6 +94,8 @@ MODULE_EXPORT int stay_in_foreground = 0;
 MODULE_EXPORT int supports_multiple = 0;
 MODULE_EXPORT char *symbol_prefix = "imon_";
 
+/* Constants for userdefchar_mode */
+#define NUM_CCs		0 /* imon can't define a custom character */
 
 /** private data for the \c imon driver */
 typedef struct imon_private_data {
@@ -105,8 +106,23 @@ typedef struct imon_private_data {
 	int width;			/**< display width in characters */
 	int cellwidth;			/**< character cell width */
 	int cellheight;			/**< character cell height */
+	const unsigned char *charmap;	/**< character mapping table */
 } PrivateData;
 
+/**
+ * NULL-terminated list of charmaps that can be used by this driver. This
+ * list is sorted by relevance. Most likely used entries first. */
+static char * imon_charmaps[] = {
+	"none",
+	"hd44780_euro",
+#ifdef EXTRA_CHARMAPS
+	"hd44780_koi8_r",
+	"hd44780_cp1251",
+	"hd44780_8859_5",
+	"upd16314",
+#endif
+	NULL
+};
 
 /**
  * Initialize the driver.
@@ -114,12 +130,14 @@ typedef struct imon_private_data {
  * \retval 0       Success.
  * \retval <0      Error.
  */
-MODULE_EXPORT int imon_init (Driver *drvthis)
+MODULE_EXPORT int
+imon_init(Driver *drvthis)
 {
 	PrivateData *p = NULL;
 	char buf[256];
+	int i;
 
-	// Alocate, initialize and store private p
+	/* Allocate, initialize and store private p */
 	p = (PrivateData *) calloc(1, sizeof(PrivateData));
 	if (p == NULL) {
 		report(RPT_ERR, "%s: failed to allocate private data", drvthis->name);
@@ -149,7 +167,6 @@ MODULE_EXPORT int imon_init (Driver *drvthis)
 	if ((p->imon_fd = open(buf, O_WRONLY)) < 0) {
 		report(RPT_ERR, "%s: ERROR opening %s (%s)", drvthis->name, buf, strerror(errno));
 		report(RPT_ERR, "%s: Did you load the iMON VFD kernel module?", drvthis->name);
-		report(RPT_ERR, "%s: More info in lcdproc/docs/README.imon", drvthis->name);
 		return -1;
 	}
 
@@ -172,6 +189,25 @@ MODULE_EXPORT int imon_init (Driver *drvthis)
 	}
 	memset(p->framebuf, ' ', p->width * p->height);
 
+	/* Load character mapping table */
+	p->charmap = NULL;
+	strncpy(buf, drvthis->config_get_string(drvthis->name, "Charmap", 0, "none"), sizeof(buf));
+	buf[sizeof(buf)-1] = '\0';
+	for (i = 0; imon_charmaps[i] != NULL; i++) {
+		if (strcasecmp(imon_charmaps[i], buf) == 0) {
+			int idx = charmap_get_index(buf);
+			if (idx != -1) {
+				p->charmap = available_charmaps[idx].charmap;
+				report(RPT_INFO, "%s: using %s charmap",
+				       drvthis->name, available_charmaps[idx].name);
+			}
+		}
+	}
+	if (p->charmap == NULL) {
+		report(RPT_ERR, "%s: unable to load charmap: %s", drvthis->name, buf);
+		return -1;
+	}
+
 	report(RPT_DEBUG, "%s: init() done", drvthis->name);
 
 	return 0;
@@ -182,7 +218,8 @@ MODULE_EXPORT int imon_init (Driver *drvthis)
  * Close the driver (do necessary clean-up).
  * \param drvthis  Pointer to driver structure.
  */
-MODULE_EXPORT void imon_close (Driver *drvthis)
+MODULE_EXPORT void
+imon_close(Driver *drvthis)
 {
 	PrivateData *p = drvthis->private_data;
 
@@ -205,7 +242,8 @@ MODULE_EXPORT void imon_close (Driver *drvthis)
  * \param drvthis  Pointer to driver structure.
  * \return  Constant string with information.
  */
-MODULE_EXPORT const char * imon_get_info (Driver *drvthis)
+MODULE_EXPORT const char *
+imon_get_info(Driver *drvthis)
 {
 	PrivateData *p = drvthis->private_data;
 
@@ -218,7 +256,8 @@ MODULE_EXPORT const char * imon_get_info (Driver *drvthis)
  * Clear the screen.
  * \param drvthis  Pointer to driver structure.
  */
-MODULE_EXPORT void imon_clear (Driver *drvthis)
+MODULE_EXPORT void
+imon_clear(Driver *drvthis)
 {
 	PrivateData *p = drvthis->private_data;
 
@@ -230,7 +269,8 @@ MODULE_EXPORT void imon_clear (Driver *drvthis)
  * Flush data on screen to the LCD.
  * \param drvthis  Pointer to driver structure.
  */
-MODULE_EXPORT void imon_flush (Driver *drvthis)
+MODULE_EXPORT void
+imon_flush(Driver *drvthis)
 {
 	PrivateData *p = drvthis->private_data;
 
@@ -246,7 +286,8 @@ MODULE_EXPORT void imon_flush (Driver *drvthis)
  * \param y        Vertical character position (row).
  * \param string   String that gets written.
  */
-MODULE_EXPORT void imon_string (Driver *drvthis, int x, int y, const char string[])
+MODULE_EXPORT void
+imon_string(Driver *drvthis, int x, int y, const char string[])
 {
 	int i;
 
@@ -263,7 +304,8 @@ MODULE_EXPORT void imon_string (Driver *drvthis, int x, int y, const char string
  * \param y        Vertical character position (row).
  * \param c        Character that gets written.
  */
-MODULE_EXPORT void imon_chr (Driver *drvthis, int x, int y, char c)
+MODULE_EXPORT void
+imon_chr(Driver *drvthis, int x, int y, char c)
 {
 	PrivateData *p = drvthis->private_data;
 
@@ -272,7 +314,7 @@ MODULE_EXPORT void imon_chr (Driver *drvthis, int x, int y, char c)
 	if ((x < 0) || (y < 0) || (x >= p->width) || (y >= p->height))
 		return;
 
-	p->framebuf[(y * p->width) + x] = c;
+	p->framebuf[(y * p->width) + x] = p->charmap[(unsigned char) c];
 }
 
 
@@ -285,7 +327,8 @@ MODULE_EXPORT void imon_chr (Driver *drvthis, int x, int y, char c)
  * \retval 0       Icon has been successfully defined/written.
  * \retval <0      Server core shall define/write the icon.
  */
-MODULE_EXPORT int imon_icon (Driver *drvthis, int x, int y, int icon)
+MODULE_EXPORT int
+imon_icon(Driver *drvthis, int x, int y, int icon)
 {
 	switch (icon) {
 		case ICON_BLOCK_FILLED:
@@ -362,7 +405,8 @@ MODULE_EXPORT int imon_icon (Driver *drvthis, int x, int y, int icon)
  * \param promille Current height level of the bar in promille.
  * \param options  Options (currently unused).
  */
-MODULE_EXPORT void imon_vbar (Driver *drvthis, int x, int y, int len, int promille, int options)
+MODULE_EXPORT void
+imon_vbar(Driver *drvthis, int x, int y, int len, int promille, int options)
 {
 	PrivateData *p = drvthis->private_data;
 
@@ -381,7 +425,8 @@ MODULE_EXPORT void imon_vbar (Driver *drvthis, int x, int y, int len, int promil
  * \param promille Current length level of the bar in promille.
  * \param options  Options (currently unused).
  */
-MODULE_EXPORT void imon_hbar (Driver *drvthis, int x, int y, int len, int promille, int options)
+MODULE_EXPORT void
+imon_hbar(Driver *drvthis, int x, int y, int len, int promille, int options)
 {
 	PrivateData *p = drvthis->private_data;
 	int pixels = ((long) 2 * len * p->cellwidth) * promille / 2000;
@@ -403,7 +448,7 @@ MODULE_EXPORT void imon_hbar (Driver *drvthis, int x, int y, int len, int promil
 		else if (pixels >= 1) {
 			/* write a partial block, albeit vertically... */
 			imon_chr(drvthis, x+pos, y, pixels * p->cellheight / p->cellwidth);
-		}			
+		}
 #else
 		if (pixels >= p->cellwidth * 3/4) {
 			/* write a "full" block to the screen... */
@@ -430,11 +475,46 @@ MODULE_EXPORT void imon_hbar (Driver *drvthis, int x, int y, int len, int promil
 
 
 /**
+ * Write a big number to the screen.
+ * \param drvthis  Pointer to driver structure.
+ * \param x        Horizontal character position (column).
+ * \param num      Character to write (0 - 10 with 10 representing ':')
+ */
+MODULE_EXPORT void
+imon_num(Driver *drvthis, int x, int num)
+{
+	int do_init = 0;
+	/* do_init = 0 because imon can't define a custom character */
+	/* ccmode does not need because imon can't define a custom character */
+
+	if ((num < 0) || (num > 10))
+		return;
+
+	/* Lib_adv_bignum does everything needed to show the bignumbers. */
+	lib_adv_bignum(drvthis, x, num, 0, do_init);
+}
+
+
+/**
+ * Get total number of custom characters available.
+ * \param drvthis  Pointer to driver structure.
+ * \return         Number of custom characters (always NUM_CCs).
+ */
+
+MODULE_EXPORT int
+imon_get_free_chars(Driver *drvthis)
+{
+	return NUM_CCs;
+}
+
+
+/**
  * Return the display width in characters.
  * \param drvthis  Pointer to driver structure.
  * \return  Number of characters the display is wide.
  */
-MODULE_EXPORT int imon_width (Driver *drvthis)
+MODULE_EXPORT int
+imon_width(Driver *drvthis)
 {
 	PrivateData *p = drvthis->private_data;
 
@@ -447,7 +527,8 @@ MODULE_EXPORT int imon_width (Driver *drvthis)
  * \param drvthis  Pointer to driver structure.
  * \return  Number of characters the display is high.
  */
-MODULE_EXPORT int  imon_height (Driver *drvthis)
+MODULE_EXPORT int
+imon_height(Driver *drvthis)
 {
 	PrivateData *p = drvthis->private_data;
 
@@ -460,7 +541,8 @@ MODULE_EXPORT int  imon_height (Driver *drvthis)
  * \param drvthis  Pointer to driver structure.
  * \return  Number of pixel columns a character cell is wide.
  */
-MODULE_EXPORT int imon_cellwidth (Driver *drvthis)
+MODULE_EXPORT int
+imon_cellwidth(Driver *drvthis)
 {
 	PrivateData *p = drvthis->private_data;
 
@@ -473,7 +555,8 @@ MODULE_EXPORT int imon_cellwidth (Driver *drvthis)
  * \param drvthis  Pointer to driver structure.
  * \return  Number of pixel lines a character cell is high.
  */
-MODULE_EXPORT int  imon_cellheight (Driver *drvthis)
+MODULE_EXPORT int
+imon_cellheight(Driver *drvthis)
 {
 	PrivateData *p = drvthis->private_data;
 
