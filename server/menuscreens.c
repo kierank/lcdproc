@@ -175,19 +175,19 @@ int menuscreens_shutdown(void)
 	/* Forget menu's key reservations */
 	input_release_client_keys(NULL);
 
-	if (menu_key != NULL)	
+	if (menu_key != NULL)
 		free(menu_key);
-	if (enter_key != NULL)	
+	if (enter_key != NULL)
 		free(enter_key);
-	if (up_key != NULL)	
+	if (up_key != NULL)
 		free(up_key);
-	if (down_key != NULL)	
+	if (down_key != NULL)
 		free(down_key);
 	if (left_key != NULL)
         	free(left_key);
 	if (right_key != NULL)
         	free(right_key);
-	keymask = 0;	
+	keymask = 0;
 
 	return 0;
 }
@@ -604,7 +604,7 @@ void menuscreen_create_testmenu(void) {
 	test_item = menuitem_create_numeric("", NULL, "Numeric,signed", NULL, -20, +20, 15);
 	menu_add_item(test_menu, test_item);
 
-	test_item = menuitem_create_alpha("", NULL, "Alpha", NULL, 0, 3, 12, true, true, true, ".-+@", "LCDproc-v0.5");
+	test_item = menuitem_create_alpha("", NULL, "Alpha", NULL, 0, 3, 14, true, true, true, ".-+@", "LCDproc-v0.5.5");
 	menu_add_item(test_menu, test_item);
 	test_item = menuitem_create_alpha("", NULL, "Alpha, caps only", NULL, 0, 3, 12, true, false, false, "-", "LCDPROC");
 	menu_add_item(test_menu, test_item);
@@ -613,7 +613,7 @@ void menuscreen_create_testmenu(void) {
 	menu_add_item(test_menu, test_item);
 	test_item = menuitem_create_ip("", NULL, "IPv6", NULL, 1, "1080:0:0:0:8:800:200C:417A");
 	menu_add_item(test_menu, test_item);
-	
+
 	test_item = menuitem_create_ring("", NULL, "Charset", NULL, testiso, 0);
 	menu_add_item(test_menu, test_item);
 }

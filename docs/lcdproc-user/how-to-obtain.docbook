@@ -12,31 +12,21 @@ around on the internet:
 <variablelist>
 
 <varlistentry>
-  <term>LCDproc 0.5.3</term>
+  <term>LCDproc 0.5.5</term>
   <listitem>
     <para>
-      LCDproc 0.5.3 is the current stable version of LCDproc.
+      LCDproc 0.5.5 is the current stable version of LCDproc.
       This is the version recommended to use.
     </para>
   </listitem>
 </varlistentry>
 
 <varlistentry>
-  <term>LCDproc 0.5.2</term>
+  <term>LCDproc 0.5.4</term>
   <listitem>
     <para>
-      LCDproc 0.5.2 is an old stable version of LCDproc.
-      It now has been superseded with LCDproc 0.5.3.
-    </para>
-  </listitem>
-</varlistentry>
-
-<varlistentry>
-  <term>LCDproc 0.5.1</term>
-    <listitem>
-    <para>
-      LCDproc 0.5.1 is an old stable version of LCDproc.
-      It was the second stable version of LCDproc after the move to the 0.5 API.
+      LCDproc 0.5.4 is an old stable version of LCDproc.
+      It now has been superseded with LCDproc 0.5.5.
     </para>
   </listitem>
 </varlistentry>

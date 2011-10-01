@@ -944,7 +944,7 @@ output_help_screen(void)
 	debug(RPT_DEBUG, "%s()", __FUNCTION__);
 
 	fprintf(stdout, "LCDd - LCDproc Server Daemon, %s\n\n", version);
-	fprintf(stdout, "Copyright (c) 1998-2010 Selene Scriven, William Ferrell, and misc. contributors.\n");
+	fprintf(stdout, "Copyright (c) 1998-2011 Selene Scriven, William Ferrell, and misc. contributors.\n");
 	fprintf(stdout, "This program is released under the terms of the GNU General Public License.\n\n");
 	fprintf(stdout, "Usage: LCDd [<options>]\n");
 	fprintf(stdout, "  where <options> are:\n");
