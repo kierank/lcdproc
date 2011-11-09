@@ -36,6 +36,10 @@ v0.5.5
  + Build system: --enable-extra-charmaps option adds language specific charmaps
  * imonlcd: Fix spinning of disc icon (E. Pooch)
  * SureElec: Change port initialization (SF 3212891)
+ * curses: Fix missed keystrokes (from Debian)
+ * curses: Correct the name of the info function.
+ * Update LCDd.conf to be better understood by Config::Model (D. Dumont)
+ * CFontz: Fix display of bars
 
 v0.5.4
  * Update driver includes and LDFLAGS (fixed glk and bayrad binding error)
