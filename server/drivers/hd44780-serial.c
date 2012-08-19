@@ -302,18 +302,26 @@ serial_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char f
 void
 serial_HD44780_backlight(PrivateData *p, unsigned char state)
 {
-	unsigned char send[1];
-	if (p->have_backlight) {
-		if (SERIAL_IF.backlight_escape) {
-			send[0] = SERIAL_IF.backlight_escape;
-			write(p->fd, &send, 1);
-		}
-		if (SERIAL_IF.backlight_on && SERIAL_IF.backlight_off) {
-			send[0] = state ? SERIAL_IF.backlight_on : SERIAL_IF.backlight_off;
-		}
-		else {
-			send[0] = state ? 0 : 0xFF;
-		}
+	unsigned char send;
+
+	/* If backlight available and escape sequence defined send it */
+	if (SERIAL_IF.backlight && SERIAL_IF.backlight_escape) {
+		send = SERIAL_IF.backlight_escape;
+		write(p->fd, &send, 1);
+	}
+
+	if (SERIAL_IF.backlight == 1) {	/* Backlight is just switchable */
+		if (state == BACKLIGHT_ON)
+			send = SERIAL_IF.backlight_on;
+		else
+			send = SERIAL_IF.backlight_off;
+		write(p->fd, &send, 1);
+	}
+	else if (SERIAL_IF.backlight == 2) {	/* Backlight is adjustable */
+		int val = (state == BACKLIGHT_ON) ? p->brightness : p->offbrightness;
+
+		/* Map the value to output range (rounding up) */
+		send = (val * (SERIAL_IF.backlight_on - SERIAL_IF.backlight_off) + 999) / 1000 + SERIAL_IF.backlight_off;
 		write(p->fd, &send, 1);
 	}
 }
@@ -322,7 +330,7 @@ serial_HD44780_backlight(PrivateData *p, unsigned char state)
 /**
  * Read keypress.
  * \param p  Pointer to driver's private data structure.
- * \return   Bitmap of the pressed keys.
+ * \return   Scancode of the pressed keys.
  */
 unsigned char
 serial_HD44780_scankeypad(PrivateData *p)
@@ -335,7 +343,27 @@ serial_HD44780_scankeypad(PrivateData *p)
 		while (hangcheck > 0) {
 			/* Check if I can read another byte */
 			if (read(p->fd, &buffer, 1) == 1) {
-				return buffer;
+				if (SERIAL_IF.connectiontype == HD44780_CT_LOS_PANEL) {
+					unsigned char retval = 0;
+					char i;
+
+					/*
+					 * LoS-Panel needs some conversion here:
+					 * Row/column nibbles need to be swapped
+					 * and rows are returned as a bitmap of
+					 * keys pressed.
+					 */
+					for (i = 3; i >= 0; i--) {
+						if ((buffer % (1 << i)) == 0) {
+							retval = ((i << 4) + (buffer >> 4)) + 0x11;
+							break;
+						}
+					}
+					return retval;
+				}
+				else {
+					return buffer;
+				}
 			}
 			hangcheck--;
 		}

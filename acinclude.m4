@@ -8,21 +8,21 @@ AC_ARG_ENABLE(drivers,
 	[  --enable-drivers=<list> compile drivers for LCDs in <list>,]
 	[                  which is a comma-separated list of drivers.]
 	[                  Possible drivers are:]
-	[                    bayrad,CFontz,CFontz633,CFontzPacket,curses,CwLnx,]
-	[                    ea65,EyeboxOne,g15,glcdlib,glk,hd44780,i2500vfd,]
+	[                    bayrad,CFontz,CFontzPacket,curses,CwLnx,]
+	[                    ea65,EyeboxOne,g15,glcd,glcdlib,glk,hd44780,i2500vfd,]
 	[                    icp_a106,imon,imonlcd,IOWarrior,irman,irtrans,]
 	[                    joy,lb216,lcdm001,lcterm,lirc,lis,MD8800,mdm166a,]
 	[                    ms6931,mtc_s16209x,MtxOrb,mx5000,NoritakeVFD,]
-	[                    picolcd,pyramid,sed1330,sed1520,serialPOS,]
+	[                    picolcd,pyramid,sdeclcd,sed1330,sed1520,serialPOS,]
 	[                    serialVFD,shuttleVFD,sli,stv5730,SureElec,svga,]
-	[                    t6963,text,tyan,ula200,xosd]
+	[                    t6963,text,tyan,ula200,vlsys_m428,xosd]
 	[                    ]
 	[                  'all' compiles all drivers;]
 	[                  'all,!xxx,!yyy' de-selects previously selected drivers],
 	drivers="$enableval",
-	drivers=[bayrad,CFontz,CFontz633,curses,CwLnx,glk,lb216,lcdm001,MtxOrb,pyramid,text])
+	drivers=[bayrad,CFontz,CFontzPacket,curses,CwLnx,glk,lb216,lcdm001,MtxOrb,pyramid,text])
 
-allDrivers=[bayrad,CFontz,CFontz633,CFontzPacket,curses,CwLnx,ea65,EyeboxOne,g15,glcdlib,glk,hd44780,i2500vfd,icp_a106,imon,imonlcd,IOWarrior,irman,irtrans,joy,lb216,lcdm001,lcterm,lirc,lis,MD8800,mdm166a,ms6931,mtc_s16209x,MtxOrb,mx5000,NoritakeVFD,picolcd,pyramid,sed1330,sed1520,serialPOS,serialVFD,shuttleVFD,sli,stv5730,SureElec,svga,t6963,text,tyan,ula200,xosd]
+allDrivers=[bayrad,CFontz,CFontzPacket,curses,CwLnx,ea65,EyeboxOne,g15,glcd,glcdlib,glk,hd44780,i2500vfd,icp_a106,imon,imonlcd,IOWarrior,irman,irtrans,joy,lb216,lcdm001,lcterm,lirc,lis,MD8800,mdm166a,ms6931,mtc_s16209x,MtxOrb,mx5000,NoritakeVFD,picolcd,pyramid,sdeclcd,sed1330,sed1520,serialPOS,serialVFD,shuttleVFD,sli,stv5730,SureElec,svga,t6963,text,tyan,ula200,vlsys_m428,xosd]
 if test "$debug" = yes; then
 	allDrivers=["${allDrivers},debug"]
 fi
@@ -57,15 +57,6 @@ for driver in $selectdrivers ; do
 		CFontz)
 			DRIVERS="$DRIVERS CFontz${SO}"
 			actdrivers=["$actdrivers CFontz"]
-			;;
-		CFontz633)
-			DRIVERS="$DRIVERS CFontz633${SO}"
-			actdrivers=["$actdrivers CFontz633"]
-			AC_CHECK_FUNCS(select, [
-				AC_CHECK_HEADERS(sys/select.h)
-			],[
-				AC_MSG_WARN([The CFontz633 driver needs the select() function])
-			])
 			;;
 		CFontzPacket)
 			DRIVERS="$DRIVERS CFontzPacket${SO}"
@@ -174,6 +165,30 @@ dnl			else
 				AC_MSG_WARN([The g15driver needs libg15render.h])
 			])
 			;;
+		glcd)
+			GLCD_DRIVERS=""
+			if test "$ac_cv_port_have_lpt" = yes ; then
+				GLCD_DRIVERS="$GLCD_DRIVERS glcd-t6963.o t6963_low.o"
+			fi
+			if test "$enable_libpng" = yes ; then
+				GLCD_DRIVERS="$GLCD_DRIVERS glcd-glcd-png.o"
+			fi
+			if test "$enable_libusb" = yes ; then
+				GLCD_DRIVERS="$GLCD_DRIVERS glcd-glcd-glcd2usb.o"
+			fi
+			AC_CHECK_HEADERS([serdisplib/serdisp.h],[
+				AC_CHECK_LIB(serdisp, serdisp_nextdisplaydescription,[
+					AC_DEFINE(HAVE_SERDISPLIB,[1],[Define to 1 if you have working serdisplib])
+					LIBSERDISP="-lserdisp"
+					GLCD_DRIVERS="$GLCD_DRIVERS glcd-glcd-serdisp.o"
+				],[
+					AC_MSG_WARN([serdisp library not working])
+				])
+			])
+			AC_SUBST(LIBSERDISP)
+			DRIVERS="$DRIVERS glcd${SO}"
+			actdrivers=["$actdrivers glcd"]
+			;;
 		glcdlib)
 			AC_CHECK_HEADERS([glcdproclib/glcdprocdriver.h],[
 				AC_CHECK_LIB(glcdprocdriver, main,[
@@ -201,7 +216,7 @@ dnl			else
 				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-4bit.o hd44780-hd44780-ext8bit.o hd44780-lcd_sem.o hd44780-hd44780-winamp.o hd44780-hd44780-serialLpt.o"
 			fi
 			if test "$enable_libusb" = yes ; then
-				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-bwct-usb.o hd44780-hd44780-lcd2usb.o hd44780-hd44780-uss720.o hd44780-hd44780-usbtiny.o"
+				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-bwct-usb.o hd44780-hd44780-lcd2usb.o hd44780-hd44780-uss720.o hd44780-hd44780-usbtiny.o hd44780-hd44780-usb4all.o"
 			fi
 			if test "$enable_libftdi" = yes ; then
 				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-ftdi.o"
@@ -366,6 +381,11 @@ dnl			else
 			if test "$enable_libusb" = yes ; then
 				DRIVERS="$DRIVERS picolcd${SO}"
 				actdrivers=["$actdrivers picolcd"]
+				if test "$enable_libusb_1_0" = yes ; then
+					AC_MSG_RESULT([The picolcd driver is using the libusb-1.0 library.])
+				else
+					AC_MSG_RESULT([The picolcd driver is using the libusb-0.1 library.])
+				fi
 			else
 				AC_MSG_WARN([The picolcd driver needs the libusb library.])
 			fi
@@ -373,6 +393,15 @@ dnl			else
 		pyramid)
 			DRIVERS="$DRIVERS pyramid${SO}"
 			actdrivers=["$actdrivers pyramid"]
+			;;
+		sdeclcd)
+			if test "$ac_cv_port_have_lpt" = yes
+			then
+				DRIVERS="$DRIVERS sdeclcd${SO}"
+				actdrivers=["$actdrivers sdeclcd"]
+			else
+				AC_MSG_WARN([The sdeclcd driver needs a parallel port.])
+			fi
 			;;
 		sed1330)
 			if test "$ac_cv_port_have_lpt" = yes
@@ -470,6 +499,10 @@ dnl			else
 				AC_MSG_WARN([The ula200 driver needs the ftdi library])
 			fi
 			;;
+		vlsys_m428)
+			DRIVERS="$DRIVERS vlsys_m428${SO}"
+			actdrivers=["$actdrivers vlsys_m428"]
+			;;
 		xosd)
 			AC_PATH_PROG([LIBXOSD_CONFIG], [xosd-config], [no])
 			if test "$LIBXOSD_CONFIG" = "no"; then
@@ -502,6 +535,7 @@ AC_SUBST(LIBLIRC_CLIENT)
 AC_SUBST(LIBSVGA)
 AC_SUBST(DRIVERS)
 AC_SUBST(HD44780_DRIVERS)
+AC_SUBST(GLCD_DRIVERS)
 AC_SUBST(LIBG15)
 AC_SUBST(LIBGLCD)
 AC_SUBST(LIBFTDI)
@@ -907,35 +941,38 @@ AC_SUBST(enable_latex_dox)
 
 
 dnl Check if a given flag is understood and add it to CFLAGS.
-dnl From: http://autoconf-archive.cryp.to/ax_cflags_gcc_option.html
-dnl Author: Guido Draheim <guidod@gmx.de>
-dnl Last Modified: 2003-11-04
+dnl From http://www.gnu.org/software/autoconf-archive/ax_cflags_gcc_option.html
+dnl Copyright (c) 2008 Guido U. Draheim <guidod@gmx.de>
+dnl serial 12
+dnl Note: This is the last version released under GPLv2.
 AC_DEFUN([AX_CFLAGS_GCC_OPTION_OLD], [dnl
 AS_VAR_PUSHDEF([FLAGS],[CFLAGS])dnl
-AS_VAR_PUSHDEF([VAR],[ac_cv_cflags_gcc_option_$2])dnl
+AS_VAR_PUSHDEF([VAR],[ax_cv_cflags_gcc_option_$2])dnl
 AC_CACHE_CHECK([m4_ifval($1,$1,FLAGS) for gcc m4_ifval($2,$2,-option)],
-VAR,[VAR="no, unknown"
+VAR,[AS_VAR_SET([VAR],["no, unknown"])
  AC_LANG_SAVE
  AC_LANG_C
  ac_save_[]FLAGS="$[]FLAGS"
 for ac_arg dnl
-in "-pedantic  % m4_ifval($2,$2,-option)"  dnl   GCC
+in "-pedantic -Werror % m4_ifval($2,$2,-option)"  dnl   GCC
+   "-pedantic % m4_ifval($2,$2,-option) %% no, obsolete"  dnl new GCC
    #
 do FLAGS="$ac_save_[]FLAGS "`echo $ac_arg | sed -e 's,%%.*,,' -e 's,%,,'`
    AC_TRY_COMPILE([],[return 0;],
-   [VAR=`echo $ac_arg | sed -e 's,.*% *,,'` ; break])
+   [AS_VAR_SET([VAR],[`echo $ac_arg | sed -e 's,.*% *,,'`]); break])
 done
  FLAGS="$ac_save_[]FLAGS"
  AC_LANG_RESTORE
 ])
-case ".$VAR" in
+m4_ifdef([AS_VAR_COPY],[AS_VAR_COPY([var],[VAR])],[var=AS_VAR_GET([VAR])])
+case ".$var" in
      .ok|.ok,*) m4_ifvaln($3,$3) ;;
    .|.no|.no,*) m4_ifvaln($4,$4) ;;
    *) m4_ifvaln($3,$3,[
-   if echo " $[]m4_ifval($1,$1,FLAGS) " | grep " $VAR " 2>&1 >/dev/null
-   then AC_RUN_LOG([: m4_ifval($1,$1,FLAGS) does contain $VAR])
-   else AC_RUN_LOG([: m4_ifval($1,$1,FLAGS)="$m4_ifval($1,$1,FLAGS) $VAR"])
-                      m4_ifval($1,$1,FLAGS)="$m4_ifval($1,$1,FLAGS) $VAR"
+   if echo " $[]m4_ifval($1,$1,FLAGS) " | grep " $var " 2>&1 >/dev/null
+   then AC_RUN_LOG([: m4_ifval($1,$1,FLAGS) does contain $var])
+   else AC_RUN_LOG([: m4_ifval($1,$1,FLAGS)="$m4_ifval($1,$1,FLAGS) $var"])
+                      m4_ifval($1,$1,FLAGS)="$m4_ifval($1,$1,FLAGS) $var"
    fi ]) ;;
 esac
 AS_VAR_POPDEF([VAR])dnl
@@ -947,30 +984,32 @@ dnl the only difference - the LANG selection... and the default FLAGS
 
 AC_DEFUN([AX_CXXFLAGS_GCC_OPTION_OLD], [dnl
 AS_VAR_PUSHDEF([FLAGS],[CXXFLAGS])dnl
-AS_VAR_PUSHDEF([VAR],[ac_cv_cxxflags_gcc_option_$2])dnl
+AS_VAR_PUSHDEF([VAR],[ax_cv_cxxflags_gcc_option_$2])dnl
 AC_CACHE_CHECK([m4_ifval($1,$1,FLAGS) for gcc m4_ifval($2,$2,-option)],
-VAR,[VAR="no, unknown"
+VAR,[AS_VAR_SET([VAR],["no, unknown"])
  AC_LANG_SAVE
- AC_LANG_CXX
+ AC_LANG_CPLUSPLUS
  ac_save_[]FLAGS="$[]FLAGS"
 for ac_arg dnl
-in "-pedantic  % m4_ifval($2,$2,-option)"  dnl   GCC
+in "-pedantic -Werror % m4_ifval($2,$2,-option)"  dnl   GCC
+   "-pedantic % m4_ifval($2,$2,-option) %% no, obsolete"  dnl new GCC
    #
 do FLAGS="$ac_save_[]FLAGS "`echo $ac_arg | sed -e 's,%%.*,,' -e 's,%,,'`
    AC_TRY_COMPILE([],[return 0;],
-   [VAR=`echo $ac_arg | sed -e 's,.*% *,,'` ; break])
+   [AS_VAR_SET([VAR],[`echo $ac_arg | sed -e 's,.*% *,,'`]); break])
 done
  FLAGS="$ac_save_[]FLAGS"
  AC_LANG_RESTORE
 ])
-case ".$VAR" in
+m4_ifdef([AS_VAR_COPY],[AS_VAR_COPY([var],[VAR])],[var=AS_VAR_GET([VAR])])
+case ".$var" in
      .ok|.ok,*) m4_ifvaln($3,$3) ;;
    .|.no|.no,*) m4_ifvaln($4,$4) ;;
    *) m4_ifvaln($3,$3,[
-   if echo " $[]m4_ifval($1,$1,FLAGS) " | grep " $VAR " 2>&1 >/dev/null
-   then AC_RUN_LOG([: m4_ifval($1,$1,FLAGS) does contain $VAR])
-   else AC_RUN_LOG([: m4_ifval($1,$1,FLAGS)="$m4_ifval($1,$1,FLAGS) $VAR"])
-                      m4_ifval($1,$1,FLAGS)="$m4_ifval($1,$1,FLAGS) $VAR"
+   if echo " $[]m4_ifval($1,$1,FLAGS) " | grep " $var " 2>&1 >/dev/null
+   then AC_RUN_LOG([: m4_ifval($1,$1,FLAGS) does contain $var])
+   else AC_RUN_LOG([: m4_ifval($1,$1,FLAGS)="$m4_ifval($1,$1,FLAGS) $var"])
+                      m4_ifval($1,$1,FLAGS)="$m4_ifval($1,$1,FLAGS) $var"
    fi ]) ;;
 esac
 AS_VAR_POPDEF([VAR])dnl
@@ -981,30 +1020,32 @@ dnl -------------------------------------------------------------------------
 
 AC_DEFUN([AX_CFLAGS_GCC_OPTION_NEW], [dnl
 AS_VAR_PUSHDEF([FLAGS],[CFLAGS])dnl
-AS_VAR_PUSHDEF([VAR],[ac_cv_cflags_gcc_option_$1])dnl
+AS_VAR_PUSHDEF([VAR],[ax_cv_cflags_gcc_option_$1])dnl
 AC_CACHE_CHECK([m4_ifval($2,$2,FLAGS) for gcc m4_ifval($1,$1,-option)],
-VAR,[VAR="no, unknown"
+VAR,[AS_VAR_SET([VAR],["no, unknown"])
  AC_LANG_SAVE
  AC_LANG_C
  ac_save_[]FLAGS="$[]FLAGS"
 for ac_arg dnl
-in "-pedantic  % m4_ifval($1,$1,-option)"  dnl   GCC
+in "-pedantic -Werror % m4_ifval($1,$1,-option)"  dnl   GCC
+   "-pedantic % m4_ifval($1,$1,-option) %% no, obsolete"  dnl new GCC
    #
 do FLAGS="$ac_save_[]FLAGS "`echo $ac_arg | sed -e 's,%%.*,,' -e 's,%,,'`
    AC_TRY_COMPILE([],[return 0;],
-   [VAR=`echo $ac_arg | sed -e 's,.*% *,,'` ; break])
+   [AS_VAR_SET([VAR],[`echo $ac_arg | sed -e 's,.*% *,,'`]); break])
 done
  FLAGS="$ac_save_[]FLAGS"
  AC_LANG_RESTORE
 ])
-case ".$VAR" in
+m4_ifdef([AS_VAR_COPY],[AS_VAR_COPY([var],[VAR])],[var=AS_VAR_GET([VAR])])
+case ".$var" in
      .ok|.ok,*) m4_ifvaln($3,$3) ;;
    .|.no|.no,*) m4_ifvaln($4,$4) ;;
    *) m4_ifvaln($3,$3,[
-   if echo " $[]m4_ifval($2,$2,FLAGS) " | grep " $VAR " 2>&1 >/dev/null
-   then AC_RUN_LOG([: m4_ifval($2,$2,FLAGS) does contain $VAR])
-   else AC_RUN_LOG([: m4_ifval($2,$2,FLAGS)="$m4_ifval($2,$2,FLAGS) $VAR"])
-                      m4_ifval($2,$2,FLAGS)="$m4_ifval($2,$2,FLAGS) $VAR"
+   if echo " $[]m4_ifval($2,$2,FLAGS) " | grep " $var " 2>&1 >/dev/null
+   then AC_RUN_LOG([: m4_ifval($2,$2,FLAGS) does contain $var])
+   else AC_RUN_LOG([: m4_ifval($2,$2,FLAGS)="$m4_ifval($2,$2,FLAGS) $var"])
+                      m4_ifval($2,$2,FLAGS)="$m4_ifval($2,$2,FLAGS) $var"
    fi ]) ;;
 esac
 AS_VAR_POPDEF([VAR])dnl
@@ -1016,30 +1057,32 @@ dnl the only difference - the LANG selection... and the default FLAGS
 
 AC_DEFUN([AX_CXXFLAGS_GCC_OPTION_NEW], [dnl
 AS_VAR_PUSHDEF([FLAGS],[CXXFLAGS])dnl
-AS_VAR_PUSHDEF([VAR],[ac_cv_cxxflags_gcc_option_$1])dnl
+AS_VAR_PUSHDEF([VAR],[ax_cv_cxxflags_gcc_option_$1])dnl
 AC_CACHE_CHECK([m4_ifval($2,$2,FLAGS) for gcc m4_ifval($1,$1,-option)],
-VAR,[VAR="no, unknown"
+VAR,[AS_VAR_SET([VAR],["no, unknown"])
  AC_LANG_SAVE
- AC_LANG_CXX
+ AC_LANG_CPLUSPLUS
  ac_save_[]FLAGS="$[]FLAGS"
 for ac_arg dnl
-in "-pedantic  % m4_ifval($1,$1,-option)"  dnl   GCC
+in "-pedantic -Werror % m4_ifval($1,$1,-option)"  dnl   GCC
+   "-pedantic % m4_ifval($1,$1,-option) %% no, obsolete"  dnl new GCC
    #
 do FLAGS="$ac_save_[]FLAGS "`echo $ac_arg | sed -e 's,%%.*,,' -e 's,%,,'`
    AC_TRY_COMPILE([],[return 0;],
-   [VAR=`echo $ac_arg | sed -e 's,.*% *,,'` ; break])
+   [AS_VAR_SET([VAR],[`echo $ac_arg | sed -e 's,.*% *,,'`]); break])
 done
  FLAGS="$ac_save_[]FLAGS"
  AC_LANG_RESTORE
 ])
-case ".$VAR" in
+m4_ifdef([AS_VAR_COPY],[AS_VAR_COPY([var],[VAR])],[var=AS_VAR_GET([VAR])])
+case ".$var" in
      .ok|.ok,*) m4_ifvaln($3,$3) ;;
    .|.no|.no,*) m4_ifvaln($4,$4) ;;
    *) m4_ifvaln($3,$3,[
-   if echo " $[]m4_ifval($2,$2,FLAGS) " | grep " $VAR " 2>&1 >/dev/null
-   then AC_RUN_LOG([: m4_ifval($2,$2,FLAGS) does contain $VAR])
-   else AC_RUN_LOG([: m4_ifval($2,$2,FLAGS)="$m4_ifval($2,$2,FLAGS) $VAR"])
-                      m4_ifval($2,$2,FLAGS)="$m4_ifval($2,$2,FLAGS) $VAR"
+   if echo " $[]m4_ifval($2,$2,FLAGS) " | grep " $var " 2>&1 >/dev/null
+   then AC_RUN_LOG([: m4_ifval($2,$2,FLAGS) does contain $var])
+   else AC_RUN_LOG([: m4_ifval($2,$2,FLAGS)="$m4_ifval($2,$2,FLAGS) $var"])
+                      m4_ifval($2,$2,FLAGS)="$m4_ifval($2,$2,FLAGS) $var"
    fi ]) ;;
 esac
 AS_VAR_POPDEF([VAR])dnl
@@ -1053,7 +1096,7 @@ AC_DEFUN([AX_CXXFLAGS_GCC_OPTION],[ifelse(m4_bregexp([$2],[-]),-1,
 [AX_CXXFLAGS_GCC_OPTION_NEW($@)],[AX_CXXFLAGS_GCC_OPTION_OLD($@)])])
 
 dnl
-dnl Check if system has SA_RESTART defined. Copied from GNU's make configure.
+dnl Check if system has SA_RESTART defined. Copied from GNUs make configure.
 dnl
 AC_DEFUN([LCD_SA_RESTART], [
 AC_CACHE_CHECK([for SA_RESTART], lcd_cv_sa_restart, [
@@ -1064,5 +1107,55 @@ AC_CACHE_CHECK([for SA_RESTART], lcd_cv_sa_restart, [
 if test "$lcd_cv_sa_restart" != no; then
   AC_DEFINE([HAVE_SA_RESTART], [1],
      [Define to 1 if <signal.h> defines the SA_RESTART constant.])
+fi
+])
+
+dnl
+dnl Check for PNG library
+dnl
+AC_DEFUN([LCD_PNG_LIB], [
+AC_MSG_CHECKING([if PNG support has been enabled]);
+AC_ARG_ENABLE(libpng,
+	[AS_HELP_STRING([--disable-png],[disable PNG support using libpng])],
+	[ if test "$enableval" != "no"; then
+		enable_libpng=yes
+	fi ],
+	[ enable_libpng=yes ]
+)
+AC_MSG_RESULT($enable_libpng)
+
+if test "$enable_libpng" = "yes"; then
+	AC_PATH_PROG([_png_config], [libpng-config])
+	_libpng_save_libs=$LIBS
+	_libpng_save_cflags=$CFLAGS
+
+	if test x$_png_config != "x" ; then
+		_libpng_try_libs=`$_png_config --ldflags`
+		_libpng_try_cflags=`$_png_config --cflags`
+	fi
+
+	LIBS="$LIBS $_libpng_try_libs"
+	CFLAGS="$CFLAGS $_libpng_try_cflags"
+
+	AC_MSG_CHECKING([whether libpng is present and sane])
+	AC_LINK_IFELSE([AC_LANG_PROGRAM([#include <png.h>],[
+		png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, NULL, NULL);
+		])],enable_libpng=yes,enable_libpng=no)
+	AC_MSG_RESULT([$enable_libpng])
+
+	if test "$enable_libpng" = "yes" ; then
+		AC_DEFINE(HAVE_LIBPNG, [1], [Define to 1 if you have libpng])
+		AC_SUBST(LIBPNG_CFLAGS, $_libpng_try_cflags)
+		AC_SUBST(LIBPNG_LIBS, $_libpng_try_libs)
+	fi
+
+	LIBS=$_libpng_save_libs
+	CFLAGS=$_libpng_save_cflags
+
+	unset _libpng_save_libs
+	unset _libpng_save_cflags
+	unset _libpng_try_libs
+	unset _libpng_try_cflags
+	unset _png_config
 fi
 ])

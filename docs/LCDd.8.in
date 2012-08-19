@@ -87,11 +87,8 @@ BayRAD LCD modules by EMAC Inc.
 .B CFontz
 CrystalFontz CFA-632 and CFA-634 serial LCD displays
 .TP
-.B CFontz633
-CrystalFontz CFA-633 serial/USB LCD displays
-.TP
 .B CFontzPacket
-CrystalFontz CFA-631, CFA-633 and CFA-635 serial/USB LCD displays
+CrystalFontz CFA-533, CFA-631, CFA-633 and CFA-635 serial/USB LCD displays
 .TP
 .B curses
 Standard video display using the (n)curses library
@@ -107,6 +104,24 @@ LCD display on the EyeboxOne
 .TP
 .B g15
 LCD display on the Logitech G15 keyboard
+.TP
+.B glcd
+generic driver for graphical LCDs with FreeType rendering support. This driver
+supports the following sub-drivers (a.k.a. \fIconnection types\fP):
+.RS
+.TP
+.B glcd2usb
+Till Harbaum's open source/open hardware GLCD2USB (http://www.harbaum.org/till/glcd2usb/)
+.TP
+.B png
+Write out screens as PNG images
+.TP
+.B serdisplib
+Uses serdisplib (http://serdisplib.sourceforge.net/) for output
+.TP
+.B t6963
+Toshiba T6963 based LCD displays (graphic mode)
+.RE
 .TP
 .B glcdlib
 graphical LCDs supported by graphlcd-base
@@ -178,6 +193,9 @@ LCD device from Adams IT Services (http://www.usblcd.de/)
 .TP
 .B usbtiny
 Devices based on Dick Streefland's USBtiny firmware
+.TP
+.B usb4all
+Sprut's open source / open hardware USB-4-all (http://www.sprut.de/)
 .RE
 .TP
 .B i2500vfd
@@ -247,6 +265,9 @@ Mini-box.com USB LCD (PicoLCD 20x4 & picoLCD 20x2)
 .B pyramid
 LCD displays from Pyramid (http://www.pyramid.de)
 .TP
+.B sdeclcd
+Watchguard Firebox LCD display based on SDEC LMC-S2D20 (http://www.sdec.com.tw)
+.TP
 .B sed1330
 SED1330/SED1335 (aka S1D13300/S1D13305) based graphical displays
 .TP
@@ -275,7 +296,7 @@ LCD devices from SURE electronics  (http://www.sureelectronics.net)
 VGA monitors using svgalib
 .TP
 .B t6963
-Toshiba T6963 based LCD displays
+Toshiba T6963 based LCD displays (text mode)
 .TP
 .B text
 Standard "hard-copy" text display
@@ -285,6 +306,9 @@ LCD module in Tyan Barebone GS series
 .TP
 .B ula200
 ULA-200 device from ELV (http://www.elv.de)
+.TP
+.B vlsys_m428
+VFD/IR combination in case MonCaso 320 from Moneual
 .TP
 .B xosd
 On Screen Display on X11

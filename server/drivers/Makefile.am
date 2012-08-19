@@ -1,3 +1,4 @@
+
 ## Process this file with automake to produce Makefile.in
 
 ## We use bin_ to generate the shared libraries, because automake only
@@ -22,27 +23,29 @@ AM_LDFLAGS = @LDSHARED@
 
 lcdexecbindir = $(pkglibdir)
 lcdexecbin_PROGRAMS = @DRIVERS@
-EXTRA_PROGRAMS = bayrad CFontz CFontz633 CFontzPacket curses debug CwLnx ea65 EyeboxOne g15 glcdlib glk hd44780 icp_a106 imon imonlcd IOWarrior irman joy lb216 lcdm001 lcterm lirc lis MD8800 mdm166a ms6931 mtc_s16209x MtxOrb mx5000 NoritakeVFD picolcd pyramid sed1330 sed1520 serialPOS serialVFD shuttleVFD stv5730 SureElec svga t6963 text tyan sli ula200 xosd i2500vfd irtrans
+EXTRA_PROGRAMS = bayrad CFontz CFontzPacket curses debug CwLnx ea65 EyeboxOne g15 glcd glcdlib glk hd44780 icp_a106 imon imonlcd IOWarrior irman joy lb216 lcdm001 lcterm lirc lis MD8800 mdm166a ms6931 mtc_s16209x MtxOrb mx5000 NoritakeVFD picolcd pyramid sdeclcd sed1330 sed1520 serialPOS serialVFD shuttleVFD stv5730 SureElec svga t6963 text tyan sli ula200 vlsys_m428 xosd i2500vfd irtrans
 noinst_LIBRARIES = libLCD.a libbignum.a
 
 g15_CFLAGS =         @LIBUSB_CFLAGS@ $(AM_CFLAGS)
+glcd_CFLAGS =        @FT2_CFLAGS@ @LIBPNG_CFLAGS@ @LIBUSB_CFLAGS@ $(AM_CFLAGS)
 hd44780_CFLAGS =     @LIBUSB_CFLAGS@ @LIBFTDI_CFLAGS@ $(AM_CFLAGS)
 i2500vfd_CFLAGS =    @LIBFTDI_CFLAGS@ $(AM_CFLAGS)
 IOWarrior_CFLAGS =   @LIBUSB_CFLAGS@ $(AM_CFLAGS)
 lis_CFLAGS =         @LIBUSB_CFLAGS@ @LIBFTDI_CFLAGS@ $(AM_CFLAGS)
 mdm166a_CFLAGS =     @LIBHID_CFLAGS@ $(AM_CFLAGS)
-picolcd_CFLAGS =     @LIBUSB_CFLAGS@ $(AM_CFLAGS)
+picolcd_CFLAGS =     @LIBUSB_CFLAGS@ @LIBUSB_1_0_CFLAGS@ $(AM_CFLAGS)
 shuttleVFD_CFLAGS =  @LIBUSB_CFLAGS@ $(AM_CFLAGS)
 ula200_CFLAGS =      @LIBFTDI_CFLAGS@ $(AM_CFLAGS)
 xosd_CFLAGS =        @LIBXOSD_CFLAGS@ $(AM_CFLAGS)
 
 bayrad_LDADD =       libLCD.a
 CFontz_LDADD =       libLCD.a libbignum.a
-CFontz633_LDADD =    libLCD.a libbignum.a
 CFontzPacket_LDADD = libLCD.a libbignum.a
 curses_LDADD =       @LIBCURSES@
 CwLnx_LDADD =        libLCD.a libbignum.a
 g15_LDADD =          @LIBG15@
+glcd_LDADD =         libLCD.a @GLCD_DRIVERS@ @FT2_LIBS@ @LIBPNG_LIBS@ @LIBSERDISP@ @LIBUSB_LIBS@
+glcd_DEPENDENCIES =  @GLCD_DRIVERS@ glcd-glcd-render.o
 glcdlib_LDADD =      @LIBGLCD@
 glk_LDADD =          libbignum.a
 hd44780_LDADD =      libLCD.a @HD44780_DRIVERS@ @LIBUSB_LIBS@ @LIBFTDI_LIBS@ libbignum.a
@@ -61,8 +64,9 @@ mtc_s16209x_LDADD =  libLCD.a
 MtxOrb_LDADD =       libLCD.a libbignum.a
 mx5000_LDADD =       @LIBMX5000@
 NoritakeVFD_LDADD =  libbignum.a
-picolcd_LDADD =      @LIBUSB_LIBS@ libLCD.a libbignum.a
+picolcd_LDADD =      @LIBUSB_LIBS@ @LIBUSB_1_0_LIBS@ libLCD.a libbignum.a
 pyramid_LDADD =      libLCD.a libbignum.a
+sdeclcd_LDADD =      libLCD.a libbignum.a
 serialPOS_LDADD =    libbignum.a
 serialVFD_LDADD =    libLCD.a libbignum.a
 shuttleVFD_LDADD =   @LIBUSB_LIBS@
@@ -79,7 +83,6 @@ libbignum_a_SOURCES = adv_bignum.h  adv_bignum.c
 
 bayrad_SOURCES =     lcd.h lcd_lib.h bayrad.h bayrad.c report.h
 CFontz_SOURCES =     lcd.h lcd_lib.h CFontz.c CFontz.h CFontz-charmap.h report.h adv_bignum.h
-CFontz633_SOURCES =  lcd.h lcd_lib.h CFontz633.c CFontz633.h CFontz-charmap.h CFontz633io.c CFontz633io.h report.h adv_bignum.h
 CFontzPacket_SOURCES = lcd.h lcd_lib.h CFontzPacket.c CFontzPacket.h CFontz-charmap.h CFontz633io.c CFontz633io.h report.h adv_bignum.h
 curses_SOURCES =     lcd.h curses_drv.h curses_drv.c report.h
 CwLnx_SOURCES =      lcd.h lcd_lib.h CwLnx.c CwLnx.h report.h
@@ -87,10 +90,12 @@ debug_SOURCES =      lcd.h report.h debug.c debug.h
 ea65_SOURCES =       lcd.h ea65.h ea65.c report.h
 EyeboxOne_SOURCES =  lcd.h lcd_lib.h EyeboxOne.c EyeboxOne.h report.h
 g15_SOURCES =        lcd.h lcd_lib.h g15.h g15-num.c g15.c report.h
+glcd_SOURCES =       lcd.h report.h glcd_drv.c glcd_drv.h glcd-low.h glcd-drivers.h glcd-render.c glcd-render.h
+EXTRA_glcd_SOURCES = glcd-t6963.c t6963_low.c t6963_low.h glcd-png.c glcd-serdisp.c glcd-glcd2usb.c glcd-glcd2usb.h
 glcdlib_SOURCES =    lcd.h lcd_lib.h glcdlib.h glcdlib.c report.h
 glk_SOURCES =        lcd.h glk.c glk.h glkproto.c glkproto.h report.h
 hd44780_SOURCES =    lcd.h lcd_lib.h hd44780.h hd44780.c hd44780-drivers.h hd44780-low.h hd44780-charmap.h report.h adv_bignum.h
-EXTRA_hd44780_SOURCES = hd44780-4bit.c hd44780-4bit.h hd44780-ext8bit.c hd44780-ext8bit.h lcd_sem.c lcd_sem.h hd44780-serialLpt.c hd44780-serialLpt.h hd44780-serial.c hd44780-serial.h hd44780-winamp.c hd44780-winamp.h hd44780-bwct-usb.c hd44780-bwct-usb.h hd44780-lcd2usb.c hd44780-lcd2usb.h hd44780-usbtiny.c hd44780-usbtiny.h hd44780-lis2.c hd44780-lis2.h hd44780-i2c.c hd44780-i2c.h hd44780-ftdi.c hd44780-ftdi.h hd44780-ethlcd.c hd44780-ethlcd.h hd44780-uss720.c hd44780-uss720.h hd44780-usblcd.c hd44780-usblcd.h port.h lpt-port.h timing.h
+EXTRA_hd44780_SOURCES = hd44780-4bit.c hd44780-4bit.h hd44780-ext8bit.c hd44780-ext8bit.h lcd_sem.c lcd_sem.h hd44780-serialLpt.c hd44780-serialLpt.h hd44780-serial.c hd44780-serial.h hd44780-winamp.c hd44780-winamp.h hd44780-bwct-usb.c hd44780-bwct-usb.h hd44780-lcd2usb.c hd44780-lcd2usb.h hd44780-usbtiny.c hd44780-usbtiny.h hd44780-lis2.c hd44780-lis2.h hd44780-i2c.c hd44780-i2c.h hd44780-ftdi.c hd44780-ftdi.h hd44780-ethlcd.c hd44780-ethlcd.h hd44780-uss720.c hd44780-uss720.h hd44780-usblcd.c hd44780-usblcd.h hd44780-usb4all.c hd44780-usb4all.h port.h lpt-port.h timing.h
 i2500vfd_SOURCES =   lcd.h i2500vfd.c i2500vfd.h glcd_font5x8.h report.h
 icp_a106_SOURCES =   lcd.h lcd_lib.h icp_a106.c icp_a106.h report.h
 imon_SOURCES =       lcd.h lcd_lib.h hd44780-charmap.h imon.h imon.c report.h adv_bignum.h
@@ -113,6 +118,7 @@ mx5000_SOURCES =     lcd.h mx5000.c mx5000.h report.h
 NoritakeVFD_SOURCES = lcd.h lcd_lib.h NoritakeVFD.c NoritakeVFD.h report.h adv_bignum.h
 picolcd_SOURCES =    lcd.h picolcd.h picolcd.c report.h
 pyramid_SOURCES =    lcd.h pylcd.c pylcd.h
+sdeclcd_SOURCES =    lcd.h sdeclcd.h sdeclcd.c lcd_lib.h report.h adv_bignum.h port.h lpt-port.h timing.h
 sed1330_SOURCES =    lcd.h sed1330.h sed1330.c port.h lpt-port.h timing.h report.h
 sed1520_SOURCES =    lcd.h sed1520.c sed1520.h port.h report.h glcd_font5x8.h sed1520fm.h
 serialPOS_SOURCES =  lcd.h lcd_lib.h serialPOS.c serialPOS.h report.h adv_bignum.h
@@ -122,10 +128,11 @@ sli_SOURCES =        lcd.h lcd_lib.h wirz-sli.h wirz-sli.c report.h
 stv5730_SOURCES =    lcd.h stv5730.c stv5730.h report.h
 SureElec_SOURCES =   lcd.h lcd_lib.h SureElec.c SureElec.h report.h adv_bignum.h
 svga_SOURCES =       lcd.h svgalib_drv.c svgalib_drv.h report.h
-t6963_SOURCES =      lcd.h lcd_lib.h t6963.c t6963.h glcd_font5x8.h report.h
+t6963_SOURCES =      lcd.h lcd_lib.h t6963.c t6963.h glcd_font5x8.h report.h t6963_low.h t6963_low.c
 text_SOURCES =       lcd.h text.h text.c report.h
 tyan_SOURCES =       lcd.h lcd_lib.h tyan_lcdm.h tyan_lcdm.c report.h adv_bignum.h
 ula200_SOURCES =     lcd.h adv_bignum.h ula200.h ula200.c report.h
+vlsys_m428_SOURCES = lcd.h report.h vlsys_m428.c vlsys_m428.h
 xosd_SOURCES =       lcd.h xosdlib_drv.c xosdlib_drv.h report.h adv_bignum.h
 
 AM_CPPFLAGS = -I$(top_srcdir)

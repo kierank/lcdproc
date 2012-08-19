@@ -2,16 +2,19 @@
  * \c ftdi connection type of \c hd44780 driver for Hitachi HD44780 based LCD displays.
  *
 \verbatim
-   info for 4bit mode (ftdi_mode == 4):
+   Info for 4bit mode (ftdi_mode == 4):
    wiring example:
    FTDI chip: D0 D1 D2 D3 D4 D5 D6 D7
               |  |  |  |  |  |  |  |
-   HD44780:   D4 D5 D6 D7 EN RS RW n/c
+   HD44780:   D4 D5 D6 D7 EN RS RW BL
 
    in LCDd.conf we then need to define
-    ftdi_line_RS=0x40
-    ftdi_line_RW=0x20
     ftdi_line_EN=0x10
+    ftdi_line_RS=0x20
+    ftdi_line_RW=0x40
+    ftdi_line_backlight=0x80
+
+   RW of your display can either be connected to D6 or GND.
 \endverbatim
  */
 
@@ -81,6 +84,7 @@ hd_init_ftdi(Driver *drvthis)
     p->ftdi_line_RW = drvthis->config_get_int(drvthis->name, "ftdi_line_RW", 0, 0x02);
     p->ftdi_line_EN = drvthis->config_get_int(drvthis->name, "ftdi_line_EN", 0, 0x04);
     p->ftdi_line_backlight = drvthis->config_get_int(drvthis->name, "ftdi_line_backlight", 0, 0x08);
+    p->backlight_bit = 0;
 
     /* some foolproof check */
     if (p->ftdi_mode != 4 && p->ftdi_mode != 8) {
@@ -166,7 +170,7 @@ ftdi_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char fla
 	    exit(-1);
 	}
 
-	/* Setup RS and R/W and EN */
+	/* Setup RS and R/W and EN on second channel */
 	ch = p->ftdi_line_EN | p->backlight_bit;
 	if (flags == RS_DATA) {
 	    ch |= p->ftdi_line_RS;
@@ -178,7 +182,7 @@ ftdi_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char fla
 	    exit(-1);
 	}
 
-	/* Disable E */
+	/* Disable EN */
 	ch = 0x00 | p->backlight_bit;
 	if (flags == RS_DATA) {
 	    ch |= p->ftdi_line_RS;
@@ -194,8 +198,9 @@ ftdi_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char fla
 	unsigned char buf[4];
 	unsigned char portControl = 0;
 
+	portControl = 0x00 | p->backlight_bit;
 	if (flags == RS_DATA) {
-	    portControl = p->ftdi_line_RS;
+	    portControl |= p->ftdi_line_RS;
 	}
 
 	buf[0] = ((ch >> 4) & 0x0F) | portControl | p->ftdi_line_EN;
@@ -225,15 +230,25 @@ ftdi_HD44780_senddata(PrivateData *p, unsigned char displayID, unsigned char fla
 void
 ftdi_HD44780_backlight(PrivateData *p, unsigned char state)
 {
+    unsigned char buf[1];
+    int f;
+
+    p->backlight_bit = state ? p->ftdi_line_backlight : 0;
+    buf[0] = p->backlight_bit;
+
     if (p->ftdi_mode == 8) {
-	int f;
-
-	p->backlight_bit = state ? p->ftdi_line_backlight : 0;
-
-	f = ftdi_write_data(&p->ftdic2, &state, 1);
+	f = ftdi_write_data(&p->ftdic2, buf, 1);
 	if (f < 0) {
 	    p->hd44780_functions->drv_report(RPT_ERR, "failed to write: %d (%s). Exiting",
 				      f, ftdi_get_error_string(&p->ftdic2));
+	    exit(-1);
+	}
+    }
+    else {
+	f = ftdi_write_data(&p->ftdic, buf, 1);
+	if (f < 0) {
+	    p->hd44780_functions->drv_report(RPT_ERR, "failed to write: %d (%s). Exiting",
+				  f, ftdi_get_error_string(&p->ftdic));
 	    exit(-1);
 	}
     }

@@ -31,11 +31,11 @@
 #include "shared/report.h"
 #include "shared/sockets.h"
 
-#include "menu.h"
+#include "client.h"
 #include "menuitem.h"
+#include "menu.h"
 #include "menuscreens.h"
 #include "menu_commands.h"
-#include "client.h"
 
 /* Local functions */
 MenuEventFunc(menu_commands_handler);
@@ -144,7 +144,7 @@ menu_add_item_func(Client *c, int argc, char **argv)
 
 	/* Find menuitem type */
 	itemtype = menuitem_typename_to_type(argv[3]);
-	if (itemtype == -1) {
+	if (itemtype == MENUITEM_INVALID) {
 		sock_send_error(c->sock, "Invalid menuitem type\n");
 		return 0;
 	}

@@ -68,7 +68,7 @@ For serial RS-232 ports you can choose among these connection types:
 
   <listitem><para>
     <link linkend="hd44780-los-panel">los-panel</link>:
-    LCD on Serial panel device (<ulink url="http://www.xs4all.nl/~mlf/los/"></ulink>)
+    LCD on Serial panel device (<ulink url="http://mlf.home.xs4all.nl/los/"></ulink>)
   </para></listitem>
 
   <listitem><para>
@@ -133,6 +133,12 @@ more important. Here are the USB connection types the HD44780 driver supports:
     <link linkend="hd44780-usblcd">usblcd</link>:
     USBLCD from Adams IT Services (<ulink url="http://www.usblcd.de/"></ulink>)
   </para></listitem>
+
+  <listitem><para>
+    <link linkend="hd44780-usb4all">USB-4-all</link>:
+    Display connected to USB-4-all controller (<ulink url="http://www.sprut.de/"></ulink>)
+  </para></listitem>
+
 </itemizedlist>
 
 <para>
@@ -1872,6 +1878,39 @@ The wiring of the control lines can optionally be reconfigured,
 please look at the driver source if you really need that.
 </para>
 
+<note><para>
+The backlight line is driven high when the backlight is <literal>on</literal>.
+Therefore the standard backlight circuit (<xref linkend="hd44780-connections-backlight.circuit"/>)
+will not work. Use the following instead.
+</para></note>
+
+<figure id="hd44780-ftdi-backlight">
+<title>hd44780/ftdi: Backlight Wiring</title>
+<screen>
+<![CDATA[
+                                             O 5V
+                                             |
+                                             +--------o 15 backlight
+
+                                             +--------o 16 GND backlight
+                                             |
+                           small resistor   .-.
+                           10 - 47 ohm      | |
+                           depending on     | |
+                           display          '-'
+                                             |
+                                             |c
+                          ___            b |/
+     BL pin o------------|___|-------------|
+                          4k7              |\
+                                       BC547 |e
+                                             |
+                                            === GND
+]]>
+</screen>
+</figure>
+
+
 <para>
 Alternatively you can use a single channel FTDI FT245BM USB &lt;-&gt; parallel
 FIFO chip and use the display in its 4 bit mode.
@@ -1948,6 +1987,13 @@ FIFO chip and use the display in its 4 bit mode.
       <entry>RW</entry>
       <entry>5</entry>
     </row>
+    <row>
+      <entry>D7</entry>
+      <entry>18</entry>
+      <entry></entry>
+      <entry>BL</entry>
+      <entry>Backlight (optional)</entry>
+    </row>
   </tbody>
 </tgroup>
 </table>
@@ -1964,9 +2010,10 @@ channel FTDI FIFO chip:
 [hd44780]
 ConnectionType=ftdi
 ftdi_mode=4
-ftdi_line_RS=0x40
-ftdi_line_RW=0x20
 ftdi_line_EN=0x10
+ftdi_line_RS=0x20
+ftdi_line_RW=0x40
+ftdi_line_backlight=0x80
 ]]>
 </screen>
 </example>
@@ -2004,8 +2051,28 @@ module <filename>ftdi_sio.ko</filename> that maps the USB port to a serial port
 <sect3 id="hd44780-los-panel">
 <title>LCD on Serial panel device "los-panel"</title>
 
+<para>The LoS-Panel is a DIY device built using an Atmel ATtiny2313 and
+supports the following features:
+<itemizedlist>
+  <listitem><para>Drives displays with one controller.</para></listitem>
+  <listitem><para>Switchable backlight.</para></listitem>
+  <listitem><para>One 4x4 matrix keypad and 4 direct keys.</para></listitem>
+</itemizedlist>
+</para>
+
+<note>
+  <para>
+    The direct keys are reported as a fifth column of a matrix keypad to LCDd.
+  </para>
+  <para>
+    Column and rows are reported reverse (column 1 / row 1 is in the lower
+    right corner) to LCDd which expects (1/1) to be the upper left corner.
+    You have to take this into account when configuring keys.
+  </para>
+</note>
+
 <para>
-See <ulink url="http://www.xs4all.nl/~mlf/los/"></ulink>
+See <ulink url="http://mlf.home.xs4all.nl/los/"></ulink>
 for more information on this device.
 </para>
 
@@ -2073,12 +2140,13 @@ The default is <filename>/dev/lcd</filename>.
 It does not support a keypad nor backlight switching.
 </para>
 
+<note>
 <para>
-For more information see the
-<ulink url="http://dalewheat.com/pdf/PIC-an-LCD.pdf">PIC-an-LCD User Manual</ulink>
-by Dale Wheat.
+As of 2012 these devices are not sold anymore. Search the Internet Archive for
+a copy of <ulink url="http://dalewheat.com/pdf/PIC-an-LCD.pdf" /> if you need
+the manual.
 </para>
-
+</note>
 </sect3>
 
 
@@ -2654,6 +2722,237 @@ lcdproc 0.4.5 to support existing users.
 </note>
 </sect3>
 
+<sect3 id="hd44780-usb4all">
+<title>USB-4-all controller</title>
+
+<para>
+The USB-4-all controller board from Sprut (<ulink url="http://www.sprut.de/electronic/pic/projekte/usb4all/usb4all.htm"></ulink>)
+is a small interface board which allows you to connect different hardware to the USB.
+The subdriver for LCDproc supports dual HD44780 displays and a 4x4 keypad as well as
+software adjustable contrast and brightness (backlight).
+</para>
+
+<table id="hd44780-usb4all-display.mapping">
+<title>HD44780: USB-4-all - Display connection</title>
+<tgroup cols="4" align="left">
+<colspec colname="ctrl1" align="center"/>
+<colspec colname="ctrl2" align="center"/>
+<colspec colname="lcd1" align="center"/>
+<colspec colname="lcd2" align="center"/>
+  <thead>
+    <row>
+      <entry namest="ctrl1" nameend="ctrl2" align="center">USB-4-all</entry>
+      <entry align="center">LCD1</entry>
+      <entry align="center">LCD2</entry>
+    </row>
+    <row>
+      <entry>name</entry>
+      <entry>pin</entry>
+      <entry>name</entry>
+      <entry>name</entry>
+    </row>
+  </thead>
+  <tbody>
+    <row>
+      <entry>RB7</entry>
+      <entry>28</entry>
+      <entry>D7</entry>
+      <entry>D7</entry>
+    </row>
+    <row>
+      <entry>RB6</entry>
+      <entry>27</entry>
+      <entry>D6</entry>
+      <entry>D6</entry>
+    </row>
+    <row>
+      <entry>RB5</entry>
+      <entry>26</entry>
+      <entry>D5</entry>
+      <entry>D5</entry>
+    </row>
+    <row>
+      <entry>RB4</entry>
+      <entry>25</entry>
+      <entry>D4</entry>
+      <entry>D4</entry>
+    </row>
+    <row>
+      <entry>RB3</entry>
+      <entry>24</entry>
+      <entry>R/W</entry>
+      <entry>R/W</entry>
+    </row>
+    <row>
+      <entry>RB2</entry>
+      <entry>23</entry>
+      <entry>RS</entry>
+      <entry>RS</entry>
+    </row>
+    <row>
+      <entry>RB0</entry>
+      <entry>21</entry>
+      <entry>EN</entry>
+      <entry> </entry>
+    </row>
+    <row>
+      <entry>RC0</entry>
+      <entry>11</entry>
+      <entry> </entry>
+      <entry>EN</entry>
+    </row>
+  </tbody>
+</tgroup>
+</table>
+
+<table id="hd44780-usb4all-keypad.mapping">
+<title>HD44780: USB-4-all - Keypad connection</title>
+<tgroup cols="3" align="left">
+<colspec colname="ctrl1" align="center"/>
+<colspec colname="ctrl2" align="center"/>
+<colspec colname="keypad" align="center"/>
+  <thead>
+    <row>
+      <entry namest="ctrl1" nameend="ctrl2" align="center">USB-4-all</entry>
+      <entry align="center">keypad</entry>
+    </row>
+    <row>
+      <entry>name</entry>
+      <entry>pin</entry>
+      <entry>name</entry>
+    </row>
+  </thead>
+  <tbody>
+    <row>
+      <entry>RA0</entry>
+      <entry>2</entry>
+      <entry>X1</entry>
+    </row>
+    <row>
+      <entry>RA1</entry>
+      <entry>3</entry>
+      <entry>X2</entry>
+    </row>
+    <row>
+      <entry>RA2</entry>
+      <entry>4</entry>
+      <entry>X3</entry>
+    </row>
+    <row>
+      <entry>RA3</entry>
+      <entry>5</entry>
+      <entry>X4</entry>
+    </row>
+    <row>
+      <entry>RA4</entry>
+      <entry>6</entry>
+      <entry>Y1</entry>
+    </row>
+    <row>
+      <entry>RA5</entry>
+      <entry>7</entry>
+      <entry>Y2</entry>
+    </row>
+    <row>
+      <entry>RC6</entry>
+      <entry>17</entry>
+      <entry>Y3</entry>
+    </row>
+    <row>
+      <entry>RC7</entry>
+      <entry>18</entry>
+      <entry>Y4</entry>
+    </row>
+  </tbody>
+</tgroup>
+</table>
+
+<table id="hd44780-usb4all-analog.mapping">
+<title>HD44780: USB-4-all - Brightness and contrast connection</title>
+<tgroup cols="3" align="left">
+<colspec colname="ctrl1" align="center"/>
+<colspec colname="ctrl2" align="center"/>
+<colspec colname="analog" align="center"/>
+  <thead>
+    <row>
+      <entry namest="ctrl1" nameend="ctrl2" align="center">USB-4-all</entry>
+      <entry align="center">Desc</entry>
+    </row>
+    <row>
+      <entry>name</entry>
+      <entry>pin</entry>
+      <entry> </entry>
+    </row>
+  </thead>
+  <tbody>
+    <row>
+      <entry>RC1</entry>
+      <entry>12</entry>
+      <entry>brightness</entry>
+    </row>
+    <row>
+      <entry>RC2</entry>
+      <entry>13</entry>
+      <entry>contrast</entry>
+    </row>
+  </tbody>
+</tgroup>
+</table>
+
+
+<figure id="hd44780-usb4all-brightness.block-diagram">
+<title>HD44780: USB-4-all brightness control</title>
+<screen>
+<![CDATA[
+                          o 5V (PIC Pin 20)
+                          |
+                          |e
+               ___    b |/
+   RC1 o------|___|-----|    pnp
+               10k      |\
+                          |c
+                          |
+                          -
+                         | | 10R
+                         | |
+                          -
+                          |
+                          +---> LCD 15 (+ Backlight)
+
+                          +---> LCD 16 (- Backlight)
+                          |
+                         === GND
+]]>
+</screen>
+</figure>
+
+<figure id="hd44780-usb4all-contrast.block-diagram">
+<title>HD44780: USB-4-all contrast control</title>
+<screen>
+<![CDATA[
+                           o 5V (PIC Pin 20)
+                           |
+                           -
+                          | |4,7k
+                          | |
+                           -
+                           |     ____
+                           +----|____|-----+----> LCD 3 (Contrast)
+                           |c    680R      |
+               ___     b |/                |+
+   RC2 o------|___|------|  npn           --- 10uF
+               22k       |\               ---
+                           |e              |
+                           |               |
+                           |               |
+                          ===             === GND
+]]>
+</screen>
+</figure>
+
+</sect3>
+
+
 </sect2>
 
 
@@ -2721,6 +3020,7 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
       <parameter><literal>pertelian</literal></parameter> |
       <parameter><literal>bwctusb</literal></parameter> |
       <parameter><literal>lcd2usb</literal></parameter> |
+      <parameter><literal>usb4all</literal></parameter> |
       <parameter><literal>lis2</literal></parameter> |
       <parameter><literal>mplay</literal></parameter> |
       <parameter><literal>i2c</literal></parameter> |
@@ -2769,7 +3069,7 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
         </row>
         <row>
           <entry><literal><link linkend="hd44780-los-panel">los-panel</link></literal></entry>
-          <entry>LCD on Serial panel device "los-panel" (<ulink url="http://www.xs4all.nl/~mlf/los/"></ulink>)</entry>
+          <entry>LCD on Serial panel device "los-panel" (<ulink url="http://mlf.home.xs4all.nl/los/"></ulink>)</entry>
         </row>
         <row>
           <entry><literal><link linkend="hd44780-vdr-lcd">vdr-lcd</link></literal></entry>
@@ -2793,8 +3093,12 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
           <entry>Till Harbaum's LCD2USB (<ulink url="http://www.harbaum.org/till/lcd2usb/"></ulink>)</entry>
         </row>
         <row>
+          <entry><literal><link linkend="hd44780-usb4all">USB-4-all</link></literal></entry>
+          <entry>The USB-4-all controller board from Sprut (<ulink url="http://www.sprut.de/electronic/pic/projekte/usb4all/usb4all.htm"></ulink>)</entry>
+        </row>
+        <row>
           <entry><literal><link linkend="hd44780-usbtiny">usbtiny</link></literal></entry>
-          <entry> Dick Streefland's USBtiny (<ulink url="http://www.xs4all.nl/~dicks/avr/usbtiny/"></ulink>)</entry>
+          <entry>Dick Streefland's USBtiny (<ulink url="http://www.xs4all.nl/~dicks/avr/usbtiny/"></ulink>)</entry>
         </row>
         <row>
           <entry><literal><link linkend="hd44780-lis2">lis2</link></literal></entry>
@@ -2958,7 +3262,7 @@ This can be done by specifying <option>--enable-drivers=all</option> or by inclu
   <listitem><para>
     Set the initial off-brightness, i.e. the brightness when the backlight is off,
     for the <code>lcd2usb</code> connection type.
-    The ilegal range is <literal>0</literal> - <literal>1000</literal>.
+    The legal range is <literal>0</literal> - <literal>1000</literal>.
     If not given, it defaults to <literal>300</literal>.
   </para></listitem>
 </varlistentry>

@@ -1,7 +1,5 @@
 #!/usr/bin/perl -w
 
-# $Id: lcdmetar.pl,v 1.9.2.3 2010/12/27 13:32:56 mmdolze Exp $
-
 # Following is the POD documentation, type perldoc lcdmetar.pl to read it.
 =pod
 

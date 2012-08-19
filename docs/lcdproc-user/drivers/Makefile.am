@@ -1,7 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
 EXTRA_DIST =	bayrad.docbook \
-		CFontz633.docbook \
 		CFontz.docbook \
 		CFontzPacket.docbook \
 		curses.docbook \
@@ -9,9 +8,11 @@ EXTRA_DIST =	bayrad.docbook \
 		ea65.docbook \
 		eyeboxone.docbook \
 		g15.docbook \
+		glcd.docbook \
 		glcdlib.docbook \
 		glk.docbook \
 		hd44780.docbook \
+		i2500vfd.docbook \
 		icp_a106.docbook \
 		imon.docbook \
 		imonlcd.docbook \
@@ -34,6 +35,7 @@ EXTRA_DIST =	bayrad.docbook \
 		picolcd.docbook \
 		ppttrouble.docbook \
 		pylcd.docbook \
+		sdeclcd.docbook \
 		sed1330.docbook \
 		sed1520.docbook \
 		serialPOS.docbook \
@@ -47,7 +49,7 @@ EXTRA_DIST =	bayrad.docbook \
 		text.docbook \
 		tyan.docbook \
 		ula200.docbook \
-		xosd.docbook \
-		i2500vfd.docbook
+		vlsys_m428.docbook \
+		xosd.docbook
 
 ## EOF

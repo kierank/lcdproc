@@ -16,13 +16,13 @@
 
   <!ENTITY bayrad SYSTEM "drivers/bayrad.docbook">
   <!ENTITY CFontz SYSTEM "drivers/CFontz.docbook">
-  <!ENTITY CFontz633 SYSTEM "drivers/CFontz633.docbook">
   <!ENTITY CFontzPacket SYSTEM "drivers/CFontzPacket.docbook">
   <!ENTITY curses SYSTEM "drivers/curses.docbook">
   <!ENTITY CwLnx SYSTEM "drivers/CwLnx.docbook">
   <!ENTITY ea65 SYSTEM "drivers/ea65.docbook">
   <!ENTITY EyeboxOne SYSTEM "drivers/eyeboxone.docbook">
   <!ENTITY g15 SYSTEM "drivers/g15.docbook">
+  <!ENTITY glcd SYSTEM "drivers/glcd.docbook">
   <!ENTITY glcdlib SYSTEM "drivers/glcdlib.docbook">
   <!ENTITY glk SYSTEM "drivers/glk.docbook">
   <!ENTITY hd44780 SYSTEM "drivers/hd44780.docbook">
@@ -48,6 +48,7 @@
   <!ENTITY NoritakeVFD SYSTEM "drivers/NoritakeVFD.docbook">
   <!ENTITY picolcd SYSTEM "drivers/picolcd.docbook">
   <!ENTITY pylcd SYSTEM "drivers/pylcd.docbook">
+  <!ENTITY sdeclcd SYSTEM "drivers/sdeclcd.docbook">
   <!ENTITY sed1330 SYSTEM "drivers/sed1330.docbook">
   <!ENTITY sed1520 SYSTEM "drivers/sed1520.docbook">
   <!ENTITY serialPOS SYSTEM "drivers/serialPOS.docbook">
@@ -60,6 +61,7 @@
   <!ENTITY t6963 SYSTEM "drivers/t6963.docbook">
   <!ENTITY text SYSTEM "drivers/text.docbook">
   <!ENTITY tyan SYSTEM "drivers/tyan.docbook">
+  <!ENTITY vlsys_m428 SYSTEM "drivers/vlsys_m428.docbook">
   <!ENTITY ula200 SYSTEM "drivers/ula200.docbook">
   <!ENTITY xosd SYSTEM "drivers/xosd.docbook">
 
