@@ -1,7 +1,5 @@
 #!/usr/bin/perl -w
 
-# $Id: lcdident.pl,v 1.2 2010/10/30 18:04:21 mmdolze Exp $
-#
 # Copyright (c) 2008, Ethan Dicks <ethan.dicks@gmail.com>
 #
 # This file is free software; you can redistribute it and/or modify
