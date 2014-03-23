@@ -53,6 +53,10 @@
 #define HD44780_CT_USBLCD		19
 #define HD44780_CT_USBTINY		20
 #define HD44780_CT_USB4ALL		21
+#define HD44780_CT_RASPBERRYPI		22
+#define HD44780_CT_PIPLATE		23
+#define HD44780_CT_SPI			24
+#define HD44780_CT_PIFACECAD		25
 /**@}*/
 
 /** \name Symbolic names for interface types
@@ -63,6 +67,7 @@
 #define IF_TYPE_USB		3
 #define IF_TYPE_I2C		4
 #define IF_TYPE_TCP		5
+#define IF_TYPE_SPI		6
 /**@}*/
 
 /** \name Symbolic default values
@@ -104,7 +109,7 @@ typedef struct ConnectionMapping {
 	int if_type;
 	/** Pointer to connection type's initialization function */
 	int (*init_fn) (Driver *drvthis);
-}  ConnectionMapping;
+} ConnectionMapping;
 
 
 /**
@@ -152,6 +157,9 @@ typedef struct hd44780_private_data {
 
 #ifdef WITH_ETHLCD
 	int sock;		/**< socket for TCP devices */
+#endif
+#ifdef WITH_RASPBERRYPI
+	struct rpi_gpio_map *rpi_gpio;	/**< GPIO pin mapping for Raspberry Pi */
 #endif
 
 	int charmap;		/**< index of currently used charmap */

@@ -8,21 +8,21 @@ AC_ARG_ENABLE(drivers,
 	[  --enable-drivers=<list> compile drivers for LCDs in <list>,]
 	[                  which is a comma-separated list of drivers.]
 	[                  Possible drivers are:]
-	[                    bayrad,CFontz,CFontzPacket,curses,CwLnx,]
-	[                    ea65,EyeboxOne,g15,glcd,glcdlib,glk,hd44780,i2500vfd,]
+	[                    bayrad,CFontz,CFontzPacket,curses,CwLnx,ea65,]
+	[                    EyeboxOne,g15,glcd,glcdlib,glk,hd44780,i2500vfd,]
 	[                    icp_a106,imon,imonlcd,IOWarrior,irman,irtrans,]
 	[                    joy,lb216,lcdm001,lcterm,lirc,lis,MD8800,mdm166a,]
 	[                    ms6931,mtc_s16209x,MtxOrb,mx5000,NoritakeVFD,]
-	[                    picolcd,pyramid,sdeclcd,sed1330,sed1520,serialPOS,]
-	[                    serialVFD,shuttleVFD,sli,stv5730,SureElec,svga,]
-	[                    t6963,text,tyan,ula200,vlsys_m428,xosd]
+	[                    picolcd,pyramid,rawserial,sdeclcd,sed1330,sed1520,]
+	[                    serialPOS,serialVFD,shuttleVFD,sli,stv5730,SureElec,]
+	[                    svga,t6963,text,tyan,ula200,vlsys_m428,xosd]
 	[                    ]
 	[                  'all' compiles all drivers;]
 	[                  'all,!xxx,!yyy' de-selects previously selected drivers],
 	drivers="$enableval",
 	drivers=[bayrad,CFontz,CFontzPacket,curses,CwLnx,glk,lb216,lcdm001,MtxOrb,pyramid,text])
 
-allDrivers=[bayrad,CFontz,CFontzPacket,curses,CwLnx,ea65,EyeboxOne,g15,glcd,glcdlib,glk,hd44780,i2500vfd,icp_a106,imon,imonlcd,IOWarrior,irman,irtrans,joy,lb216,lcdm001,lcterm,lirc,lis,MD8800,mdm166a,ms6931,mtc_s16209x,MtxOrb,mx5000,NoritakeVFD,picolcd,pyramid,sdeclcd,sed1330,sed1520,serialPOS,serialVFD,shuttleVFD,sli,stv5730,SureElec,svga,t6963,text,tyan,ula200,vlsys_m428,xosd]
+allDrivers=[bayrad,CFontz,CFontzPacket,curses,CwLnx,ea65,EyeboxOne,g15,glcd,glcdlib,glk,hd44780,i2500vfd,icp_a106,imon,imonlcd,IOWarrior,irman,irtrans,joy,lb216,lcdm001,lcterm,lirc,lis,MD8800,mdm166a,ms6931,mtc_s16209x,MtxOrb,mx5000,NoritakeVFD,picolcd,pyramid,sdeclcd,sed1330,sed1520,serialPOS,serialVFD,shuttleVFD,sli,stv5730,SureElec,svga,t6963,text,tyan,ula200,vlsys_m428,xosd,rawserial]
 if test "$debug" = yes; then
 	allDrivers=["${allDrivers},debug"]
 fi
@@ -168,13 +168,13 @@ dnl			else
 		glcd)
 			GLCD_DRIVERS=""
 			if test "$ac_cv_port_have_lpt" = yes ; then
-				GLCD_DRIVERS="$GLCD_DRIVERS glcd-t6963.o t6963_low.o"
+				GLCD_DRIVERS="$GLCD_DRIVERS glcd-glcd-t6963.o t6963_low.o"
 			fi
 			if test "$enable_libpng" = yes ; then
 				GLCD_DRIVERS="$GLCD_DRIVERS glcd-glcd-png.o"
 			fi
 			if test "$enable_libusb" = yes ; then
-				GLCD_DRIVERS="$GLCD_DRIVERS glcd-glcd-glcd2usb.o"
+				GLCD_DRIVERS="$GLCD_DRIVERS glcd-glcd-glcd2usb.o glcd-glcd-picolcdgfx.o"
 			fi
 			AC_CHECK_HEADERS([serdisplib/serdisp.h],[
 				AC_CHECK_LIB(serdisp, serdisp_nextdisplaydescription,[
@@ -186,6 +186,9 @@ dnl			else
 				])
 			])
 			AC_SUBST(LIBSERDISP)
+			if test "$enable_libX11" = yes ; then
+				GLCD_DRIVERS="$GLCD_DRIVERS glcd-glcd-x11.o"
+			fi
 			DRIVERS="$DRIVERS glcd${SO}"
 			actdrivers=["$actdrivers glcd"]
 			;;
@@ -227,7 +230,20 @@ dnl			else
 			fi
 			if test "$x_ac_have_i2c" = yes; then
 				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-i2c.o"
+				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-piplate.o"
 			fi
+			if test "$x_ac_have_spi" = yes; then
+				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-spi.o hd44780-hd44780-pifacecad.o"
+			fi
+dnl			The hd4470-rpi driver only works on a Raspberry Pi,
+dnl			which is an ARM platform. Require people to compile on
+dnl			(or for) ARM to get it.
+			case $host in
+			arm*-*-linux*)
+				HD44780_DRIVERS="$HD44780_DRIVERS hd44780-hd44780-rpi.o"
+				AC_DEFINE([WITH_RASPBERRYPI],[1],[Define if you are using a Raspberry Pi.])
+				;;
+			esac
 			DRIVERS="$DRIVERS hd44780${SO}"
 			actdrivers=["$actdrivers hd44780"]
 			;;
@@ -376,6 +392,10 @@ dnl			else
 		NoritakeVFD)
 			DRIVERS="$DRIVERS NoritakeVFD${SO}"
 			actdrivers=["$actdrivers NoritakeVFD"]
+			;;
+		rawserial)
+			DRIVERS="$DRIVERS rawserial${SO}"
+			actdrivers=["$actdrivers rawserial"]
 			;;
 		picolcd)
 			if test "$enable_libusb" = yes ; then

@@ -130,8 +130,10 @@ glcd_init(Driver *drvthis)
 	}
 	p->framebuf.px_width = w;
 	p->framebuf.px_height = h;
+	p->framebuf.layout = FB_TYPE_LINEAR;
 	p->framebuf.bytesPerLine = (p->framebuf.px_width + 7) / 8;
-	debug(RPT_INFO, "%s: bytesPerLine (first) = %d", drvthis->name, BYTES_PER_LINE);
+	p->framebuf.size = p->framebuf.bytesPerLine * p->framebuf.px_height;
+	debug(RPT_INFO, "%s: size (first) = %d", drvthis->name, p->framebuf.size);
 
 	/* Set contrast */
 	tmp = drvthis->config_get_int(drvthis->name, "Contrast", 0, GLCD_DEFAULT_CONTRAST);
@@ -185,15 +187,23 @@ glcd_init(Driver *drvthis)
 		return -1;
 	}
 
-	/* Allocate framebuffer (re-calculate bytesPerLine before) */
-	p->framebuf.bytesPerLine = (p->framebuf.px_width + 7) / 8;
-	debug(RPT_INFO, "%s: bytesPerLine (final) = %d", drvthis->name, BYTES_PER_LINE);
-	p->framebuf.data = malloc(FB_BYTES_TOTAL);
+	/* Allocate framebuffer (re-calculate size before) */
+	if (p->framebuf.layout == FB_TYPE_LINEAR) {
+		p->framebuf.bytesPerLine = (p->framebuf.px_width + 7) / 8;
+		p->framebuf.size = p->framebuf.bytesPerLine * p->framebuf.px_height;
+	}
+	else {
+		p->framebuf.bytesPerLine = 0;
+		p->framebuf.size = (p->framebuf.px_height + 7) / 8 * p->framebuf.px_width;
+	}
+	debug(RPT_INFO, "%s: size (final) = %d", drvthis->name, p->framebuf.size);
+
+	p->framebuf.data = malloc(p->framebuf.size);
 	if (p->framebuf.data == NULL) {
 		report(RPT_ERR, "%s: unable to allocate framebuffer", drvthis->name);
 		return -1;
 	}
-	memset(p->framebuf.data, 0x00, FB_BYTES_TOTAL);
+	memset(p->framebuf.data, 0x00, p->framebuf.size);
 
 	/* Initialize renderer */
 	if (glcd_render_init(drvthis) != 0)
@@ -356,7 +366,7 @@ glcd_clear(Driver *drvthis)
 
 	debug(RPT_DEBUG, "%s()", __FUNCTION__);
 
-	memset(p->framebuf.data, 0x00, FB_BYTES_TOTAL);
+	memset(p->framebuf.data, 0x00, p->framebuf.size);
 
 }
 
@@ -564,7 +574,7 @@ glcd_get_contrast(Driver *drvthis)
 {
 	PrivateData *p = drvthis->private_data;
 
-	debug(RPT_INFO, "%s()", __FUNCTION__);
+	debug(RPT_DEBUG, "%s()", __FUNCTION__);
 
 	return p->contrast;
 }
@@ -580,7 +590,7 @@ glcd_set_contrast(Driver *drvthis, int promille)
 {
 	PrivateData *p = drvthis->private_data;
 
-	debug(RPT_INFO, "%s(%i)", __FUNCTION__, promille);
+	debug(RPT_DEBUG, "%s(%i)", __FUNCTION__, promille);
 
 	/* Check it */
 	if (promille < 0 || promille > 1000)
