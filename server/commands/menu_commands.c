@@ -187,7 +187,7 @@ menu_add_item_func(Client *c, int argc, char **argv)
 		break;
 	  case MENUITEM_ALPHA:
 		item = menuitem_create_alpha(item_id, menu_commands_handler, text, c,
-				0, 0, 10, true, false, true, "-./", "");
+				0, 0, 30, true, false, true, "-./", "");
 		break;
 	  case MENUITEM_IP:
 		item = menuitem_create_ip(item_id, menu_commands_handler, text, c,
