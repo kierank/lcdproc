@@ -707,11 +707,13 @@ MenuResult menu_process_input(Menu *menu, MenuToken token, const char *key, unsi
 				menu->data.menu.scroll--;
 			menu->data.menu.selector_pos--;
 		}
+#if 0
 		else if (menu->data.menu.selector_pos == 0) {
 			// wrap around to last menu entry
 			menu->data.menu.selector_pos = menu_visible_item_count(menu) - 1;
 			menu->data.menu.scroll = menu->data.menu.selector_pos + 2 - display_props->height;
 		}
+#endif
 		return MENURESULT_NONE;
 	  case MENUTOKEN_DOWN:
 		if (menu->data.menu.selector_pos < menu_visible_item_count(menu) - 1) {
