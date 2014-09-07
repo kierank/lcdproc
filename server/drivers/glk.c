@@ -202,6 +202,10 @@ glk_init(Driver *drvthis)
         p->model = "GLK12232-25-SM";
 	p->width = 20; p->height = 4;
 	p->gpo_count = 2;
+      case 0x27 :
+        p->model = "GLK19264A-7T-1U-USB";
+	p->width = 30; p->height = 8;
+	p->gpo_count = 3;
 	break;
       default :
 	report(RPT_ERR, "%s: unrecognized module type: 0x%02X", drvthis->name, i);
@@ -524,6 +528,8 @@ glk_backlight(Driver *drvthis, int on)
 	if (on) {
 		debug(RPT_DEBUG, "Backlight ON");
 		glkputl(p->fd, GLKCommand, 0x42, 0, EOF);
+		debug(RPT_DEBUG, "Brightness 255");
+		glkputl(p->fd, GLKCommand, 0x98, 255, EOF);
 	}
 	else {
 		debug(RPT_DEBUG, "Backlight OFF");
@@ -680,7 +686,7 @@ glk_icon (Driver *drvthis, int x, int y, int icon)
 
     switch (icon) {
       case ICON_BLOCK_FILLED:
-	glk_chr(drvthis, x, y, 255);
+	glk_chr(drvthis, x, y, 61);
 	break;
       case ICON_HEART_FILLED:
 	glk_chr(drvthis, x, y, 132);
@@ -753,17 +759,24 @@ glk_get_key(Driver *drvthis)
 
   /* Remap keys according to what LCDproc expects */
   switch (c) {
-    case 'V' : key = "Enter";
+    case 'V' :
+    case 'E' : key = "Enter";
 	       break;
-    case 'P' : key = "Left";
+    case 'P' :
+    case 'D' : key = "Left";
 	       break;
-    case 'Q' : key = "Right";
+    case 'Q' :
+    case 'C' : key = "Right";
 	       break;
-    case 'L' : key = "Escape";
+    case 'L' :
+    case 'A' :
+    case 'G' : key = "Escape";
 	       break;
-    case 'U' : key = "Up";
+    case 'U' :
+    case 'B' : key = "Up";
 	       break;
-    case 'K' : key = "Down";
+    case 'K' :
+    case 'H' : key = "Down";
 	       break;
     default :  break;
 
