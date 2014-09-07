@@ -496,7 +496,7 @@ menuscreen_create_menu(void)
 		return;
 	}
 
-	options_menu = menu_create("options", NULL, "Options", NULL);
+	options_menu = menu_create("options", NULL, "LCD Options", NULL);
 	if (options_menu == NULL) {
 		report(RPT_ERR, "%s: Cannot create options menu", __FUNCTION__);
 		return;
