@@ -205,7 +205,7 @@ glk_init(Driver *drvthis)
       case 0x27 :
         p->model = "GLK19264A-7T-1U-USB";
 	p->width = 30; p->height = 8;
-	p->gpo_count = 3;
+	p->gpo_count = 6;
 	break;
       default :
 	report(RPT_ERR, "%s: unrecognized module type: 0x%02X", drvthis->name, i);
