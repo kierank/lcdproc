@@ -453,7 +453,7 @@ glk_chr(Driver *drvthis, int x, int y, char c)
 	if (p->fontselected != 1) {
 		debug(RPT_DEBUG, "Switching to font 1");
 		/* Select font 2 */
-		glkputl(p->fd, GLKCommand, 0x31, 1, EOF);
+		glkputl(p->fd, GLKCommand, 0x31, 1, 0, EOF);
 		p->fontselected = 1;
 		/* Set font metrics */
 		glkputl(p->fd, GLKCommand, 0x32, 1, 0, 0, 0, 32, EOF);
