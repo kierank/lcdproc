@@ -529,7 +529,7 @@ glk_backlight(Driver *drvthis, int on)
 		debug(RPT_DEBUG, "Backlight ON");
 		glkputl(p->fd, GLKCommand, 0x42, 0, EOF);
 		debug(RPT_DEBUG, "Brightness 255");
-		glkputl(p->fd, GLKCommand, 0x98, 255, EOF);
+		glkputl(p->fd, GLKCommand, 0x99, 255, EOF);
 	}
 	else {
 		debug(RPT_DEBUG, "Backlight OFF");
