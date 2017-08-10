@@ -45,6 +45,7 @@
 #define GLK_DEFAULT_CONTRAST	560
 #define GLK_DEFAULT_CELLWIDTH	6
 #define GLK_DEFAULT_CELLHEIGHT	8
+#define GLK_CONTRAST_STORE "/etc/obe_lcd_contrast"
 
 
 /** private data for the \c glk driver */
@@ -93,6 +94,9 @@ glk_init(Driver *drvthis)
 {
   PrivateData *p;
   int i;
+  FILE *fp;
+  char tmp[5];
+  ssize_t size;
 
   /* Allocate and store private data */
   p = (PrivateData *) calloc(1, sizeof(PrivateData));
@@ -145,6 +149,22 @@ glk_init(Driver *drvthis)
   }
 
   /* End of config file parsing */
+
+  /* Read any stored contrast */
+  fp = fopen(GLK_CONTRAST_STORE, "r");
+  if (fp) {
+    fseek(fp, 0, SEEK_END);
+    size = ftell(fp);
+    fseek(fp, 0, SEEK_SET);
+    if (size <= sizeof(tmp) - 1) {
+      fread(tmp, 1, size, fp);
+      tmp[size] = '\0';
+      p->contrast = atoi(tmp);
+    }
+
+    fclose(fp);
+  }
+
 
   /* open device */
   p->fd = glkopen(p->device, p->speed);
@@ -503,6 +523,8 @@ MODULE_EXPORT void
 glk_set_contrast(Driver *drvthis, int promille)
 {
 	PrivateData *p = drvthis->private_data;
+  FILE *fp;
+  char tmp[5];
 
 	if ((promille < 0) || (promille > 1000))
 		return;
@@ -512,6 +534,14 @@ glk_set_contrast(Driver *drvthis, int promille)
 	/* Do it: map logical [0, 1000] -> physical [0, 255] for the hardware */
 	debug(RPT_DEBUG, "Contrast: %d", p->contrast);
 	glkputl(p->fd, GLKCommand, 0x50, (int) ((long) promille * 255 / 1000), EOF);
+
+  fp = fopen(GLK_CONTRAST_STORE, "w");
+  if (!fp)
+    return;
+
+  snprintf(tmp, sizeof(tmp), "%u", p->contrast);
+  fwrite(tmp, strlen(tmp), 1, fp);
+  fclose(fp);
 }
 
 
