@@ -1,3 +1,9 @@
+lcdproc (0.5.5-2-obe2) unstable; urgency=low
+
+  * Allow saving of contrast
+
+ -- Kieran Kunhya <kierank@obe.tv> Fri, 11 Aug 2017 19:00:59 +0100
+
 lcdproc (0.5.5-2-obe1) unstable; urgency=low
 
   * Fix corruption on some displays
